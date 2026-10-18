@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>COLOR WAR - 云端实时连锁对决</title>
+    <style>
+        :root {
+            --bg-dark: #080c14;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --dark-navy: #1447a0;
+            --accent-cyan: #00f2fe;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 50% 30%, #152542 0%, #050811 100%);
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .glass-btn.primary {
+            background: linear-gradient(135deg, #1e52ba, #0088ff);
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 136, 255, 0.4);
+        }
+
+        .view {
+            display: none;
+            width: 100%;
+            max-width: 460px;
+            padding: 20px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        .game-title {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(to bottom, #ffffff, #a0c4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .tab-switcher {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 25px;
+            padding: 4px;
+            margin-bottom: 16px;
+            width: 220px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .setting-card {
+            width: 100%;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-cyan);
+        }
+
+        input[type="text"] {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        select {
+            background: rgba(10, 20, 40, 0.8);
+            color: white;
+            border: 1px solid var(--glass-border);
+            padding: 6px 8px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .player-list {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border: 1.5px solid rgba(255,255,255,0.4);
+        }
+
+        .game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .turn-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .board-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .side-players {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 50px;
+        }
+
+        .board {
+            position: relative;
+            padding: 6px;
+            display: grid;
+            gap: 3px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .cell {
+            position: relative;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .piece {
+            position: relative;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .dot-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .dot {
+            width: 18%;
+            height: 18%;
+            background: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .wheel-modal {
+            width: 320px;
+            padding: 24px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="view-menu" class="view active">
+        <div class="game-title">COLOR WAR</div>
+        
+        <div class="tab-switcher">
+            <div id="tab-local" class="tab-btn active">单机模式</div>
+            <div id="tab-online" class="tab-btn">云端多人联机</div>
+        </div>
+
+        <div id="panel-local" style="width: 100%;">
+            <div class="setting-card glass-panel">
+                <div class="setting-row">
+                    <span>网格尺寸: <b id="board-size-label">8 × 8</b></span>
+                </div>
+                <input type="range" id="board-size-slider" min="5" max="12" value="8">
+                
+                <div class="setting-row" style="margin-top: 10px;">
+                    <label for="random-first-toggle">随机挑选先手</label>
+                    <input type="checkbox" id="random-first-toggle" checked>
+                </div>
+            </div>
+
+            <div class="player-list glass-panel" id="local-player-list"></div>
+
+            <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始单机对决</button>
+        </div>
+
+        <div id="panel-online" style="width: 100%; display: none;">
+            <div class="setting-card glass-panel">
+                <div class="setting-row">
+                    <span>我的玩家昵称:</span>
+                    <input type="text" id="online-nickname" value="玩家" style="width: 140px;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <button id="btn-create-room" class="glass-btn primary" style="flex:1;">创建联机房间</button>
+            </div>
+
+            <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
+                <p id="room-link-text" style="font-size: 0.8rem; color: var(--accent-cyan); word-break: break-all; margin-bottom: 10px;"></p>
+                <p id="room-members-text" style="font-size: 0.85rem; margin-bottom: 12px;"></p>
+                <button id="host-start-online-btn" class="glass-btn primary" style="width: 100%; display: none;">全员开始对决</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-game" class="view">
+        <div class="game-header">
+            <button id="btn-exit-game" class="glass-btn">❮ 菜单</button>
+            <div id="current-turn-badge" class="turn-badge glass-panel">
+                <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
+                <span id="turn-text">玩家 1 回合</span>
+            </div>
+            <button id="btn-exit-game-2" class="glass-btn">⚙</button>
+        </div>
+
+        <div class="board-container">
+            <div class="side-players" id="left-side-players"></div>
+            <div id="game-board" class="board glass-panel"></div>
+            <div class="side-players" id="right-side-players"></div>
+        </div>
+    </div>
+
+    <div id="winner-overlay" class="overlay">
+        <div class="wheel-modal glass-panel">
+            <h2 id="winner-text" style="margin-bottom: 15px; color: #ffd700;">玩家 1 获得胜利！</h2>
+            <button id="btn-return-menu" class="glass-btn primary" style="width: 100%;">返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- Firebase v10 JS SDK 模块化导入 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
+        import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+
+        // 你提供的 Firebase 对应配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUJKB2ov62ulrlvTZxA1_MInCGyz5U2iE",
+            authDomain: "color-war-web.firebaseapp.com",
+            projectId: "color-war-web",
+            storageBucket: "color-war-web.firebasestorage.app",
+            messagingSenderId: "953132932855",
+            appId: "1:953132932855:web:64331e1561776780667df2",
+            measurementId: "G-RPCH3QW57N"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getDatabase(app);
+
+        // 基础数据与逻辑变量
+        const MAX_PLAYERS = 8;
+        const DEFAULT_COLORS = ['#FF453A', '#0A84FF', '#30D158', '#FF9F0A', '#BF5AF2', '#64D2FF', '#FFD60A', '#FF70A6'];
+        const DEFAULT_NAMES = ["玩家1", "玩家2", "玩家3", "玩家4", "玩家5", "玩家6", "玩家7", "玩家8"];
+
+        let boardSize = 8;
+        let playerNames = [...DEFAULT_NAMES];
+        let playerColors = [...DEFAULT_COLORS];
+        let playerTypes = ["human", "mathNightmare", "enhancedNightmare", "disabled", "disabled", "disabled", "disabled", "disabled"];
+
+        let board = [];
+        let currentPlayer = 0;
+        let hasEntered = Array(MAX_PLAYERS).fill(false);
+        let isProcessingCascade = false;
+        let winnerIndex = null;
+
+        let currentRoomId = null;
+        let myPlayerIndex = 0;
+        let isHost = false;
+
+        // 初始化绑定
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlayerList();
+            checkUrlRoomJoin();
+
+            document.getElementById('tab-local').onclick = () => switchModeTab('local');
+            document.getElementById('tab-online').onclick = () => switchModeTab('online');
+            document.getElementById('board-size-slider').oninput = (e) => {
+                boardSize = parseInt(e.target.value);
+                document.getElementById('board-size-label').innerText = `${boardSize} × ${boardSize}`;
+            };
+            document.getElementById('btn-start-local').onclick = startLocalGame;
+            document.getElementById('btn-create-room').onclick = createCloudRoom;
+            document.getElementById('host-start-online-btn').onclick = startOnlineGame;
+            document.getElementById('btn-exit-game').onclick = exitToMenu;
+            document.getElementById('btn-exit-game-2').onclick = exitToMenu;
+            document.getElementById('btn-return-menu').onclick = exitToMenu;
+        });
+
+        function switchModeTab(mode) {
+            document.getElementById('tab-local').classList.toggle('active', mode === 'local');
+            document.getElementById('tab-online').classList.toggle('active', mode === 'online');
+            document.getElementById('panel-local').style.display = mode === 'local' ? 'block' : 'none';
+            document.getElementById('panel-online').style.display = mode === 'online' ? 'block' : 'none';
+        }
+
+        function renderPlayerList() {
+            const container = document.getElementById('local-player-list');
+            container.innerHTML = '';
+            for (let i = 0; i < MAX_PLAYERS; i++) {
+                const row = document.createElement('div');
+                row.className = 'player-row';
+                row.innerHTML = `
+                    <div class="color-dot" style="background:${playerColors[i]}"></div>
+                    <input type="text" value="${playerNames[i]}" id="p-name-${i}" style="width: 80px; font-size: 0.8rem;">
+                    <select id="p-type-${i}" style="font-size: 0.75rem;">
+                        <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
+                        <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                        <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
+                    </select>
+                `;
+                container.appendChild(row);
+
+                document.getElementById(`p-name-${i}`).onchange = (e) => playerNames[i] = e.target.value;
+                document.getElementById(`p-type-${i}`).onchange = (e) => playerTypes[i] = e.target.value;
+            }
+        }
+
+        function getActivePlayers() {
+            let active = [];
+            for (let i = 0; i < MAX_PLAYERS; i++) {
+                if (playerTypes[i] !== 'disabled') active.push(i);
+            }
+            return active;
+        }
+
+        // 云端逻辑
+        function createCloudRoom() {
+            isHost = true;
+            myPlayerIndex = 0;
+            currentRoomId = 'room-' + Math.floor(100000 + Math.random() * 900000);
+            const nickname = document.getElementById('online-nickname').value || "房主";
+
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+
+            set(ref(db, `rooms/${currentRoomId}`), {
+                status: 'waiting',
+                boardSize: boardSize,
+                players: [{ name: nickname, isHost: true }]
+            });
+
+            document.getElementById('cloud-room-card').style.display = 'block';
+            document.getElementById('room-link-text').innerText = `分享链接给好友: ${shareUrl}`;
+            document.getElementById('host-start-online-btn').style.display = 'block';
+
+            onValue(ref(db, `rooms/${currentRoomId}/players`), (snapshot) => {
+                const players = snapshot.val() || [];
+                document.getElementById('room-members-text').innerText = `已加入 ${players.length} 名玩家`;
+            });
+        }
+
+        async function checkUrlRoomJoin() {
+            const params = new URLSearchParams(window.location.search);
+            const roomId = params.get('room');
+            if (roomId) {
+                switchModeTab('online');
+                currentRoomId = roomId;
+                isHost = false;
+
+                const nickname = prompt("请输入你的昵称进入房间：", "玩家") || "玩家";
+
+                const snapshot = await get(ref(db, `rooms/${roomId}/players`));
+                const players = snapshot.val() || [];
+                myPlayerIndex = players.length;
+
+                players.push({ name: nickname, isHost: false });
+                await set(ref(db, `rooms/${roomId}/players`), players);
+
+                document.getElementById('cloud-room-card').style.display = 'block';
+                document.getElementById('room-link-text').innerText = `成功加入房间: ${roomId}`;
+                document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
+
+                onValue(ref(db, `rooms/${roomId}`), (snap) => {
+                    const roomData = snap.val();
+                    if (roomData && roomData.status === 'playing' && !board.length) {
+                        boardSize = roomData.boardSize;
+                        playerNames = roomData.players.map(p => p.name);
+                        initBoard(roomData.firstPlayer);
+                        listenGameMoves();
+                    }
+                });
+            }
+        }
+
+        async function startOnlineGame() {
+            if (!isHost) return;
+            const snapshot = await get(ref(db, `rooms/${currentRoomId}/players`));
+            const players = snapshot.val() || [];
+            playerNames = players.map(p => p.name);
+
+            await update(ref(db, `rooms/${currentRoomId}`), {
+                status: 'playing',
+                firstPlayer: 0
+            });
+
+            initBoard(0);
+            listenGameMoves();
+        }
+
+        function listenGameMoves() {
+            onValue(ref(db, `rooms/${currentRoomId}/lastMove`), (snap) => {
+                const move = snap.val();
+                if (move && move.player !== myPlayerIndex) {
+                    executeMove(move.r, move.c, move.player);
+                }
+            });
+        }
+
+        function broadcastMove(r, c, player) {
+            if (currentRoomId) {
+                set(ref(db, `rooms/${currentRoomId}/lastMove`), { r, c, player, time: Date.now() });
+            }
+        }
+
+        // 核心游戏与对弈
+        function startLocalGame() {
+            const active = getActivePlayers();
+            initBoard(active[0]);
+        }
+
+        function initBoard(firstPlayer) {
+            board = Array(boardSize).fill(null).map(() => 
+                Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 }))
+            );
+            hasEntered = Array(MAX_PLAYERS).fill(false);
+            currentPlayer = firstPlayer;
+            isProcessingCascade = false;
+            winnerIndex = null;
+
+            document.getElementById('view-menu').classList.remove('active');
+            document.getElementById('view-game').classList.add('active');
+
+            renderBoardUI();
+            updateTurnHeader();
+        }
+
+        function renderBoardUI() {
+            const boardEl = document.getElementById('game-board');
+            boardEl.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+            boardEl.innerHTML = '';
+
+            const maxBoardWidth = Math.min(window.innerWidth - 120, 380);
+            const cellSize = Math.floor((maxBoardWidth - (boardSize - 1) * 3 - 12) / boardSize);
+
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    const cellData = board[r][c];
+                    const cellEl = document.createElement('div');
+                    cellEl.className = 'cell';
+                    cellEl.style.width = `${cellSize}px`;
+                    cellEl.style.height = `${cellSize}px`;
+                    cellEl.onclick = () => handleCellClick(r, c);
+
+                    if (cellData.count > 0 && cellData.owner !== null) {
+                        const piece = document.createElement('div');
+                        piece.className = 'piece';
+                        piece.style.width = '80%';
+                        piece.style.height = '80%';
+                        piece.style.background = playerColors[cellData.owner];
+
+                        const dotContainer = document.createElement('div');
+                        dotContainer.className = 'dot-container';
+                        appendDots(dotContainer, cellData.count);
+                        piece.appendChild(dotContainer);
+
+                        cellEl.appendChild(piece);
+                    }
+                    boardEl.appendChild(cellEl);
+                }
+            }
+        }
+
+        function appendDots(container, count) {
+            const c = Math.min(4, count);
+            const offsets = [[], [[0,0]], [[-30,0],[30,0]], [[0,-28],[-25,20],[25,20]], [[-25,-25],[25,-25],[-25,25],[25,25]]];
+            offsets[c].forEach(([x, y]) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.style.transform = `translate(${x}%, ${y}%)`;
+                container.appendChild(dot);
+            });
+        }
+
+        function updateTurnHeader() {
+            const dot = document.getElementById('turn-color-dot');
+            const txt = document.getElementById('turn-text');
+            dot.style.background = playerColors[currentPlayer];
+            txt.innerText = `${playerNames[currentPlayer]} 回合`;
+        }
+
+        async function handleCellClick(r, c) {
+            if (isProcessingCascade || winnerIndex !== null) return;
+            if (currentRoomId && currentPlayer !== myPlayerIndex) return;
+
+            const cell = board[r][c];
+            const ownsAny = board.some(row => row.some(cell => cell.owner === currentPlayer));
+            if (ownsAny ? (cell.owner !== currentPlayer) : (cell.owner !== null)) return;
+
+            if (currentRoomId) broadcastMove(r, c, currentPlayer);
+            await executeMove(r, c, currentPlayer);
+        }
+
+        async function executeMove(row, col, player) {
+            isProcessingCascade = true;
+            const isFirst = !hasEntered[player];
+            hasEntered[player] = true;
+
+            board[row][col].owner = player;
+            board[row][col].count += (isFirst ? 3 : 1);
+            renderBoardUI();
+
+            await new Promise(r => setTimeout(r, 200));
+
+            let wave = board[row][col].count >= 4 ? [[row, col]] : [];
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+            while (wave.length > 0) {
+                const exploding = wave;
+                wave = [];
+
+                exploding.forEach(([r, c]) => {
+                    board[r][c].count -= 4;
+                    if (board[r][c].count === 0) board[r][c].owner = null;
+                });
+
+                const changed = new Set();
+                exploding.forEach(([r, c]) => {
+                    dirs.forEach(([dr, dc]) => {
+                        const nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
+                            board[nr][nc].owner = player;
+                            board[nr][nc].count += 1;
+                            changed.add(`${nr},${nc}`);
+                        }
+                    });
+                });
+
+                renderBoardUI();
+                await new Promise(r => setTimeout(r, 180));
+
+                changed.forEach(key => {
+                    const [r, c] = key.split(',').map(Number);
+                    if (board[r][c].count >= 4) wave.push([r, c]);
+                });
+            }
+
+            isProcessingCascade = false;
+            advanceNextTurn();
+        }
+
+        function advanceNextTurn() {
+            const active = getActivePlayers();
+            let idx = active.indexOf(currentPlayer);
+            currentPlayer = active[(idx + 1) % active.length];
+            updateTurnHeader();
+        }
+
+        function exitToMenu() {
+            document.getElementById('winner-overlay').classList.remove('active');
+            document.getElementById('view-game').classList.remove('active');
+            document.getElementById('view-menu').classList.add('active');
+            currentRoomId = null;
+        }
+    </script>
+</body>
+</html>
