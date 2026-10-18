@@ -2,25 +2,24 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>COLOR WAR - 云端实时连锁对决</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>COLOR WAR - Swift 1:1 完整引擎（100% 最终无 Bug 终极稳定版）</title>
     <style>
         :root {
-            --bg-dark: #080c14;
+            --bg-dark: #050810;
+            --dark-navy: #0e244d;
             --glass-bg: rgba(255, 255, 255, 0.08);
             --glass-border: rgba(255, 255, 255, 0.15);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            --dark-navy: #1447a0;
+            --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             --accent-cyan: #00f2fe;
         }
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             user-select: none;
             -webkit-user-select: none;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
@@ -31,13 +30,15 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            background-image: radial-gradient(circle at 50% 30%, #152542 0%, #050811 100%);
+            background-image: radial-gradient(circle at 50% 20%, #102040 0%, #03050a 100%);
+            background-size: cover;
+            background-position: center;
         }
 
         .glass-panel {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             box-shadow: var(--glass-shadow);
@@ -49,41 +50,38 @@
             color: white;
             padding: 10px 18px;
             border-radius: 30px;
-            font-weight: bold;
+            font-weight: 700;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
 
-        .glass-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(-1px);
-        }
+        .glass-btn:active { transform: scale(0.96); }
 
         .glass-btn.primary {
-            background: linear-gradient(135deg, #1e52ba, #0088ff);
+            background: linear-gradient(135deg, #0e244d, #0066ff);
             border: none;
-            box-shadow: 0 4px 15px rgba(0, 136, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
         }
 
         .view {
             display: none;
             width: 100%;
-            max-width: 460px;
+            max-width: 480px;
             padding: 20px;
             flex-direction: column;
             align-items: center;
+            z-index: 10;
         }
 
-        .view.active {
-            display: flex;
-        }
+        .view.active { display: flex; }
 
         .game-title {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
             font-weight: 900;
             letter-spacing: 2px;
             background: linear-gradient(to bottom, #ffffff, #a0c4ff);
@@ -95,27 +93,27 @@
 
         .tab-switcher {
             display: flex;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.4);
             border-radius: 25px;
             padding: 4px;
             margin-bottom: 16px;
-            width: 220px;
+            width: 240px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .tab-btn {
-            flex: 1;
-            padding: 8px;
+            flex: 1; padding: 8px;
             text-align: center;
             border-radius: 20px;
             font-size: 0.85rem;
-            font-weight: bold;
+            font-weight: 700;
             cursor: pointer;
             transition: 0.3s;
             color: rgba(255, 255, 255, 0.6);
         }
 
         .tab-btn.active {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             color: white;
         }
 
@@ -131,36 +129,41 @@
             align-items: center;
             margin-bottom: 8px;
             font-size: 0.9rem;
+            font-weight: 600;
         }
 
         input[type="range"] {
             width: 100%;
             accent-color: var(--accent-cyan);
+            cursor: pointer;
         }
 
         input[type="text"] {
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             border: 1px solid var(--glass-border);
             color: white;
             padding: 6px 12px;
-            border-radius: 8px;
+            border-radius: 10px;
             outline: none;
+            font-weight: 600;
         }
 
         select {
-            background: rgba(10, 20, 40, 0.8);
+            background: rgba(10, 20, 40, 0.9);
             color: white;
             border: 1px solid var(--glass-border);
-            padding: 6px 8px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 10px;
             outline: none;
+            font-weight: 600;
         }
 
         .player-list {
             width: 100%;
-            max-height: 220px;
+            max-height: 240px;
             overflow-y: auto;
             margin-bottom: 16px;
+            padding: 8px;
         }
 
         .player-row {
@@ -170,19 +173,18 @@
             padding: 6px 10px;
             margin-bottom: 6px;
             border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .color-dot {
-            width: 24px;
-            height: 24px;
+            width: 28px; height: 28px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            border: 1.5px solid rgba(255,255,255,0.4);
+            align-items: center; justify-content: center;
+            font-size: 14px;
+            border: 1.5px solid rgba(255,255,255,0.6);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
 
         .game-header {
@@ -194,19 +196,20 @@
         }
 
         .turn-badge {
-            padding: 6px 16px;
+            padding: 6px 18px;
             border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
+            font-weight: 800;
+            font-size: 0.95rem;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
         .board-container {
+            position: relative;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
             justify-content: center;
         }
@@ -215,7 +218,42 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            width: 50px;
+            width: 52px;
+        }
+
+        .player-orb-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 1;
+        }
+
+        .player-orb-card.eliminated { opacity: 0.25; }
+        .player-orb-card.active { transform: scale(1.18); }
+
+        .orb-circle-wrap {
+            position: relative;
+            width: 44px; height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+        }
+
+        .orb-circle-bg {
+            position: absolute;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+        }
+
+        .orb-svg-ring {
+            position: absolute;
+            top: -2px; left: -2px;
+            width: 48px; height: 48px;
+            transform: rotate(-90deg);
         }
 
         .board {
@@ -223,20 +261,30 @@
             padding: 6px;
             display: grid;
             gap: 3px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 18px;
             border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1;
+            transition: opacity 0.15s ease-out;
         }
 
         .cell {
             position: relative;
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            z-index: 2;
+        }
+
+        .cell.emphasized {
+            box-shadow: 0 0 14px var(--accent-cyan);
+            border-color: var(--accent-cyan);
         }
 
         .piece {
@@ -246,63 +294,107 @@
             align-items: center;
             justify-content: center;
             border: 1.5px solid #ffffff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.5);
             transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
+        .emoji-text {
+            position: absolute;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* 解决第 4 点：调整点阵大小与比例，保持绝佳的透气空隙感 */
         .dot-container {
             position: absolute;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
             pointer-events: none;
+            z-index: 2;
         }
 
         .dot {
-            width: 18%;
-            height: 18%;
+            width: 16%; height: 16%;
             background: #ffffff;
             border-radius: 50%;
             position: absolute;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+
+        .flying-orb {
+            position: absolute;
+            border-radius: 50%;
+            border: 1.5px solid #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            pointer-events: none;
+            z-index: 1000;
+            transition: all 0.16s ease-out;
         }
 
         .overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 2000;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s;
         }
 
-        .overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .overlay.active { opacity: 1; pointer-events: auto; }
 
-        .wheel-modal {
-            width: 320px;
+        .modal-box {
+            width: 360px;
             padding: 24px;
             text-align: center;
+        }
+
+        .wheel-players {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .wheel-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: transform 0.12s;
+        }
+
+        .wheel-item.highlight { transform: scale(1.3); }
+
+        .wheel-item .dot-avatar {
+            width: 46px; height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 6px;
+            border: 2px solid rgba(255,255,255,0.8);
         }
     </style>
 </head>
 <body>
 
+    <!-- 主菜单 -->
     <div id="view-menu" class="view active">
         <div class="game-title">COLOR WAR</div>
         
         <div class="tab-switcher">
             <div id="tab-local" class="tab-btn active">单机模式</div>
-            <div id="tab-online" class="tab-btn">云端多人联机</div>
+            <div id="tab-online" class="tab-btn">云端联机</div>
         </div>
 
         <div id="panel-local" style="width: 100%;">
@@ -314,13 +406,27 @@
                 
                 <div class="setting-row" style="margin-top: 10px;">
                     <label for="random-first-toggle">随机挑选先手</label>
-                    <input type="checkbox" id="random-first-toggle" checked>
+                    <input type="checkbox" id="random-first-toggle" checked style="width:18px; height:18px;">
                 </div>
+            </div>
+
+            <div class="setting-card glass-panel">
+                <div class="setting-row">
+                    <span>🧠 AI 思考算力/深度:</span>
+                    <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
+                </div>
+                <input type="range" id="ai-level-slider" min="1" max="4" value="2">
+                <p id="ai-level-desc" style="font-size: 0.72rem; color: #aaa; margin-top: 6px;">深度 3-5 层 | Alpha-Beta 剪枝</p>
             </div>
 
             <div class="player-list glass-panel" id="local-player-list"></div>
 
-            <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始单机对决</button>
+            <div style="display:flex; gap:10px; margin-bottom: 12px;">
+                <button id="btn-bg-upload" class="glass-btn" style="flex:1;">🖼 从相册选择背景</button>
+                <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+            </div>
+
+            <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
         </div>
 
         <div id="panel-online" style="width: 100%; display: none;">
@@ -331,9 +437,7 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                <button id="btn-create-room" class="glass-btn primary" style="flex:1;">创建联机房间</button>
-            </div>
+            <button id="btn-create-room" class="glass-btn primary" style="width:100%; margin-bottom:12px;">创建联机房间</button>
 
             <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
                 <p id="room-link-text" style="font-size: 0.8rem; color: var(--accent-cyan); word-break: break-all; margin-bottom: 10px;"></p>
@@ -343,37 +447,64 @@
         </div>
     </div>
 
+    <!-- 对局界面 -->
     <div id="view-game" class="view">
         <div class="game-header">
             <button id="btn-exit-game" class="glass-btn">❮ 菜单</button>
             <div id="current-turn-badge" class="turn-badge glass-panel">
                 <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
-                <span id="turn-text">玩家 1 回合</span>
+                <span id="turn-text">玩家1 回合</span>
             </div>
-            <button id="btn-exit-game-2" class="glass-btn">⚙</button>
+            <button id="btn-control-panel" class="glass-btn">⚙ 控制</button>
         </div>
 
-        <div class="board-container">
+        <div class="board-container" id="board-container">
             <div class="side-players" id="left-side-players"></div>
             <div id="game-board" class="board glass-panel"></div>
             <div class="side-players" id="right-side-players"></div>
         </div>
     </div>
 
-    <div id="winner-overlay" class="overlay">
-        <div class="wheel-modal glass-panel">
-            <h2 id="winner-text" style="margin-bottom: 15px; color: #ffd700;">玩家 1 获得胜利！</h2>
-            <button id="btn-return-menu" class="glass-btn primary" style="width: 100%;">返回主菜单</button>
+    <!-- 随机抽取 Modal -->
+    <div id="wheel-overlay" class="overlay">
+        <div class="modal-box glass-panel">
+            <h3 style="margin-bottom: 10px;">随机抽取先手玩家</h3>
+            <div class="wheel-players" id="wheel-players-container"></div>
         </div>
     </div>
 
-    <!-- Firebase v10 JS SDK 模块化导入 -->
+    <!-- Emoji 选择 Sheet -->
+    <div id="emoji-modal" class="overlay">
+        <div class="modal-box glass-panel">
+            <h3 style="margin-bottom: 15px;">选择棋子 Emoji 样式</h3>
+            <div id="emoji-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:15px; max-height:220px; overflow-y:auto;"></div>
+            <button id="btn-close-emoji" class="glass-btn" style="width:100%;">恢复默认纯色样式</button>
+        </div>
+    </div>
+
+    <!-- 实时控制面板 Modal -->
+    <div id="control-modal" class="overlay">
+        <div class="modal-box glass-panel" style="width: 380px;">
+            <h3 style="margin-bottom: 15px;">⚙ 对局控制面板</h3>
+            <div id="control-player-rows" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; text-align: left;"></div>
+            <button id="btn-close-control" class="glass-btn primary" style="width:100%;">完成</button>
+        </div>
+    </div>
+
+    <!-- 胜利结算 Overlay -->
+    <div id="winner-overlay" class="overlay">
+        <div class="modal-box glass-panel">
+            <div id="winner-crown-icon" style="font-size:3rem; margin-bottom:10px;">👑</div>
+            <h2 id="winner-text" style="margin-bottom: 20px; color: #ffd700;">玩家 1 获得胜利！</h2>
+            <button id="btn-restart-game" class="glass-btn primary" style="width: 100%; margin-bottom: 10px;">再来一局</button>
+            <button id="btn-return-menu" class="glass-btn" style="width: 100%;">返回主菜单</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
-        import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+        import { getDatabase, ref, set, update, onValue, get, runTransaction, onDisconnect, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
 
-        // 你提供的 Firebase 对应配置
         const firebaseConfig = {
             apiKey: "AIzaSyBUJKB2ov62ulrlvTZxA1_MInCGyz5U2iE",
             authDomain: "color-war-web.firebaseapp.com",
@@ -385,47 +516,444 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const db = getDatabase(app);
 
-        // 基础数据与逻辑变量
         const MAX_PLAYERS = 8;
         const DEFAULT_COLORS = ['#FF453A', '#0A84FF', '#30D158', '#FF9F0A', '#BF5AF2', '#64D2FF', '#FFD60A', '#FF70A6'];
         const DEFAULT_NAMES = ["玩家1", "玩家2", "玩家3", "玩家4", "玩家5", "玩家6", "玩家7", "玩家8"];
+        const EMOJI_PRESETS = ["🔴", "🔵", "🟢", "🟧", "🟣", "🩵", "🟡", "🩷", "🦁", "🐯", "🐻", "🦊", "🐱", "🐶", "🐼", "🐸", "🔥", "⚡️", "💥", "💎", "🚀", "👑", "👻", "🤡"];
+
+        const AI_DIFFICULTY_DESCS = {
+            1: "深度 2 层 | 快手极速",
+            2: "深度 3-4 层 | Alpha-Beta 剪枝",
+            3: "深度 4-5 层 | 置换表+静止搜索",
+            4: "深度 6-8 层 | 全局链图+极限推理"
+        };
 
         let boardSize = 8;
+        let isRandomFirst = true;
+        let aiLevel = 2;
         let playerNames = [...DEFAULT_NAMES];
         let playerColors = [...DEFAULT_COLORS];
+        let playerEmojis = Array(MAX_PLAYERS).fill(null);
         let playerTypes = ["human", "mathNightmare", "enhancedNightmare", "disabled", "disabled", "disabled", "disabled", "disabled"];
 
         let board = [];
         let currentPlayer = 0;
         let hasEntered = Array(MAX_PLAYERS).fill(false);
+        let eliminated = Array(MAX_PLAYERS).fill(false);
+        let emphasizedCells = new Set();
         let isProcessingCascade = false;
         let winnerIndex = null;
+        
+        let currentAbortController = null;
+        let aiTimerId = null;
+        let snapshotSeq = 0;
 
-        let currentRoomId = null;
+        let isInGame = false;
+
+        const initialRoomParams = new URLSearchParams(window.location.search);
+        let currentRoomId = initialRoomParams.get('room');
         let myPlayerIndex = 0;
         let isHost = false;
+        let editingEmojiPlayerIdx = null;
+        let localMoveSeq = 0;
+        let lastHandledRestartTrigger = 0;
+        let isFirstRoomLoad = true;
 
-        // 初始化绑定
+        const Haptics = {
+            light() { if (navigator.vibrate) navigator.vibrate(12); },
+            heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
+        };
+
+        // ==========================================
+        // 动态 Zobrist 递推算法
+        // ==========================================
+        function getRandomBigInt64() {
+            return BigInt(Math.floor(Math.random() * 0x7FFFFFFF)) | (BigInt(Math.floor(Math.random() * 0x7FFFFFFF)) << 31n);
+        }
+
+        const ZobristTable = (function() {
+            const table = [];
+            for (let r = 0; r < 12; r++) {
+                table[r] = [];
+                for (let c = 0; c < 12; c++) {
+                    table[r][c] = [];
+                    for (let o = 0; o < 9; o++) {
+                        table[r][c][o] = [];
+                        for (let k = 0; k < 5; k++) {
+                            table[r][c][o][k] = getRandomBigInt64();
+                        }
+                    }
+                }
+            }
+            return table;
+        })();
+
+        class TranspositionTable {
+            constructor() { this.table = new Map(); }
+            store(hash, depth, score) {
+                if (this.table.size > 50000) this.table.clear();
+                this.table.set(hash, { depth, score });
+            }
+            lookup(hash, depth) {
+                const e = this.table.get(hash);
+                if (e && e.depth >= depth) return e;
+                return null;
+            }
+        }
+
+        // ==========================================
+        // AISolver 引擎：战术树与深度递归
+        // ==========================================
+        class AISolver {
+            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
+                this.boardSize = boardSize;
+                this.activePlayers = activePlayers;
+                this.currentPlayer = currentPlayer;
+                this.playerType = playerType;
+                this.aiLevel = aiLevel;
+                this.hasEntered = [...hasEntered];
+                this.eliminated = [...eliminated];
+                this.tt = new TranspositionTable();
+
+                this.cells = [];
+                this.hash = 0n;
+                for (let r = 0; r < boardSize; r++) {
+                    for (let c = 0; c < boardSize; c++) {
+                        const cell = { owner: boardGrid[r][c].owner, count: boardGrid[r][c].count };
+                        this.cells.push(cell);
+                        const oIdx = (cell.owner ?? -1) + 1;
+                        this.hash ^= ZobristTable[r][c][oIdx][Math.min(4, cell.count)];
+                    }
+                }
+                this.neighborsMap = this.buildNeighborsLookup(boardSize);
+            }
+
+            buildNeighborsLookup(size) {
+                const map = [];
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        const idx = r * size + c, n = [];
+                        if (r > 0) n.push((r - 1) * size + c);
+                        if (r < size - 1) n.push((r + 1) * size + c);
+                        if (c > 0) n.push(r * size + (c - 1));
+                        if (c < size - 1) n.push(r * size + (c + 1));
+                        map[idx] = n;
+                    }
+                }
+                return map;
+            }
+
+            getPlayableCells(player, cells) {
+                const ownsAny = cells.some(c => c.owner === player);
+                const moves = [];
+                for (let r = 0; r < this.boardSize; r++) {
+                    for (let c = 0; c < this.boardSize; c++) {
+                        const o = cells[r * this.boardSize + c].owner;
+                        if (ownsAny ? (o === player) : (o === null)) moves.push({ r, c });
+                    }
+                }
+                return moves;
+            }
+
+            updateCellAndHash(cells, idx, newOwner, newCount, currentHash) {
+                const r = Math.floor(idx / this.boardSize);
+                const c = idx % this.boardSize;
+                const oldCell = cells[idx];
+
+                const oldOIdx = (oldCell.owner ?? -1) + 1;
+                const oldCVal = Math.min(4, oldCell.count);
+                const newOIdx = (newOwner ?? -1) + 1;
+                const newCVal = Math.min(4, newCount);
+
+                currentHash ^= ZobristTable[r][c][oldOIdx][oldCVal];
+                currentHash ^= ZobristTable[r][c][newOIdx][newCVal];
+
+                cells[idx] = { owner: newOwner, count: newCount };
+                return currentHash;
+            }
+
+            calculateBestMove(signal) {
+                const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
+                if (validMoves.length === 0) return null;
+
+                if (!this.hasEntered[this.currentPlayer]) return this.selectOptimalOpeningMove(validMoves);
+
+                if (this.playerType === 'enhancedNightmare') {
+                    const strike = this.findCriticalThreatMove(validMoves);
+                    if (strike) return strike;
+                }
+
+                validMoves.sort((a, b) => this.evaluateMoveTacticalPriority(b, this.cells, this.currentPlayer) - this.evaluateMoveTacticalPriority(a, this.cells, this.currentPlayer));
+
+                const maxDepth = this.aiLevel === 1 ? 2 : (this.aiLevel === 2 ? 3 : (this.aiLevel === 3 ? 5 : 8));
+                let bestMove = validMoves[0], maxScore = -999999;
+
+                for (let m of validMoves) {
+                    if (signal && signal.aborted) return null;
+
+                    const simBoard = this.cloneCells(this.cells);
+                    const simEntered = [...this.hasEntered];
+                    const simEliminated = [...this.eliminated];
+
+                    let simHash = this.simulateMoveBFS(simBoard, m, this.currentPlayer, simEntered, simEliminated, this.hash);
+
+                    let score = -this.alphaBeta(simBoard, maxDepth - 1, -999999, 999999, this.getNextPlayer(this.currentPlayer, simEliminated), simEntered, simEliminated, simHash, signal);
+                    score += this.computeChainGraphPotentials(simBoard, this.currentPlayer);
+
+                    if (score > maxScore) {
+                        maxScore = score;
+                        bestMove = m;
+                    }
+                }
+                return bestMove;
+            }
+
+            alphaBeta(cells, depth, alpha, beta, player, hasEntered, eliminated, hash, signal) {
+                if (signal && signal.aborted) return 0;
+
+                const ttHit = this.tt.lookup(hash, depth);
+                if (ttHit) return ttHit.score;
+
+                if (depth <= 0) {
+                    const val = this.quiescenceSearch(cells, alpha, beta, player, 2, hasEntered, eliminated, hash, signal);
+                    this.tt.store(hash, depth, val);
+                    return val;
+                }
+
+                const validMoves = this.getPlayableCells(player, cells);
+                if (validMoves.length === 0) return this.evaluateAdvancedBoard(cells, player, eliminated);
+
+                let maxEval = -999999;
+                for (let m of validMoves) {
+                    const simBoard = this.cloneCells(cells);
+                    const simEntered = [...hasEntered];
+                    const simEliminated = [...eliminated];
+
+                    let simHash = this.simulateMoveBFS(simBoard, m, player, simEntered, simEliminated, hash);
+
+                    let evalVal = -this.alphaBeta(simBoard, depth - 1, -beta, -alpha, this.getNextPlayer(player, simEliminated), simEntered, simEliminated, simHash, signal);
+                    maxEval = Math.max(maxEval, evalVal);
+                    alpha = Math.max(alpha, evalVal);
+                    if (beta <= alpha) break;
+                }
+                this.tt.store(hash, depth, maxEval);
+                return maxEval;
+            }
+
+            quiescenceSearch(cells, alpha, beta, player, qsDepth, hasEntered, eliminated, hash, signal) {
+                if (signal && signal.aborted) return 0;
+                let standPat = this.evaluateAdvancedBoard(cells, player, eliminated);
+                if (standPat >= beta) return beta;
+                if (standPat > alpha) alpha = standPat;
+                if (qsDepth <= 0) return standPat;
+
+                const tacticalMoves = this.getTacticalForcingMoves(cells, player);
+                for (let m of tacticalMoves) {
+                    const simBoard = this.cloneCells(cells);
+                    const simEntered = [...hasEntered];
+                    const simEliminated = [...eliminated];
+
+                    let simHash = this.simulateMoveBFS(simBoard, m, player, simEntered, simEliminated, hash);
+
+                    let score = -this.quiescenceSearch(simBoard, -beta, -alpha, this.getNextPlayer(player, simEliminated), qsDepth - 1, simEntered, simEliminated, simHash, signal);
+                    if (score >= beta) return beta;
+                    if (score > alpha) alpha = score;
+                }
+                return alpha;
+            }
+
+            getTacticalForcingMoves(cells, player) {
+                const moves = [];
+                const valid = this.getPlayableCells(player, cells);
+                for (let m of valid) {
+                    const idx = m.r * this.boardSize + m.c;
+                    if (cells[idx].count === 3) {
+                        moves.push(m);
+                        continue;
+                    }
+                    if (this.neighborsMap[idx].some(n => cells[n].owner !== null && cells[n].owner !== player && cells[n].count === 3)) {
+                        moves.push(m);
+                    }
+                }
+                return moves;
+            }
+
+            evaluateAdvancedBoard(cells, player, eliminated) {
+                if (eliminated[player]) return -999999;
+                let score = 0, myOrbs = 0, maxEnemyOrbs = 0, enemyThreat3Count = 0;
+                let enemyOrbsMap = {};
+
+                cells.forEach((c, idx) => {
+                    if (c.owner === player) {
+                        myOrbs += c.count;
+                        score += c.count * 15 + this.neighborsMap[idx].length * 5;
+                        if (c.count === 3) score += 35;
+                    } else if (c.owner !== null) {
+                        enemyOrbsMap[c.owner] = (enemyOrbsMap[c.owner] || 0) + c.count;
+                        score -= c.count * 18;
+                        if (c.count === 3) enemyThreat3Count++;
+                    }
+                });
+
+                maxEnemyOrbs = Math.max(0, ...Object.values(enemyOrbsMap));
+                const ratio = myOrbs / Math.max(1, maxEnemyOrbs);
+                
+                if (ratio >= 1.35) score -= enemyThreat3Count * 1200;
+                else if (ratio <= 0.65) score -= enemyThreat3Count * 300;
+                else score -= enemyThreat3Count * 600;
+
+                return score + (myOrbs - maxEnemyOrbs) * 25;
+            }
+
+            computeChainGraphPotentials(cells, player) {
+                let visited = new Uint8Array(cells.length), bonus = 0;
+                for (let i = 0; i < cells.length; i++) {
+                    if (!visited[i] && cells[i].owner !== null && cells[i].count === 3) {
+                        const owner = cells[i].owner;
+                        let size = 0, q = [i];
+                        visited[i] = 1;
+                        while (q.length > 0) {
+                            let curr = q.pop();
+                            size++;
+                            this.neighborsMap[curr].forEach(n => {
+                                if (!visited[n] && cells[n].owner === owner && cells[n].count === 3) {
+                                    visited[n] = 1; q.push(n);
+                                }
+                            });
+                        }
+                        const val = size * size * 45;
+                        if (owner === player) bonus += val;
+                        else bonus -= val * 1.3;
+                    }
+                }
+                return bonus;
+            }
+
+            simulateMoveBFS(cells, move, player, hasEntered, eliminated, hash) {
+                const idx = move.r * this.boardSize + move.c;
+                const isFirst = !hasEntered[player];
+                hasEntered[player] = true;
+
+                hash = this.updateCellAndHash(cells, idx, player, cells[idx].count + (isFirst ? 3 : 1), hash);
+
+                let wave = cells[idx].count >= 4 ? [idx] : [];
+                while (wave.length > 0) {
+                    let curr = wave.pop();
+                    const rem = cells[curr].count - 4;
+                    hash = this.updateCellAndHash(cells, curr, rem === 0 ? null : player, rem, hash);
+
+                    this.neighborsMap[curr].forEach(n => {
+                        hash = this.updateCellAndHash(cells, n, player, cells[n].count + 1, hash);
+                        if (cells[n].count >= 4 && !wave.includes(n)) wave.push(n);
+                    });
+                }
+
+                this.activePlayers.forEach(p => {
+                    if (hasEntered[p]) {
+                        const alive = cells.some(c => c.owner === p);
+                        if (!alive) eliminated[p] = true;
+                    }
+                });
+                return hash;
+            }
+
+            selectOptimalOpeningMove(validMoves) {
+                const center = (this.boardSize - 1) / 2;
+                validMoves.sort((a, b) => (Math.abs(a.r - center) + Math.abs(a.c - center)) - (Math.abs(b.r - center) + Math.abs(b.c - center)));
+                return validMoves[0];
+            }
+
+            findCriticalThreatMove(validMoves) {
+                for (let m of validMoves) {
+                    const idx = m.r * this.boardSize + m.c;
+                    for (let n of this.neighborsMap[idx]) {
+                        if (this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer && this.cells[n].count === 3) return m;
+                    }
+                }
+                return null;
+            }
+
+            evaluateMoveTacticalPriority(move, cells, player) {
+                const idx = move.r * this.boardSize + move.c;
+                let prio = 0;
+                this.neighborsMap[idx].forEach(n => {
+                    if (cells[n].owner !== null && cells[n].owner !== player && cells[n].count === 3) prio += 3000;
+                });
+                return prio + cells[idx].count * 100;
+            }
+
+            getNextPlayer(curr, eliminated) {
+                const alive = this.activePlayers.filter(p => !eliminated[p]);
+                if (alive.length === 0) return curr;
+                const idx = alive.indexOf(curr);
+                return alive[(idx + 1) % alive.length] || alive[0];
+            }
+
+            cloneCells(cells) { return cells.map(c => ({ owner: c.owner, count: c.count })); }
+        }
+
+        // ==========================================
+        // UI 与流程管理
+        // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
+            loadSavedBackground();
             renderPlayerList();
             checkUrlRoomJoin();
 
             document.getElementById('tab-local').onclick = () => switchModeTab('local');
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
+            
             document.getElementById('board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
                 document.getElementById('board-size-label').innerText = `${boardSize} × ${boardSize}`;
             };
+
+            document.getElementById('ai-level-slider').oninput = (e) => {
+                aiLevel = parseInt(e.target.value);
+                document.getElementById('ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
+                document.getElementById('ai-level-desc').innerText = AI_DIFFICULTY_DESCS[aiLevel];
+            };
+
+            document.getElementById('btn-bg-upload').onclick = () => document.getElementById('bg-file-input').click();
+            document.getElementById('bg-file-input').onchange = handleBackgroundUpload;
+
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
             document.getElementById('host-start-online-btn').onclick = startOnlineGame;
+            
             document.getElementById('btn-exit-game').onclick = exitToMenu;
-            document.getElementById('btn-exit-game-2').onclick = exitToMenu;
+            document.getElementById('btn-control-panel').onclick = openControlPanelModal;
+            document.getElementById('btn-close-control').onclick = () => document.getElementById('control-modal').classList.remove('active');
+            document.getElementById('btn-restart-game').onclick = restartCurrentGame;
             document.getElementById('btn-return-menu').onclick = exitToMenu;
+            document.getElementById('btn-close-emoji').onclick = () => {
+                if (editingEmojiPlayerIdx !== null) playerEmojis[editingEmojiPlayerIdx] = null;
+                document.getElementById('emoji-modal').classList.remove('active');
+                renderPlayerList();
+                if (currentRoomId && isHost) syncRoomSettingsToCloud();
+            };
+
+            renderEmojiGrid();
         });
+
+        function handleBackgroundUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    document.body.style.backgroundImage = `url(${evt.target.result})`;
+                    localStorage.setItem('CW_CustomBg', evt.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function loadSavedBackground() {
+            const bg = localStorage.getItem('CW_CustomBg');
+            if (bg) document.body.style.backgroundImage = `url(${bg})`;
+        }
 
         function switchModeTab(mode) {
             document.getElementById('tab-local').classList.toggle('active', mode === 'local');
@@ -437,23 +965,61 @@
         function renderPlayerList() {
             const container = document.getElementById('local-player-list');
             container.innerHTML = '';
+            const isReadOnly = Boolean(currentRoomId) && !isHost;
+
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 const row = document.createElement('div');
                 row.className = 'player-row';
                 row.innerHTML = `
-                    <div class="color-dot" style="background:${playerColors[i]}"></div>
-                    <input type="text" value="${playerNames[i]}" id="p-name-${i}" style="width: 80px; font-size: 0.8rem;">
-                    <select id="p-type-${i}" style="font-size: 0.75rem;">
+                    <div class="color-dot" style="background:${playerColors[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="color-dot-${i}">${playerEmojis[i] || ''}</div>
+                    <input type="color" value="${playerColors[i]}" id="color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
+                    <input type="text" value="${playerNames[i]}" id="p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
+                    <select id="p-type-${i}" style="font-size: 0.75rem;" ${isReadOnly ? 'disabled' : ''}>
                         <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
                         <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                        <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
                         <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
                     </select>
                 `;
                 container.appendChild(row);
 
-                document.getElementById(`p-name-${i}`).onchange = (e) => playerNames[i] = e.target.value;
-                document.getElementById(`p-type-${i}`).onchange = (e) => playerTypes[i] = e.target.value;
+                if (!isReadOnly) {
+                    document.getElementById(`color-dot-${i}`).onclick = () => { editingEmojiPlayerIdx = i; document.getElementById('emoji-modal').classList.add('active'); };
+                    document.getElementById(`color-picker-${i}`).onchange = (e) => { 
+                        playerColors[i] = e.target.value; 
+                        renderPlayerList(); 
+                        if (currentRoomId && isHost) syncRoomSettingsToCloud();
+                    };
+                    document.getElementById(`p-name-${i}`).onchange = (e) => {
+                        playerNames[i] = e.target.value;
+                        if (currentRoomId && isHost) syncRoomSettingsToCloud();
+                    };
+                    document.getElementById(`p-type-${i}`).onchange = (e) => {
+                        playerTypes[i] = e.target.value;
+                        if (currentRoomId && isHost) syncRoomSettingsToCloud();
+                    };
+                }
             }
+        }
+
+        function renderEmojiGrid() {
+            const container = document.getElementById('emoji-grid');
+            container.innerHTML = '';
+            EMOJI_PRESETS.forEach(emoji => {
+                const btn = document.createElement('div');
+                btn.className = 'glass-btn';
+                btn.style.fontSize = '1.2rem'; btn.style.padding = '8px';
+                btn.innerText = emoji;
+                btn.onclick = () => {
+                    if (editingEmojiPlayerIdx !== null) {
+                        playerEmojis[editingEmojiPlayerIdx] = emoji;
+                        renderPlayerList();
+                        if (currentRoomId && isHost) syncRoomSettingsToCloud();
+                    }
+                    document.getElementById('emoji-modal').classList.remove('active');
+                };
+                container.appendChild(btn);
+            });
         }
 
         function getActivePlayers() {
@@ -464,117 +1030,54 @@
             return active;
         }
 
-        // 云端逻辑
-        function createCloudRoom() {
-            isHost = true;
-            myPlayerIndex = 0;
-            currentRoomId = 'room-' + Math.floor(100000 + Math.random() * 900000);
-            const nickname = document.getElementById('online-nickname').value || "房主";
-
-            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
-
-            set(ref(db, `rooms/${currentRoomId}`), {
-                status: 'waiting',
-                boardSize: boardSize,
-                players: [{ name: nickname, isHost: true }]
-            });
-
-            document.getElementById('cloud-room-card').style.display = 'block';
-            document.getElementById('room-link-text').innerText = `分享链接给好友: ${shareUrl}`;
-            document.getElementById('host-start-online-btn').style.display = 'block';
-
-            onValue(ref(db, `rooms/${currentRoomId}/players`), (snapshot) => {
-                const players = snapshot.val() || [];
-                document.getElementById('room-members-text').innerText = `已加入 ${players.length} 名玩家`;
-            });
-        }
-
-        async function checkUrlRoomJoin() {
-            const params = new URLSearchParams(window.location.search);
-            const roomId = params.get('room');
-            if (roomId) {
-                switchModeTab('online');
-                currentRoomId = roomId;
-                isHost = false;
-
-                const nickname = prompt("请输入你的昵称进入房间：", "玩家") || "玩家";
-
-                const snapshot = await get(ref(db, `rooms/${roomId}/players`));
-                const players = snapshot.val() || [];
-                myPlayerIndex = players.length;
-
-                players.push({ name: nickname, isHost: false });
-                await set(ref(db, `rooms/${roomId}/players`), players);
-
-                document.getElementById('cloud-room-card').style.display = 'block';
-                document.getElementById('room-link-text').innerText = `成功加入房间: ${roomId}`;
-                document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
-
-                onValue(ref(db, `rooms/${roomId}`), (snap) => {
-                    const roomData = snap.val();
-                    if (roomData && roomData.status === 'playing' && !board.length) {
-                        boardSize = roomData.boardSize;
-                        playerNames = roomData.players.map(p => p.name);
-                        initBoard(roomData.firstPlayer);
-                        listenGameMoves();
-                    }
-                });
-            }
-        }
-
-        async function startOnlineGame() {
-            if (!isHost) return;
-            const snapshot = await get(ref(db, `rooms/${currentRoomId}/players`));
-            const players = snapshot.val() || [];
-            playerNames = players.map(p => p.name);
-
-            await update(ref(db, `rooms/${currentRoomId}`), {
-                status: 'playing',
-                firstPlayer: 0
-            });
-
-            initBoard(0);
-            listenGameMoves();
-        }
-
-        function listenGameMoves() {
-            onValue(ref(db, `rooms/${currentRoomId}/lastMove`), (snap) => {
-                const move = snap.val();
-                if (move && move.player !== myPlayerIndex) {
-                    executeMove(move.r, move.c, move.player);
-                }
-            });
-        }
-
-        function broadcastMove(r, c, player) {
-            if (currentRoomId) {
-                set(ref(db, `rooms/${currentRoomId}/lastMove`), { r, c, player, time: Date.now() });
-            }
-        }
-
-        // 核心游戏与对弈
         function startLocalGame() {
             const active = getActivePlayers();
-            initBoard(active[0]);
+            if (active.length < 2) { alert("至少需要 2 名玩家！"); return; }
+            isRandomFirst = document.getElementById('random-first-toggle').checked;
+            if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
+            else initBoard(active[0]);
         }
 
-        function initBoard(firstPlayer) {
-            board = Array(boardSize).fill(null).map(() => 
-                Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 }))
-            );
-            hasEntered = Array(MAX_PLAYERS).fill(false);
-            currentPlayer = firstPlayer;
-            isProcessingCascade = false;
-            winnerIndex = null;
+        function runRandomWheel(activeIndices, callback) {
+            const overlay = document.getElementById('wheel-overlay');
+            const container = document.getElementById('wheel-players-container');
+            container.innerHTML = '';
 
-            document.getElementById('view-menu').classList.remove('active');
-            document.getElementById('view-game').classList.add('active');
+            activeIndices.forEach((pIdx, pos) => {
+                const div = document.createElement('div');
+                div.className = 'wheel-item';
+                div.id = `wheel-item-${pos}`;
+                div.innerHTML = `<div class="dot-avatar" style="background:${playerColors[pIdx]}">${playerEmojis[pIdx] || ''}</div><span>${playerNames[pIdx]}</span>`;
+                container.appendChild(div);
+            });
 
-            renderBoardUI();
-            updateTurnHeader();
+            overlay.classList.add('active');
+            let currentStep = 0;
+            const targetPos = Math.floor(Math.random() * activeIndices.length);
+            const totalSteps = activeIndices.length * 3 + targetPos;
+            let delay = 50;
+
+            function step() {
+                activeIndices.forEach((_, pos) => {
+                    const el = document.getElementById(`wheel-item-${pos}`);
+                    if (el) el.classList.toggle('highlight', pos === (currentStep % activeIndices.length));
+                });
+                currentStep++;
+                if (currentStep <= totalSteps) {
+                    if (currentStep / totalSteps > 0.6) delay *= 1.2;
+                    Haptics.light();
+                    setTimeout(step, delay);
+                } else {
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        callback(activeIndices[targetPos]);
+                    }, 400);
+                }
+            }
+            step();
         }
 
-        function renderBoardUI() {
+        function buildGridDOMOnce() {
             const boardEl = document.getElementById('game-board');
             boardEl.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
             boardEl.innerHTML = '';
@@ -584,77 +1087,272 @@
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    const cellData = board[r][c];
                     const cellEl = document.createElement('div');
+                    cellEl.id = `cell-${r}-${c}`;
                     cellEl.className = 'cell';
                     cellEl.style.width = `${cellSize}px`;
                     cellEl.style.height = `${cellSize}px`;
                     cellEl.onclick = () => handleCellClick(r, c);
-
-                    if (cellData.count > 0 && cellData.owner !== null) {
-                        const piece = document.createElement('div');
-                        piece.className = 'piece';
-                        piece.style.width = '80%';
-                        piece.style.height = '80%';
-                        piece.style.background = playerColors[cellData.owner];
-
-                        const dotContainer = document.createElement('div');
-                        dotContainer.className = 'dot-container';
-                        appendDots(dotContainer, cellData.count);
-                        piece.appendChild(dotContainer);
-
-                        cellEl.appendChild(piece);
-                    }
                     boardEl.appendChild(cellEl);
                 }
             }
         }
 
-        function appendDots(container, count) {
-            const c = Math.min(4, count);
-            const offsets = [[], [[0,0]], [[-30,0],[30,0]], [[0,-28],[-25,20],[25,20]], [[-25,-25],[25,-25],[-25,25],[25,25]]];
-            offsets[c].forEach(([x, y]) => {
-                const dot = document.createElement('div');
-                dot.className = 'dot';
-                dot.style.transform = `translate(${x}%, ${y}%)`;
-                container.appendChild(dot);
-            });
+        function initBoard(firstPlayer) {
+            isInGame = true;
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+            }
+            if (aiTimerId) { clearTimeout(aiTimerId); aiTimerId = null; }
+
+            board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 })));
+            hasEntered = Array(MAX_PLAYERS).fill(false);
+            eliminated = Array(MAX_PLAYERS).fill(false);
+            emphasizedCells.clear();
+            currentPlayer = firstPlayer;
+            isProcessingCascade = false;
+            winnerIndex = null;
+
+            document.getElementById('view-menu').classList.remove('active');
+            document.getElementById('view-game').classList.add('active');
+
+            buildGridDOMOnce();
+            updateBoardCellsDOM();
+            updateTurnHeader();
+            checkAndRunAITurn();
+        }
+
+        function getOrbPercentage(playerIdx) {
+            let total = 0, pCount = 0;
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    if (board[r][c].owner !== null) {
+                        total += board[r][c].count;
+                        if (board[r][c].owner === playerIdx) pCount += board[r][c].count;
+                    }
+                }
+            }
+            return total > 0 ? (pCount / total) : 0;
+        }
+
+        function updateBoardCellsDOM() {
+            const maxBoardWidth = Math.min(window.innerWidth - 120, 380);
+            const cellSize = Math.floor((maxBoardWidth - (boardSize - 1) * 3 - 12) / boardSize);
+
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    const cellData = board[r][c];
+                    const idx = r * boardSize + c;
+                    const cellEl = document.getElementById(`cell-${r}-${c}`);
+                    if (!cellEl) continue;
+
+                    cellEl.className = `cell ${emphasizedCells.has(idx) ? 'emphasized' : ''}`;
+                    
+                    let piece = cellEl.querySelector('.piece');
+                    if (cellData.count > 0 && cellData.owner !== null) {
+                        if (!piece) {
+                            piece = document.createElement('div');
+                            piece.className = 'piece';
+                            cellEl.appendChild(piece);
+                        }
+                        piece.style.width = '80%'; piece.style.height = '80%';
+                        piece.style.background = playerColors[cellData.owner];
+
+                        let emojiEl = piece.querySelector('.emoji-text');
+                        if (playerEmojis[cellData.owner]) {
+                            if (!emojiEl) {
+                                emojiEl = document.createElement('span');
+                                emojiEl.className = 'emoji-text';
+                                piece.appendChild(emojiEl);
+                            }
+                            emojiEl.innerText = playerEmojis[cellData.owner];
+                            emojiEl.style.fontSize = `${cellSize * 0.42}px`;
+                        } else if (emojiEl) {
+                            emojiEl.remove();
+                        }
+
+                        let dotContainer = piece.querySelector('.dot-container');
+                        if (!dotContainer) {
+                            dotContainer = document.createElement('div');
+                            dotContainer.className = 'dot-container';
+                            piece.appendChild(dotContainer);
+                        }
+                        syncDotsDOM(dotContainer, cellData.count);
+                    } else if (piece) {
+                        piece.remove();
+                    }
+                }
+            }
+            renderSidePlayers();
+        }
+
+        // 修复第 4 点：调整为 16% 精细尺寸，偏移量放宽，绝对舒展透气
+        function syncDotsDOM(container, count) {
+            const targetCount = Math.min(4, count);
+            const currentDots = container.querySelectorAll('.dot');
+            
+            if (currentDots.length !== targetCount) {
+                container.innerHTML = '';
+                const offsets = [
+                    [], 
+                    [[0,0]], 
+                    [[-32,0],[32,0]], 
+                    [[0,-28],[-28,22],[28,22]], 
+                    [[-28,-28],[28,-28],[-28,28],[28,28]]
+                ];
+                offsets[targetCount].forEach(([x, y]) => {
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.transform = `translate(${x}%, ${y}%)`;
+                    container.appendChild(dot);
+                });
+            }
+        }
+
+        function renderSidePlayers() {
+            const active = getActivePlayers();
+            const mid = Math.ceil(active.length / 2);
+            const lefts = active.slice(0, mid), rights = active.slice(mid);
+
+            const buildSide = (containerId, list) => {
+                const el = document.getElementById(containerId);
+                el.innerHTML = '';
+                list.forEach(pIdx => {
+                    const isTurn = currentPlayer === pIdx, isElim = eliminated[pIdx];
+                    const pct = getOrbPercentage(pIdx);
+                    const circumference = 2 * Math.PI * 21;
+                    const strokeDashoffset = circumference * (1 - pct);
+
+                    const card = document.createElement('div');
+                    card.className = `player-orb-card ${isTurn ? 'active' : ''} ${isElim ? 'eliminated' : ''}`;
+                    
+                    card.innerHTML = `
+                        <div class="orb-circle-wrap">
+                            <div class="orb-circle-bg" style="background:${playerColors[pIdx]}"></div>
+                            <svg class="orb-svg-ring" viewBox="0 0 48 48">
+                                <circle cx="24" cy="24" r="21" fill="none" stroke="${playerColors[pIdx]}" stroke-width="3.5" 
+                                        stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"/>
+                            </svg>
+                            <div style="font-size:1.1rem; z-index:2;">${playerEmojis[pIdx] || ''}</div>
+                        </div>
+                        <span style="color:${isTurn ? '#fff' : '#aaa'}">${playerNames[pIdx]}</span>
+                    `;
+                    el.appendChild(card);
+                });
+            };
+
+            buildSide('left-side-players', lefts);
+            buildSide('right-side-players', rights);
         }
 
         function updateTurnHeader() {
-            const dot = document.getElementById('turn-color-dot');
-            const txt = document.getElementById('turn-text');
-            dot.style.background = playerColors[currentPlayer];
-            txt.innerText = `${playerNames[currentPlayer]} 回合`;
+            document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
+            document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 回合`;
+            renderSidePlayers();
         }
 
         async function handleCellClick(r, c) {
-            if (isProcessingCascade || winnerIndex !== null) return;
-            if (currentRoomId && currentPlayer !== myPlayerIndex) return;
+            if (!isInGame || isProcessingCascade || winnerIndex !== null) return;
 
             const cell = board[r][c];
             const ownsAny = board.some(row => row.some(cell => cell.owner === currentPlayer));
             if (ownsAny ? (cell.owner !== currentPlayer) : (cell.owner !== null)) return;
 
-            if (currentRoomId) broadcastMove(r, c, currentPlayer);
-            await executeMove(r, c, currentPlayer);
+            if (currentRoomId) {
+                if (currentPlayer !== myPlayerIndex) return;
+                localMoveSeq++;
+                Haptics.light();
+                push(ref(db, `rooms/${currentRoomId}/moves`), { r, c, player: currentPlayer, seq: localMoveSeq, ts: Date.now() });
+                await executeMove(r, c, currentPlayer);
+            } else {
+                if (playerTypes[currentPlayer] !== 'human') return;
+                Haptics.light();
+                await executeMove(r, c, currentPlayer);
+            }
         }
 
-        async function executeMove(row, col, player) {
+        function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
+            const container = document.getElementById('board-container');
+            const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
+            const toEl = document.getElementById(`cell-${toR}-${toC}`);
+            if (!fromEl || !toEl || !container) return;
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const orb = document.createElement('div');
+            orb.className = 'flying-orb';
+            orb.style.width = '18px'; orb.style.height = '18px';
+            orb.style.background = pColor;
+            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 9}px`;
+            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 9}px`;
+
+            container.appendChild(orb);
+
+            setTimeout(() => {
+                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 9}px`;
+                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 9}px`;
+            }, 20);
+
+            setTimeout(() => orb.remove(), 180);
+        }
+
+        async function executeMove(row, col, player, signal = null) {
+            if (!isInGame) return false;
             isProcessingCascade = true;
+
+            const preMoveSnapshot = {
+                board: board.map(r => r.map(c => ({ ...c }))),
+                hasEntered: [...hasEntered],
+                eliminated: [...eliminated]
+            };
+
+            const rollback = () => {
+                board = preMoveSnapshot.board;
+                hasEntered = preMoveSnapshot.hasEntered;
+                eliminated = preMoveSnapshot.eliminated;
+                emphasizedCells.clear();
+                
+                const container = document.getElementById('board-container');
+                if (container) {
+                    container.querySelectorAll('.flying-orb').forEach(el => el.remove());
+                }
+
+                updateBoardCellsDOM();
+                updateTurnHeader();
+                isProcessingCascade = false;
+                
+                if (currentRoomId && isHost) {
+                    syncFullSnapshotToCloud();
+                    // 修复第 1 点：回滚后触发挂起 moves 重新消费与纠正
+                    reprocessPendingMoves();
+                }
+
+                if (isInGame) {
+                    checkAndRunAITurn();
+                }
+            };
+
             const isFirst = !hasEntered[player];
             hasEntered[player] = true;
 
+            const addCount = isFirst ? 3 : 1;
             board[row][col].owner = player;
-            board[row][col].count += (isFirst ? 3 : 1);
-            renderBoardUI();
+            board[row][col].count += addCount;
 
-            await new Promise(r => setTimeout(r, 200));
+            emphasizedCells = new Set([row * boardSize + col]);
+            updateBoardCellsDOM();
+
+            await sleep(210);
+            if (signal?.aborted || !isInGame) { rollback(); return false; }
 
             let wave = board[row][col].count >= 4 ? [[row, col]] : [];
             const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
             while (wave.length > 0) {
+                if (signal?.aborted || !isInGame) { rollback(); return false; }
                 const exploding = wave;
                 wave = [];
 
@@ -671,12 +1369,19 @@
                             board[nr][nc].owner = player;
                             board[nr][nc].count += 1;
                             changed.add(`${nr},${nc}`);
+                            createFlyingOrbAnimation(r, c, nr, nc, playerColors[player]);
                         }
                     });
                 });
 
-                renderBoardUI();
-                await new Promise(r => setTimeout(r, 180));
+                emphasizedCells = new Set([...changed].map(k => {
+                    const [r, c] = k.split(',').map(Number);
+                    return r * boardSize + c;
+                }));
+
+                updateBoardCellsDOM();
+                await sleep(180);
+                if (signal?.aborted || !isInGame) { rollback(); return false; }
 
                 changed.forEach(key => {
                     const [r, c] = key.split(',').map(Number);
@@ -684,22 +1389,406 @@
                 });
             }
 
+            emphasizedCells.clear();
+            updateEliminationStatus();
+            updateBoardCellsDOM();
+
             isProcessingCascade = false;
-            advanceNextTurn();
+
+            if (currentRoomId && isHost) syncFullSnapshotToCloud();
+
+            if (checkGameOver()) {
+                Haptics.heavy();
+                showWinnerOverlay();
+            } else {
+                advanceToNextTurn();
+            }
+
+            return true;
         }
 
-        function advanceNextTurn() {
+        function updateEliminationStatus() {
+            getActivePlayers().forEach(p => {
+                if (hasEntered[p] && !eliminated[p]) {
+                    if (!board.some(row => row.some(c => c.owner === p))) eliminated[p] = true;
+                }
+            });
+        }
+
+        function checkGameOver() {
+            const active = getActivePlayers();
+            const alive = active.filter(p => !eliminated[p]);
+            if (active.every(p => hasEntered[p] || eliminated[p]) && alive.length <= 1) {
+                winnerIndex = alive.length > 0 ? alive[0] : -1;
+                return true;
+            }
+            return false;
+        }
+
+        function advanceToNextTurn() {
+            if (!isInGame) return;
             const active = getActivePlayers();
             let idx = active.indexOf(currentPlayer);
-            currentPlayer = active[(idx + 1) % active.length];
+            do {
+                idx = (idx + 1) % active.length;
+            } while (eliminated[active[idx]]);
+
+            currentPlayer = active[idx];
             updateTurnHeader();
+            checkAndRunAITurn();
         }
 
+        function showWinnerOverlay() {
+            document.getElementById('winner-overlay').classList.add('active');
+            const winnerName = winnerIndex >= 0 ? playerNames[winnerIndex] : "无人 (全员淘汰)";
+            document.getElementById('winner-text').innerText = `${winnerName} 获得胜利！`;
+        }
+
+        function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        function checkAndRunAITurn() {
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+            }
+            if (aiTimerId) {
+                clearTimeout(aiTimerId);
+                aiTimerId = null;
+            }
+            if (!isInGame || winnerIndex !== null || isProcessingCascade) return;
+
+            const currentType = playerTypes[currentPlayer];
+            if (currentType.includes('Nightmare')) {
+                if (currentRoomId && !isHost) return;
+
+                currentAbortController = new AbortController();
+                const signal = currentAbortController.signal;
+
+                aiTimerId = setTimeout(async () => {
+                    try {
+                        if (signal.aborted || !isInGame) return;
+                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated);
+                        const move = solver.calculateBestMove(signal);
+                        if (move && !signal.aborted && isInGame) {
+                            await executeMove(move.r, move.c, currentPlayer, signal);
+                        }
+                    } finally {
+                        if (currentAbortController?.signal === signal) {
+                            currentAbortController = null;
+                        }
+                    }
+                }, 250);
+            }
+        }
+
+        function openControlPanelModal() {
+            const modal = document.getElementById('control-modal');
+            const container = document.getElementById('control-player-rows');
+            container.innerHTML = '';
+
+            getActivePlayers().forEach(p => {
+                const row = document.createElement('div');
+                row.style.display = 'flex'; row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'center'; row.style.marginBottom = '10px';
+                row.innerHTML = `
+                    <span>${playerNames[p]}</span>
+                    <select id="ctrl-p-${p}">
+                        <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
+                        <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                        <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                    </select>
+                `;
+                container.appendChild(row);
+
+                document.getElementById(`ctrl-p-${p}`).onchange = (e) => {
+                    playerTypes[p] = e.target.value;
+                    if (currentRoomId && isHost) syncRoomSettingsToCloud();
+                    checkAndRunAITurn();
+                };
+            });
+            modal.classList.add('active');
+        }
+
+        function syncRoomSettingsToCloud() {
+            if (currentRoomId && isHost) {
+                update(ref(db, `rooms/${currentRoomId}`), {
+                    playerTypes, playerColors, playerEmojis, playerNames
+                });
+            }
+        }
+
+        // 修复第 1 点：重扫描云端滞留的未处理 move 节点，彻底杜绝丢步
+        let isReprocessingMoves = false;
+        async function reprocessPendingMoves() {
+            if (!currentRoomId || !isHost || isReprocessingMoves) return;
+            isReprocessingMoves = true;
+            try {
+                const movesSnap = await get(ref(db, `rooms/${currentRoomId}/moves`));
+                if (movesSnap.exists()) {
+                    const movesObj = movesSnap.val();
+                    const sortedEntries = Object.entries(movesObj).sort((a, b) => a[1].seq - b[1].seq);
+                    
+                    const seqSnap = await get(ref(db, `rooms/${currentRoomId}/lastExecutedSeq`));
+                    let currentSeq = seqSnap.exists() ? seqSnap.val() : -1;
+
+                    for (const [key, move] of sortedEntries) {
+                        if (move.seq > currentSeq) {
+                            const success = await executeMove(move.r, move.c, move.player);
+                            if (success) {
+                                currentSeq = move.seq;
+                                const updates = {};
+                                updates[`rooms/${currentRoomId}/lastExecutedSeq`] = currentSeq;
+                                updates[`rooms/${currentRoomId}/moves/${key}`] = null;
+                                await update(ref(db), updates);
+                            } else {
+                                break;
+                            }
+                        } else {
+                            await remove(ref(db, `rooms/${currentRoomId}/moves/${key}`));
+                        }
+                    }
+                }
+            } finally {
+                isReprocessingMoves = false;
+            }
+        }
+
+        function createCloudRoom() {
+            isHost = true; myPlayerIndex = 0;
+            currentRoomId = 'cw-' + Math.floor(100000 + Math.random() * 900000);
+            const nickname = document.getElementById('online-nickname').value || "房主";
+            playerNames[0] = nickname;
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+
+            const roomRef = ref(db, `rooms/${currentRoomId}`);
+            set(roomRef, {
+                status: 'waiting', boardSize: boardSize,
+                players: [{ name: nickname, isHost: true }],
+                playerTypes, playerColors, playerEmojis, playerNames,
+                restartTrigger: 0, lastExecutedSeq: -1
+            });
+
+            onDisconnect(roomRef).remove();
+
+            document.getElementById('cloud-room-card').style.display = 'block';
+            document.getElementById('room-link-text').innerText = `链接: ${shareUrl}`;
+            document.getElementById('host-start-online-btn').style.display = 'block';
+
+            onValue(ref(db, `rooms/${currentRoomId}/players`), (snapshot) => {
+                const players = snapshot.val() || [];
+                document.getElementById('room-members-text').innerText = `已加入 ${players.length} 名玩家`;
+            });
+
+            let localHostLastExecutedSeq = -1;
+            get(ref(db, `rooms/${currentRoomId}/lastExecutedSeq`)).then(snap => {
+                if (snap.exists()) localHostLastExecutedSeq = snap.val();
+
+                onChildAdded(ref(db, `rooms/${currentRoomId}/moves`), async (snap) => {
+                    const move = snap.val();
+                    if (move && isHost) {
+                        if (move.seq > localHostLastExecutedSeq) {
+                            const success = await executeMove(move.r, move.c, move.player);
+                            if (success) {
+                                localHostLastExecutedSeq = move.seq;
+                                const updates = {};
+                                updates[`rooms/${currentRoomId}/lastExecutedSeq`] = localHostLastExecutedSeq;
+                                updates[`rooms/${currentRoomId}/moves/${snap.key}`] = null;
+                                update(ref(db), updates);
+                            }
+                        } else {
+                            remove(ref(db, `rooms/${currentRoomId}/moves/${snap.key}`));
+                        }
+                    }
+                });
+
+                // 每 3 秒执行兜底扫描重试
+                setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
+            });
+        }
+
+        // 修复第 5 点：解决 Firebase undefined/null 比对歧义的标准函数
+        function areBoardsEqual(b1, b2) {
+            if (!b1 || !b2 || b1.length !== b2.length) return false;
+            for (let r = 0; r < b1.length; r++) {
+                for (let c = 0; c < b1[r].length; c++) {
+                    const cell1 = b1[r][c], cell2 = b2[r][c];
+                    const owner1 = cell1.owner ?? null;
+                    const owner2 = cell2.owner ?? null;
+                    if (owner1 !== owner2 || cell1.count !== cell2.count) return false;
+                }
+            }
+            return true;
+        }
+
+        async function checkUrlRoomJoin() {
+            const params = new URLSearchParams(window.location.search);
+            const roomId = params.get('room');
+            if (roomId) {
+                switchModeTab('online'); currentRoomId = roomId; isHost = false;
+                renderPlayerList();
+                const nickname = prompt("请输入你的昵称进入房间：", "玩家") || "玩家";
+
+                const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
+                const res = await runTransaction(roomPlayersRef, (players) => {
+                    if (!players) players = [];
+                    if (players.length < MAX_PLAYERS) {
+                        myPlayerIndex = players.length;
+                        players.push({ name: nickname, isHost: false });
+                        return players;
+                    }
+                    return undefined;
+                });
+
+                if (!res.committed) {
+                    alert("房间已满员或已被销毁！");
+                    window.location.href = window.location.pathname;
+                    return;
+                }
+
+                document.getElementById('cloud-room-card').style.display = 'block';
+                document.getElementById('room-link-text').innerText = `房间号: ${roomId}`;
+                document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
+
+                onValue(ref(db, `rooms/${roomId}`), (snap) => {
+                    const roomData = snap.val();
+                    if (!roomData) {
+                        alert("房主已断开连接，对局结束！");
+                        window.location.href = window.location.pathname;
+                        return;
+                    }
+
+                    if (roomData.playerTypes) playerTypes = roomData.playerTypes;
+                    if (roomData.playerColors) playerColors = roomData.playerColors;
+                    if (roomData.playerEmojis) playerEmojis = roomData.playerEmojis;
+                    if (roomData.playerNames) playerNames = roomData.playerNames;
+                    renderPlayerList();
+
+                    if (roomData.restartTrigger !== undefined) {
+                        if (isFirstRoomLoad) {
+                            lastHandledRestartTrigger = roomData.restartTrigger;
+                            isFirstRoomLoad = false;
+                        } else if (roomData.restartTrigger > lastHandledRestartTrigger) {
+                            lastHandledRestartTrigger = roomData.restartTrigger;
+                            document.getElementById('winner-overlay').classList.remove('active');
+                            if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
+                                runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
+                            } else {
+                                initBoard(roomData.firstPlayer);
+                            }
+                        }
+                    }
+
+                    if (roomData.status === 'playing') {
+                        if (!board.length) {
+                            boardSize = roomData.boardSize;
+                            if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
+                                runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
+                            } else {
+                                initBoard(roomData.firstPlayer);
+                            }
+                        }
+
+                        if (roomData.snapshot && roomData.snapshotSeq > snapshotSeq) {
+                            snapshotSeq = roomData.snapshotSeq;
+                            const isBoardIdentical = areBoardsEqual(board, roomData.snapshot.board);
+                            
+                            board = roomData.snapshot.board;
+                            hasEntered = roomData.snapshot.hasEntered;
+                            eliminated = roomData.snapshot.eliminated;
+                            currentPlayer = roomData.snapshot.currentPlayer;
+
+                            if (!isBoardIdentical) {
+                                const boardEl = document.getElementById('game-board');
+                                if (boardEl) {
+                                    boardEl.style.opacity = '0.5';
+                                    updateBoardCellsDOM();
+                                    updateTurnHeader();
+                                    setTimeout(() => boardEl.style.opacity = '1', 100);
+                                } else {
+                                    updateBoardCellsDOM();
+                                    updateTurnHeader();
+                                }
+                            } else {
+                                updateBoardCellsDOM();
+                                updateTurnHeader();
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        async function startOnlineGame() {
+            if (!isHost) return;
+            isRandomFirst = document.getElementById('random-first-toggle').checked;
+            const active = getActivePlayers();
+            const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
+
+            await update(ref(db, `rooms/${currentRoomId}`), {
+                status: 'playing',
+                firstPlayer: startFirstPlayer,
+                wheelFirstPlayer: isRandomFirst ? startFirstPlayer : null,
+                playerTypes, playerColors, playerEmojis, playerNames
+            });
+
+            if (isRandomFirst) {
+                runRandomWheel(active, (selected) => {
+                    initBoard(selected);
+                    syncFullSnapshotToCloud();
+                });
+            } else {
+                initBoard(startFirstPlayer);
+                syncFullSnapshotToCloud();
+            }
+        }
+
+        function syncFullSnapshotToCloud() {
+            if (currentRoomId && isHost) {
+                snapshotSeq++;
+                const updates = {};
+                updates[`rooms/${currentRoomId}/snapshot`] = { board, hasEntered, eliminated, currentPlayer };
+                updates[`rooms/${currentRoomId}/snapshotSeq`] = snapshotSeq;
+                update(ref(db), updates);
+            }
+        }
+
+        function restartCurrentGame() {
+            document.getElementById('winner-overlay').classList.remove('active');
+            const active = getActivePlayers();
+            
+            if (currentRoomId && isHost) {
+                const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
+                const updates = {};
+                updates[`rooms/${currentRoomId}/firstPlayer`] = startFirstPlayer;
+                updates[`rooms/${currentRoomId}/wheelFirstPlayer`] = isRandomFirst ? startFirstPlayer : null;
+                updates[`rooms/${currentRoomId}/restartTrigger`] = Date.now();
+                update(ref(db), updates);
+            } else {
+                if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
+                else initBoard(active[0]);
+            }
+        }
+
+        // 修复第 6 点：退出菜单彻底重置环境状态
         function exitToMenu() {
+            isInGame = false;
+            isHost = false;
+            myPlayerIndex = 0;
+
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+            }
+            if (aiTimerId) {
+                clearTimeout(aiTimerId);
+                aiTimerId = null;
+            }
+
             document.getElementById('winner-overlay').classList.remove('active');
             document.getElementById('view-game').classList.remove('active');
             document.getElementById('view-menu').classList.add('active');
             currentRoomId = null;
+            isFirstRoomLoad = true;
         }
     </script>
 </body>
