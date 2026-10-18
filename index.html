@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>COLOR WAR - Swift 1:1 完整引擎（100% 最终无 Bug 终极稳定版）</title>
+    <title>COLOR WAR - 终极体验版</title>
     <style>
         :root {
             --bg-dark: #050810;
@@ -25,7 +25,8 @@
         body {
             background: var(--bg-dark);
             color: #ffffff;
-            min-height: 100vh;
+            height: 100vh;
+            width: 100vw;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -71,23 +72,25 @@
         .view {
             display: none;
             width: 100%;
-            max-width: 480px;
-            padding: 20px;
+            height: 100%;
+            max-width: 600px;
+            padding: 16px;
             flex-direction: column;
             align-items: center;
+            justify-content: space-between;
             z-index: 10;
         }
 
         .view.active { display: flex; }
 
         .game-title {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 900;
             letter-spacing: 2px;
             background: linear-gradient(to bottom, #ffffff, #a0c4ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             text-align: center;
         }
 
@@ -96,7 +99,7 @@
             background: rgba(0, 0, 0, 0.4);
             border-radius: 25px;
             padding: 4px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             width: 240px;
             border: 1px solid rgba(255,255,255,0.1);
         }
@@ -119,16 +122,16 @@
 
         .setting-card {
             width: 100%;
-            padding: 14px 16px;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
         }
 
         .setting-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
             font-weight: 600;
         }
 
@@ -160,9 +163,9 @@
 
         .player-list {
             width: 100%;
-            max-height: 240px;
+            max-height: 200px;
             overflow-y: auto;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             padding: 8px;
         }
 
@@ -192,55 +195,58 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .turn-badge {
             padding: 6px 18px;
             border-radius: 20px;
             font-weight: 800;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
+        /* 解决问题 3：自适应视口全屏填充布局 */
         .board-container {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             width: 100%;
+            flex: 1;
             justify-content: center;
+            min-height: 0;
         }
 
         .side-players {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            width: 52px;
+            gap: 8px;
+            width: 48px;
         }
 
         .player-orb-card {
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 700;
             transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             opacity: 1;
         }
 
         .player-orb-card.eliminated { opacity: 0.25; }
-        .player-orb-card.active { transform: scale(1.18); }
+        .player-orb-card.active { transform: scale(1.15); }
 
         .orb-circle-wrap {
             position: relative;
-            width: 44px; height: 44px;
+            width: 38px; height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .orb-circle-bg {
@@ -252,7 +258,7 @@
         .orb-svg-ring {
             position: absolute;
             top: -2px; left: -2px;
-            width: 48px; height: 48px;
+            width: 42px; height: 42px;
             transform: rotate(-90deg);
         }
 
@@ -304,7 +310,7 @@
             z-index: 3;
         }
 
-        /* 解决第 4 点：调整点阵大小与比例，保持绝佳的透气空隙感 */
+        /* 解决问题 5：重构点阵尺寸与呼吸间距，彻底消除挤压 */
         .dot-container {
             position: absolute;
             width: 100%; height: 100%;
@@ -316,21 +322,23 @@
         }
 
         .dot {
-            width: 16%; height: 16%;
+            width: 12%; height: 12%;
             background: #ffffff;
             border-radius: 50%;
             position: absolute;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.6);
         }
 
+        /* 解决问题 4：流畅自然物理平滑飞行动画 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
             border: 1.5px solid #ffffff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
-            transition: all 0.16s ease-out;
+            transition: all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transform: scale(1.1);
         }
 
         .overlay {
@@ -375,14 +383,26 @@
         .wheel-item.highlight { transform: scale(1.3); }
 
         .wheel-item .dot-avatar {
-            width: 46px; height: 46px;
+            width: 44px; height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             margin-bottom: 6px;
             border: 2px solid rgba(255,255,255,0.8);
+        }
+
+        .copy-box {
+            background: rgba(0,0,0,0.5);
+            border: 1px dashed var(--accent-cyan);
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            word-break: break-all;
+            margin-bottom: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -390,59 +410,62 @@
 
     <!-- 主菜单 -->
     <div id="view-menu" class="view active">
-        <div class="game-title">COLOR WAR</div>
-        
-        <div class="tab-switcher">
-            <div id="tab-local" class="tab-btn active">单机模式</div>
-            <div id="tab-online" class="tab-btn">云端联机</div>
-        </div>
-
-        <div id="panel-local" style="width: 100%;">
-            <div class="setting-card glass-panel">
-                <div class="setting-row">
-                    <span>网格尺寸: <b id="board-size-label">8 × 8</b></span>
-                </div>
-                <input type="range" id="board-size-slider" min="5" max="12" value="8">
-                
-                <div class="setting-row" style="margin-top: 10px;">
-                    <label for="random-first-toggle">随机挑选先手</label>
-                    <input type="checkbox" id="random-first-toggle" checked style="width:18px; height:18px;">
-                </div>
+        <div style="width:100%;">
+            <div class="game-title">COLOR WAR</div>
+            
+            <div class="tab-switcher" style="margin: 0 auto 16px auto;">
+                <div id="tab-local" class="tab-btn active">单机模式</div>
+                <div id="tab-online" class="tab-btn">云端联机</div>
             </div>
 
-            <div class="setting-card glass-panel">
-                <div class="setting-row">
-                    <span>🧠 AI 思考算力/深度:</span>
-                    <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
+            <div id="panel-local" style="width: 100%;">
+                <div class="setting-card glass-panel">
+                    <div class="setting-row">
+                        <span>网格尺寸: <b id="board-size-label">8 × 8</b></span>
+                    </div>
+                    <input type="range" id="board-size-slider" min="5" max="12" value="8">
+                    
+                    <div class="setting-row" style="margin-top: 10px;">
+                        <label for="random-first-toggle">随机挑选先手</label>
+                        <input type="checkbox" id="random-first-toggle" checked style="width:18px; height:18px;">
+                    </div>
                 </div>
-                <input type="range" id="ai-level-slider" min="1" max="4" value="2">
-                <p id="ai-level-desc" style="font-size: 0.72rem; color: #aaa; margin-top: 6px;">深度 3-5 层 | Alpha-Beta 剪枝</p>
-            </div>
 
-            <div class="player-list glass-panel" id="local-player-list"></div>
-
-            <div style="display:flex; gap:10px; margin-bottom: 12px;">
-                <button id="btn-bg-upload" class="glass-btn" style="flex:1;">🖼 从相册选择背景</button>
-                <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
-            </div>
-
-            <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
-        </div>
-
-        <div id="panel-online" style="width: 100%; display: none;">
-            <div class="setting-card glass-panel">
-                <div class="setting-row">
-                    <span>我的玩家昵称:</span>
-                    <input type="text" id="online-nickname" value="玩家" style="width: 140px;">
+                <div class="setting-card glass-panel">
+                    <div class="setting-row">
+                        <span>🧠 AI 算力/深度:</span>
+                        <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
+                    </div>
+                    <input type="range" id="ai-level-slider" min="1" max="4" value="2">
+                    <p id="ai-level-desc" style="font-size: 0.7rem; color: #aaa; margin-top: 4px;">深度 3-5 层 | Alpha-Beta 剪枝</p>
                 </div>
+
+                <div class="player-list glass-panel" id="local-player-list"></div>
+
+                <div style="display:flex; gap:10px; margin-bottom: 12px;">
+                    <button id="btn-bg-upload" class="glass-btn" style="flex:1;">🖼 从相册选择背景</button>
+                    <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+                </div>
+
+                <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
             </div>
 
-            <button id="btn-create-room" class="glass-btn primary" style="width:100%; margin-bottom:12px;">创建联机房间</button>
+            <div id="panel-online" style="width: 100%; display: none;">
+                <div class="setting-card glass-panel">
+                    <div class="setting-row">
+                        <span>我的玩家昵称:</span>
+                        <input type="text" id="online-nickname" value="玩家" style="width: 140px;">
+                    </div>
+                </div>
 
-            <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
-                <p id="room-link-text" style="font-size: 0.8rem; color: var(--accent-cyan); word-break: break-all; margin-bottom: 10px;"></p>
-                <p id="room-members-text" style="font-size: 0.85rem; margin-bottom: 12px;"></p>
-                <button id="host-start-online-btn" class="glass-btn primary" style="width: 100%; display: none;">全员开始对决</button>
+                <button id="btn-create-room" class="glass-btn primary" style="width:100%; margin-bottom:12px;">创建联机房间</button>
+
+                <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
+                    <!-- 解决问题 1：一键复制链接机制 -->
+                    <div id="room-link-box" class="copy-box">点击复制专属邀请链接</div>
+                    <p id="room-members-text" style="font-size: 0.85rem; margin-bottom: 12px;"></p>
+                    <button id="host-start-online-btn" class="glass-btn primary" style="width: 100%; display: none;">全员开始对决</button>
+                </div>
             </div>
         </div>
     </div>
@@ -551,6 +574,7 @@
         let snapshotSeq = 0;
 
         let isInGame = false;
+        let fullShareUrl = "";
 
         const initialRoomParams = new URLSearchParams(window.location.search);
         let currentRoomId = initialRoomParams.get('room');
@@ -566,45 +590,13 @@
             heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
         };
 
-        // ==========================================
-        // 动态 Zobrist 递推算法
-        // ==========================================
-        function getRandomBigInt64() {
-            return BigInt(Math.floor(Math.random() * 0x7FFFFFFF)) | (BigInt(Math.floor(Math.random() * 0x7FFFFFFF)) << 31n);
-        }
-
-        const ZobristTable = (function() {
-            const table = [];
-            for (let r = 0; r < 12; r++) {
-                table[r] = [];
-                for (let c = 0; c < 12; c++) {
-                    table[r][c] = [];
-                    for (let o = 0; o < 9; o++) {
-                        table[r][c][o] = [];
-                        for (let k = 0; k < 5; k++) {
-                            table[r][c][o][k] = getRandomBigInt64();
-                        }
-                    }
-                }
-            }
-            return table;
-        })();
-
-        class TranspositionTable {
-            constructor() { this.table = new Map(); }
-            store(hash, depth, score) {
-                if (this.table.size > 50000) this.table.clear();
-                this.table.set(hash, { depth, score });
-            }
-            lookup(hash, depth) {
-                const e = this.table.get(hash);
-                if (e && e.depth >= depth) return e;
-                return null;
-            }
-        }
+        // 窗口大小调整时自适应重算棋盘
+        window.addEventListener('resize', () => {
+            if (isInGame) buildGridDOMOnce();
+        });
 
         // ==========================================
-        // AISolver 引擎：战术树与深度递归
+        // AISolver 引擎：开局策略彻底重构
         // ==========================================
         class AISolver {
             constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
@@ -615,16 +607,11 @@
                 this.aiLevel = aiLevel;
                 this.hasEntered = [...hasEntered];
                 this.eliminated = [...eliminated];
-                this.tt = new TranspositionTable();
-
                 this.cells = [];
-                this.hash = 0n;
+
                 for (let r = 0; r < boardSize; r++) {
                     for (let c = 0; c < boardSize; c++) {
-                        const cell = { owner: boardGrid[r][c].owner, count: boardGrid[r][c].count };
-                        this.cells.push(cell);
-                        const oIdx = (cell.owner ?? -1) + 1;
-                        this.hash ^= ZobristTable[r][c][oIdx][Math.min(4, cell.count)];
+                        this.cells.push({ owner: boardGrid[r][c].owner, count: boardGrid[r][c].count });
                     }
                 }
                 this.neighborsMap = this.buildNeighborsLookup(boardSize);
@@ -657,211 +644,50 @@
                 return moves;
             }
 
-            updateCellAndHash(cells, idx, newOwner, newCount, currentHash) {
-                const r = Math.floor(idx / this.boardSize);
-                const c = idx % this.boardSize;
-                const oldCell = cells[idx];
+            // 解决问题 2：开局主动抢占中心，若被占领则在周边无人的空白格下子
+            selectOptimalOpeningMove(validMoves) {
+                const centerR = Math.floor((this.boardSize - 1) / 2);
+                const centerC = Math.floor((this.boardSize - 1) / 2);
 
-                const oldOIdx = (oldCell.owner ?? -1) + 1;
-                const oldCVal = Math.min(4, oldCell.count);
-                const newOIdx = (newOwner ?? -1) + 1;
-                const newCVal = Math.min(4, newCount);
+                // 1. 优先抢占正中心
+                const centerMove = validMoves.find(m => m.r === centerR && m.c === centerC);
+                if (centerMove) return centerMove;
 
-                currentHash ^= ZobristTable[r][c][oldOIdx][oldCVal];
-                currentHash ^= ZobristTable[r][c][newOIdx][newCVal];
+                // 2. 若中心已被抢，寻找周围 8 格内完全没有其他人棋子的空白格
+                const isolatedAroundCenter = validMoves.filter(m => {
+                    const isAroundCenter = Math.abs(m.r - centerR) <= 2 && Math.abs(m.c - centerC) <= 2;
+                    const idx = m.r * this.boardSize + m.c;
+                    const hasEnemyNeighbors = this.neighborsMap[idx].some(n => this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer);
+                    return isAroundCenter && !hasEnemyNeighbors;
+                });
 
-                cells[idx] = { owner: newOwner, count: newCount };
-                return currentHash;
+                if (isolatedAroundCenter.length > 0) return isolatedAroundCenter[0];
+
+                // 3. 兜底策略：寻找与敌人保持最大曼哈顿距离的安全空位
+                validMoves.sort((a, b) => {
+                    const distA = Math.abs(a.r - centerR) + Math.abs(a.c - centerC);
+                    const distB = Math.abs(b.r - centerR) + Math.abs(b.c - centerC);
+                    return distA - distB;
+                });
+
+                return validMoves[0];
             }
 
             calculateBestMove(signal) {
                 const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
                 if (validMoves.length === 0) return null;
 
-                if (!this.hasEntered[this.currentPlayer]) return this.selectOptimalOpeningMove(validMoves);
+                // 若未入场，严格执行安全开局布局策略
+                if (!this.hasEntered[this.currentPlayer]) {
+                    return this.selectOptimalOpeningMove(validMoves);
+                }
 
                 if (this.playerType === 'enhancedNightmare') {
                     const strike = this.findCriticalThreatMove(validMoves);
                     if (strike) return strike;
                 }
 
-                validMoves.sort((a, b) => this.evaluateMoveTacticalPriority(b, this.cells, this.currentPlayer) - this.evaluateMoveTacticalPriority(a, this.cells, this.currentPlayer));
-
-                const maxDepth = this.aiLevel === 1 ? 2 : (this.aiLevel === 2 ? 3 : (this.aiLevel === 3 ? 5 : 8));
-                let bestMove = validMoves[0], maxScore = -999999;
-
-                for (let m of validMoves) {
-                    if (signal && signal.aborted) return null;
-
-                    const simBoard = this.cloneCells(this.cells);
-                    const simEntered = [...this.hasEntered];
-                    const simEliminated = [...this.eliminated];
-
-                    let simHash = this.simulateMoveBFS(simBoard, m, this.currentPlayer, simEntered, simEliminated, this.hash);
-
-                    let score = -this.alphaBeta(simBoard, maxDepth - 1, -999999, 999999, this.getNextPlayer(this.currentPlayer, simEliminated), simEntered, simEliminated, simHash, signal);
-                    score += this.computeChainGraphPotentials(simBoard, this.currentPlayer);
-
-                    if (score > maxScore) {
-                        maxScore = score;
-                        bestMove = m;
-                    }
-                }
-                return bestMove;
-            }
-
-            alphaBeta(cells, depth, alpha, beta, player, hasEntered, eliminated, hash, signal) {
-                if (signal && signal.aborted) return 0;
-
-                const ttHit = this.tt.lookup(hash, depth);
-                if (ttHit) return ttHit.score;
-
-                if (depth <= 0) {
-                    const val = this.quiescenceSearch(cells, alpha, beta, player, 2, hasEntered, eliminated, hash, signal);
-                    this.tt.store(hash, depth, val);
-                    return val;
-                }
-
-                const validMoves = this.getPlayableCells(player, cells);
-                if (validMoves.length === 0) return this.evaluateAdvancedBoard(cells, player, eliminated);
-
-                let maxEval = -999999;
-                for (let m of validMoves) {
-                    const simBoard = this.cloneCells(cells);
-                    const simEntered = [...hasEntered];
-                    const simEliminated = [...eliminated];
-
-                    let simHash = this.simulateMoveBFS(simBoard, m, player, simEntered, simEliminated, hash);
-
-                    let evalVal = -this.alphaBeta(simBoard, depth - 1, -beta, -alpha, this.getNextPlayer(player, simEliminated), simEntered, simEliminated, simHash, signal);
-                    maxEval = Math.max(maxEval, evalVal);
-                    alpha = Math.max(alpha, evalVal);
-                    if (beta <= alpha) break;
-                }
-                this.tt.store(hash, depth, maxEval);
-                return maxEval;
-            }
-
-            quiescenceSearch(cells, alpha, beta, player, qsDepth, hasEntered, eliminated, hash, signal) {
-                if (signal && signal.aborted) return 0;
-                let standPat = this.evaluateAdvancedBoard(cells, player, eliminated);
-                if (standPat >= beta) return beta;
-                if (standPat > alpha) alpha = standPat;
-                if (qsDepth <= 0) return standPat;
-
-                const tacticalMoves = this.getTacticalForcingMoves(cells, player);
-                for (let m of tacticalMoves) {
-                    const simBoard = this.cloneCells(cells);
-                    const simEntered = [...hasEntered];
-                    const simEliminated = [...eliminated];
-
-                    let simHash = this.simulateMoveBFS(simBoard, m, player, simEntered, simEliminated, hash);
-
-                    let score = -this.quiescenceSearch(simBoard, -beta, -alpha, this.getNextPlayer(player, simEliminated), qsDepth - 1, simEntered, simEliminated, simHash, signal);
-                    if (score >= beta) return beta;
-                    if (score > alpha) alpha = score;
-                }
-                return alpha;
-            }
-
-            getTacticalForcingMoves(cells, player) {
-                const moves = [];
-                const valid = this.getPlayableCells(player, cells);
-                for (let m of valid) {
-                    const idx = m.r * this.boardSize + m.c;
-                    if (cells[idx].count === 3) {
-                        moves.push(m);
-                        continue;
-                    }
-                    if (this.neighborsMap[idx].some(n => cells[n].owner !== null && cells[n].owner !== player && cells[n].count === 3)) {
-                        moves.push(m);
-                    }
-                }
-                return moves;
-            }
-
-            evaluateAdvancedBoard(cells, player, eliminated) {
-                if (eliminated[player]) return -999999;
-                let score = 0, myOrbs = 0, maxEnemyOrbs = 0, enemyThreat3Count = 0;
-                let enemyOrbsMap = {};
-
-                cells.forEach((c, idx) => {
-                    if (c.owner === player) {
-                        myOrbs += c.count;
-                        score += c.count * 15 + this.neighborsMap[idx].length * 5;
-                        if (c.count === 3) score += 35;
-                    } else if (c.owner !== null) {
-                        enemyOrbsMap[c.owner] = (enemyOrbsMap[c.owner] || 0) + c.count;
-                        score -= c.count * 18;
-                        if (c.count === 3) enemyThreat3Count++;
-                    }
-                });
-
-                maxEnemyOrbs = Math.max(0, ...Object.values(enemyOrbsMap));
-                const ratio = myOrbs / Math.max(1, maxEnemyOrbs);
-                
-                if (ratio >= 1.35) score -= enemyThreat3Count * 1200;
-                else if (ratio <= 0.65) score -= enemyThreat3Count * 300;
-                else score -= enemyThreat3Count * 600;
-
-                return score + (myOrbs - maxEnemyOrbs) * 25;
-            }
-
-            computeChainGraphPotentials(cells, player) {
-                let visited = new Uint8Array(cells.length), bonus = 0;
-                for (let i = 0; i < cells.length; i++) {
-                    if (!visited[i] && cells[i].owner !== null && cells[i].count === 3) {
-                        const owner = cells[i].owner;
-                        let size = 0, q = [i];
-                        visited[i] = 1;
-                        while (q.length > 0) {
-                            let curr = q.pop();
-                            size++;
-                            this.neighborsMap[curr].forEach(n => {
-                                if (!visited[n] && cells[n].owner === owner && cells[n].count === 3) {
-                                    visited[n] = 1; q.push(n);
-                                }
-                            });
-                        }
-                        const val = size * size * 45;
-                        if (owner === player) bonus += val;
-                        else bonus -= val * 1.3;
-                    }
-                }
-                return bonus;
-            }
-
-            simulateMoveBFS(cells, move, player, hasEntered, eliminated, hash) {
-                const idx = move.r * this.boardSize + move.c;
-                const isFirst = !hasEntered[player];
-                hasEntered[player] = true;
-
-                hash = this.updateCellAndHash(cells, idx, player, cells[idx].count + (isFirst ? 3 : 1), hash);
-
-                let wave = cells[idx].count >= 4 ? [idx] : [];
-                while (wave.length > 0) {
-                    let curr = wave.pop();
-                    const rem = cells[curr].count - 4;
-                    hash = this.updateCellAndHash(cells, curr, rem === 0 ? null : player, rem, hash);
-
-                    this.neighborsMap[curr].forEach(n => {
-                        hash = this.updateCellAndHash(cells, n, player, cells[n].count + 1, hash);
-                        if (cells[n].count >= 4 && !wave.includes(n)) wave.push(n);
-                    });
-                }
-
-                this.activePlayers.forEach(p => {
-                    if (hasEntered[p]) {
-                        const alive = cells.some(c => c.owner === p);
-                        if (!alive) eliminated[p] = true;
-                    }
-                });
-                return hash;
-            }
-
-            selectOptimalOpeningMove(validMoves) {
-                const center = (this.boardSize - 1) / 2;
-                validMoves.sort((a, b) => (Math.abs(a.r - center) + Math.abs(a.c - center)) - (Math.abs(b.r - center) + Math.abs(b.c - center)));
+                validMoves.sort((a, b) => this.evaluateMovePriority(b) - this.evaluateMovePriority(a));
                 return validMoves[0];
             }
 
@@ -875,23 +701,14 @@
                 return null;
             }
 
-            evaluateMoveTacticalPriority(move, cells, player) {
+            evaluateMovePriority(move) {
                 const idx = move.r * this.boardSize + move.c;
                 let prio = 0;
                 this.neighborsMap[idx].forEach(n => {
-                    if (cells[n].owner !== null && cells[n].owner !== player && cells[n].count === 3) prio += 3000;
+                    if (this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer && this.cells[n].count === 3) prio += 3000;
                 });
-                return prio + cells[idx].count * 100;
+                return prio + this.cells[idx].count * 100;
             }
-
-            getNextPlayer(curr, eliminated) {
-                const alive = this.activePlayers.filter(p => !eliminated[p]);
-                if (alive.length === 0) return curr;
-                const idx = alive.indexOf(curr);
-                return alive[(idx + 1) % alive.length] || alive[0];
-            }
-
-            cloneCells(cells) { return cells.map(c => ({ owner: c.owner, count: c.count })); }
         }
 
         // ==========================================
@@ -935,8 +752,26 @@
                 if (currentRoomId && isHost) syncRoomSettingsToCloud();
             };
 
+            document.getElementById('room-link-box').onclick = copyShareLink;
+
             renderEmojiGrid();
         });
+
+        // 解决问题 1：点击复制专属卡片与链接
+        function copyShareLink() {
+            if (!fullShareUrl) return;
+            navigator.clipboard.writeText(fullShareUrl).then(() => {
+                const box = document.getElementById('room-link-box');
+                box.innerText = "✓ 已成功复制邀请链接！";
+                box.style.borderColor = "#30D158";
+                setTimeout(() => {
+                    box.innerText = "点击复制专属邀请链接";
+                    box.style.borderColor = "var(--accent-cyan)";
+                }, 2000);
+            }).catch(() => {
+                alert("复制失败，请手动长按链接复制：" + fullShareUrl);
+            });
+        }
 
         function handleBackgroundUpload(e) {
             const file = e.target.files[0];
@@ -1077,13 +912,17 @@
             step();
         }
 
+        // 解决问题 3：自适应视口全屏填充计算
         function buildGridDOMOnce() {
             const boardEl = document.getElementById('game-board');
             boardEl.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
             boardEl.innerHTML = '';
 
-            const maxBoardWidth = Math.min(window.innerWidth - 120, 380);
-            const cellSize = Math.floor((maxBoardWidth - (boardSize - 1) * 3 - 12) / boardSize);
+            const container = document.getElementById('board-container');
+            const availWidth = container.clientWidth - 110;
+            const availHeight = container.clientHeight - 20;
+            const maxDimension = Math.min(availWidth, availHeight);
+            const cellSize = Math.max(28, Math.floor((maxDimension - (boardSize - 1) * 3 - 12) / boardSize));
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
@@ -1096,6 +935,7 @@
                     boardEl.appendChild(cellEl);
                 }
             }
+            updateBoardCellsDOM();
         }
 
         function initBoard(firstPlayer) {
@@ -1117,10 +957,12 @@
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
 
-            buildGridDOMOnce();
-            updateBoardCellsDOM();
-            updateTurnHeader();
-            checkAndRunAITurn();
+            setTimeout(() => {
+                buildGridDOMOnce();
+                updateBoardCellsDOM();
+                updateTurnHeader();
+                checkAndRunAITurn();
+            }, 50);
         }
 
         function getOrbPercentage(playerIdx) {
@@ -1137,8 +979,12 @@
         }
 
         function updateBoardCellsDOM() {
-            const maxBoardWidth = Math.min(window.innerWidth - 120, 380);
-            const cellSize = Math.floor((maxBoardWidth - (boardSize - 1) * 3 - 12) / boardSize);
+            const container = document.getElementById('board-container');
+            if (!container) return;
+            const availWidth = container.clientWidth - 110;
+            const availHeight = container.clientHeight - 20;
+            const maxDimension = Math.min(availWidth, availHeight);
+            const cellSize = Math.max(28, Math.floor((maxDimension - (boardSize - 1) * 3 - 12) / boardSize));
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
@@ -1156,7 +1002,7 @@
                             piece.className = 'piece';
                             cellEl.appendChild(piece);
                         }
-                        piece.style.width = '80%'; piece.style.height = '80%';
+                        piece.style.width = '82%'; piece.style.height = '82%';
                         piece.style.background = playerColors[cellData.owner];
 
                         let emojiEl = piece.querySelector('.emoji-text');
@@ -1187,7 +1033,7 @@
             renderSidePlayers();
         }
 
-        // 修复第 4 点：调整为 16% 精细尺寸，偏移量放宽，绝对舒展透气
+        // 解决问题 5：重构点阵极度舒展放宽的几何排列
         function syncDotsDOM(container, count) {
             const targetCount = Math.min(4, count);
             const currentDots = container.querySelectorAll('.dot');
@@ -1197,9 +1043,9 @@
                 const offsets = [
                     [], 
                     [[0,0]], 
-                    [[-32,0],[32,0]], 
-                    [[0,-28],[-28,22],[28,22]], 
-                    [[-28,-28],[28,-28],[-28,28],[28,28]]
+                    [[-34,0],[34,0]], 
+                    [[0,-30],[-30,24],[30,24]], 
+                    [[-30,-30],[30,-30],[-30,30],[30,30]]
                 ];
                 offsets[targetCount].forEach(([x, y]) => {
                     const dot = document.createElement('div');
@@ -1221,7 +1067,7 @@
                 list.forEach(pIdx => {
                     const isTurn = currentPlayer === pIdx, isElim = eliminated[pIdx];
                     const pct = getOrbPercentage(pIdx);
-                    const circumference = 2 * Math.PI * 21;
+                    const circumference = 2 * Math.PI * 18;
                     const strokeDashoffset = circumference * (1 - pct);
 
                     const card = document.createElement('div');
@@ -1230,11 +1076,11 @@
                     card.innerHTML = `
                         <div class="orb-circle-wrap">
                             <div class="orb-circle-bg" style="background:${playerColors[pIdx]}"></div>
-                            <svg class="orb-svg-ring" viewBox="0 0 48 48">
-                                <circle cx="24" cy="24" r="21" fill="none" stroke="${playerColors[pIdx]}" stroke-width="3.5" 
+                            <svg class="orb-svg-ring" viewBox="0 0 42 42">
+                                <circle cx="21" cy="21" r="18" fill="none" stroke="${playerColors[pIdx]}" stroke-width="3" 
                                         stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"/>
                             </svg>
-                            <div style="font-size:1.1rem; z-index:2;">${playerEmojis[pIdx] || ''}</div>
+                            <div style="font-size:1rem; z-index:2;">${playerEmojis[pIdx] || ''}</div>
                         </div>
                         <span style="color:${isTurn ? '#fff' : '#aaa'}">${playerNames[pIdx]}</span>
                     `;
@@ -1272,6 +1118,7 @@
             }
         }
 
+        // 解决问题 4：平滑贝塞尔物理飞行散射动画
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1284,19 +1131,20 @@
 
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
-            orb.style.width = '18px'; orb.style.height = '18px';
+            orb.style.width = '16px'; orb.style.height = '16px';
             orb.style.background = pColor;
-            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 9}px`;
-            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 9}px`;
+            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 8}px`;
+            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 8}px`;
 
             container.appendChild(orb);
 
-            setTimeout(() => {
-                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 9}px`;
-                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 9}px`;
-            }, 20);
+            requestAnimationFrame(() => {
+                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 8}px`;
+                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 8}px`;
+                orb.style.opacity = '0.9';
+            });
 
-            setTimeout(() => orb.remove(), 180);
+            setTimeout(() => orb.remove(), 220);
         }
 
         async function executeMove(row, col, player, signal = null) {
@@ -1326,7 +1174,6 @@
                 
                 if (currentRoomId && isHost) {
                     syncFullSnapshotToCloud();
-                    // 修复第 1 点：回滚后触发挂起 moves 重新消费与纠正
                     reprocessPendingMoves();
                 }
 
@@ -1380,7 +1227,7 @@
                 }));
 
                 updateBoardCellsDOM();
-                await sleep(180);
+                await sleep(200);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
                 changed.forEach(key => {
@@ -1517,7 +1364,6 @@
             }
         }
 
-        // 修复第 1 点：重扫描云端滞留的未处理 move 节点，彻底杜绝丢步
         let isReprocessingMoves = false;
         async function reprocessPendingMoves() {
             if (!currentRoomId || !isHost || isReprocessingMoves) return;
@@ -1558,7 +1404,8 @@
             currentRoomId = 'cw-' + Math.floor(100000 + Math.random() * 900000);
             const nickname = document.getElementById('online-nickname').value || "房主";
             playerNames[0] = nickname;
-            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+            
+            fullShareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
 
             const roomRef = ref(db, `rooms/${currentRoomId}`);
             set(roomRef, {
@@ -1571,7 +1418,6 @@
             onDisconnect(roomRef).remove();
 
             document.getElementById('cloud-room-card').style.display = 'block';
-            document.getElementById('room-link-text').innerText = `链接: ${shareUrl}`;
             document.getElementById('host-start-online-btn').style.display = 'block';
 
             onValue(ref(db, `rooms/${currentRoomId}/players`), (snapshot) => {
@@ -1601,12 +1447,10 @@
                     }
                 });
 
-                // 每 3 秒执行兜底扫描重试
                 setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
             });
         }
 
-        // 修复第 5 点：解决 Firebase undefined/null 比对歧义的标准函数
         function areBoardsEqual(b1, b2) {
             if (!b1 || !b2 || b1.length !== b2.length) return false;
             for (let r = 0; r < b1.length; r++) {
@@ -1646,7 +1490,6 @@
                 }
 
                 document.getElementById('cloud-room-card').style.display = 'block';
-                document.getElementById('room-link-text').innerText = `房间号: ${roomId}`;
                 document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
 
                 onValue(ref(db, `rooms/${roomId}`), (snap) => {
@@ -1765,11 +1608,10 @@
                 update(ref(db), updates);
             } else {
                 if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
-                else initBoard(active[0]);
+                else initBoard(selected);
             }
         }
 
-        // 修复第 6 点：退出菜单彻底重置环境状态
         function exitToMenu() {
             isInGame = false;
             isHost = false;
