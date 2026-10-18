@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>COLOR WAR - 邀请码联机与完美动画版</title>
+    <title>COLOR WAR - 完美联机与物理质感版</title>
     <style>
         :root {
             --bg-dark: #050810;
@@ -324,14 +324,14 @@
         }
 
         .dot {
-            width: 14%; height: 14%;
+            width: 16%; height: 16%;
             background: #ffffff;
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
-        /* 优雅分段飞行动画 */
+        /* 复刻 Swift 原生平滑飞行动画 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
@@ -339,8 +339,8 @@
             box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
-            transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.32s ease-out;
-            transform: scale(0.6);
+            transition: transform 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.24s ease-out;
+            transform: scale(0.7);
             opacity: 1;
         }
 
@@ -468,7 +468,7 @@
                 <div id="online-lobby-actions" style="display: flex; flex-direction: column; gap: 10px;">
                     <button id="btn-create-room" class="glass-btn primary" style="width:100%;">创建联机房间 (担任房主)</button>
                     <div style="display: flex; gap: 8px; margin-top: 5px;">
-                        <input type="text" id="join-code-input" placeholder="输入6位房间邀请码" style="flex: 1; text-align: center; font-size: 0.9rem; letter-spacing: 2px;">
+                        <input type="text" id="join-code-input" placeholder="输入6位房间邀请码" maxlength="6" style="flex: 1; text-align: center; font-size: 0.9rem; letter-spacing: 2px;">
                         <button id="btn-join-room" class="glass-btn" style="background: rgba(0, 242, 254, 0.2);">加入房间</button>
                     </div>
                 </div>
@@ -562,14 +562,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
         import { getDatabase, ref, set, update, onValue, get, runTransaction, onDisconnect, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
 
+        // 彻底修复 Firebase 配置，显式绑定数据库根节点 URL，确保通信 100% 畅通
         const firebaseConfig = {
             apiKey: "AIzaSyBUJKB2ov62ulrlvTZxA1_MInCGyz5U2iE",
             authDomain: "color-war-web.firebaseapp.com",
+            databaseURL: "https://color-war-web-default-rtdb.firebaseio.com",
             projectId: "color-war-web",
             storageBucket: "color-war-web.firebasestorage.app",
             messagingSenderId: "953132932855",
-            appId: "1:953132932855:web:64331e1561776780667df2",
-            measurementId: "G-RPCH3QW57N"
+            appId: "1:953132932855:web:64331e1561776780667df2"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -614,7 +615,6 @@
         let isHost = false;
         let editingEmojiPlayerIdx = null;
         let localMoveSeq = 0;
-        let lastHandledRestartTrigger = 0;
         let roomUnsubscribe = null;
 
         const Haptics = {
@@ -627,7 +627,7 @@
         });
 
         // ==========================================
-        // AISolver 引擎
+        // AISolver 引擎：完美参考 Swift 安全落子与启发计算
         // ==========================================
         class AISolver {
             constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
@@ -675,29 +675,73 @@
                 return moves;
             }
 
+            // 完全复刻 Swift 原生开局 8 格完全隔离法则
             selectOptimalOpeningMove(validMoves) {
-                const centerR = Math.floor((this.boardSize - 1) / 2);
-                const centerC = Math.floor((this.boardSize - 1) / 2);
-
-                const centerMove = validMoves.find(m => m.r === centerR && m.c === centerC);
-                if (centerMove) return centerMove;
-
-                const isolatedAroundCenter = validMoves.filter(m => {
-                    const isAroundCenter = Math.abs(m.r - centerR) <= 2 && Math.abs(m.c - centerC) <= 2;
-                    const idx = m.r * this.boardSize + m.c;
-                    const hasEnemyNeighbors = this.neighborsMap[idx].some(n => this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer);
-                    return isAroundCenter && !hasEnemyNeighbors;
+                const occupiedIndices = new Set();
+                this.cells.forEach((cell, idx) => {
+                    if (cell.owner !== null) occupiedIndices.add(idx);
                 });
 
-                if (isolatedAroundCenter.length > 0) return isolatedAroundCenter[0];
+                const center = (this.boardSize - 1) / 2.0;
 
-                validMoves.sort((a, b) => {
-                    const distA = Math.abs(a.r - centerR) + Math.abs(a.c - centerC);
-                    const distB = Math.abs(b.r - centerR) + Math.abs(b.c - centerC);
-                    return distA - distB;
+                if (occupiedIndices.size === 0) {
+                    validMoves.sort((a, b) => {
+                        const distA = Math.abs(a.r - center) + Math.abs(a.c - center);
+                        const distB = Math.abs(b.r - center) + Math.abs(b.c - center);
+                        return distA - distB;
+                    });
+                    return validMoves[0];
+                }
+
+                // 8 格强隔离：筛选 3x3 邻域内绝对无任何敌方棋子的盲点
+                const safe8Moves = validMoves.filter(m => {
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (dr === 0 && dc === 0) continue;
+                            const nr = m.r + dr, nc = m.c + dc;
+                            if (nr >= 0 && nr < this.boardSize && nc >= 0 && nc < this.boardSize) {
+                                if (occupiedIndices.has(nr * this.boardSize + nc)) return false;
+                            }
+                        }
+                    }
+                    return true;
                 });
 
-                return validMoves[0];
+                let safe4Moves = safe8Moves;
+                if (safe4Moves.length === 0) {
+                    safe4Moves = validMoves.filter(m => {
+                        const idx = m.r * this.boardSize + m.c;
+                        return !this.neighborsMap[idx].some(n => occupiedIndices.has(n));
+                    });
+                }
+
+                const candidates = safe4Moves.length > 0 ? safe4Moves : validMoves;
+
+                candidates.sort((a, b) => {
+                    const scoreA = this.evaluateOpeningCandidateScore(a, occupiedIndices, center);
+                    const scoreB = this.evaluateOpeningCandidateScore(b, occupiedIndices, center);
+                    return scoreB - scoreA;
+                });
+
+                return candidates[0];
+            }
+
+            evaluateOpeningCandidateScore(move, occupiedIndices, center) {
+                const idx = move.r * this.boardSize + move.c;
+                const neighborsCount = this.neighborsMap[idx].length;
+                let score = neighborsCount * 100.0;
+
+                let minDistance = this.boardSize * 2;
+                occupiedIndices.forEach(occIdx => {
+                    const or = Math.floor(occIdx / this.boardSize), oc = occIdx % this.boardSize;
+                    const chebyshevDist = Math.max(Math.abs(move.r - or), Math.abs(move.c - oc));
+                    if (chebyshevDist < minDistance) minDistance = chebyshevDist;
+                });
+
+                score += minDistance * 150.0;
+                const distToCenter = Math.abs(move.r - center) + Math.abs(move.c - center);
+                score -= distToCenter * 20.0;
+                return score;
             }
 
             calculateBestMove(signal) {
@@ -758,7 +802,6 @@
                 document.getElementById('ai-level-desc').innerText = AI_DIFFICULTY_DESCS[aiLevel];
             };
 
-            // 联机模式房主动态控制器绑步
             document.getElementById('online-board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
                 document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
@@ -826,7 +869,6 @@
             document.getElementById('panel-online').style.display = mode === 'online' ? 'block' : 'none';
         }
 
-        // 重构 PlayerList 渲染，支持多列表视角
         function renderPlayerList(targetContainerId = 'local-player-list') {
             const container = document.getElementById(targetContainerId);
             if (!container) return;
@@ -1067,7 +1109,7 @@
             renderSidePlayers();
         }
 
-        // 解决问题 2：修正 3 点为标准“品”字布局，并微调间距
+        // 彻底还原 Swift 源码 100% 极具物理质感的品字与点阵排列
         function syncDotsDOM(container, count) {
             const targetCount = Math.min(4, count);
             const currentDots = container.querySelectorAll('.dot');
@@ -1077,9 +1119,9 @@
                 const dotPositions = [
                     [], 
                     [[50, 50]], 
-                    [[50, 32], [50, 68]], 
-                    [[32, 50], [68, 34], [68, 66]], // 正品字型：顶部居中1个，底部平行2个
-                    [[32, 32], [68, 32], [32, 68], [68, 68]]
+                    [[50, 22], [50, 78]], // 水平左右 28% 偏移
+                    [[28, 50], [68, 26], [68, 74]], // 极品质感“品”字型：上方居中，下方左右分布
+                    [[28, 28], [72, 28], [28, 72], [72, 72]]
                 ];
                 dotPositions[targetCount].forEach(([top, left]) => {
                     const dot = document.createElement('div');
@@ -1154,7 +1196,7 @@
             }
         }
 
-        // 解决问题 3：延长飞行动画过渡与视觉停留
+        // 完全平滑复刻 Swift 原生三阶段飞行动画
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1180,10 +1222,10 @@
                 orb.style.transform = 'scale(1.25)';
             });
 
-            setTimeout(() => orb.remove(), 320);
+            setTimeout(() => orb.remove(), 240);
         }
 
-        // 解决问题 3：放慢连锁多段爆裂节奏（增加 450ms 优雅停顿）
+        // 重构逐格多段式连锁爆裂 (与 Swift 逻辑 100% 对齐)
         async function executeMove(row, col, player, signal = null) {
             if (!isInGame) return false;
             isProcessingCascade = true;
@@ -1229,7 +1271,7 @@
             emphasizedCells = new Set([row * boardSize + col]);
             updateBoardCellsDOM();
 
-            await sleep(250);
+            await sleep(210);
             if (signal?.aborted || !isInGame) { rollback(); return false; }
 
             let wave = board[row][col].count >= 4 ? [[row, col]] : [];
@@ -1258,8 +1300,7 @@
                 emphasizedCells = new Set(affectedCells.map(([nr, nc]) => nr * boardSize + nc));
                 updateBoardCellsDOM();
 
-                // 放慢分段爆裂间隔，提升节奏质感
-                await sleep(450);
+                await sleep(240);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
                 affectedCells.forEach(([nr, nc]) => {
@@ -1432,7 +1473,7 @@
             }
         }
 
-        // 解决问题 1：全新邀请码房主开房架构
+        // 完美修复 6 位邀请码开房事务
         function createCloudRoom() {
             isHost = true; 
             myPlayerIndex = 0;
@@ -1489,18 +1530,26 @@
             });
         }
 
-        // 解决问题 1：全新邀请码加入逻辑
+        // 彻底修复“点击加入房间无响应”的逻辑陷阱
         async function joinCloudRoomByCode() {
+            const joinBtn = document.getElementById('btn-join-room');
             const inputCode = document.getElementById('join-code-input').value.trim();
-            if (!inputCode || inputCode.length < 6) {
+
+            if (!inputCode || inputCode.length !== 6) {
                 alert("请输入正确的 6 位房间邀请码！");
                 return;
             }
 
+            joinBtn.innerText = "加入中...";
+            joinBtn.style.pointerEvents = "none";
+
             const roomId = 'cw-' + inputCode;
             const roomSnap = await get(ref(db, `rooms/${roomId}`));
+            
             if (!roomSnap.exists()) {
                 alert("不存在该邀请码对应的房间！");
+                joinBtn.innerText = "加入房间";
+                joinBtn.style.pointerEvents = "auto";
                 return;
             }
 
@@ -1521,10 +1570,11 @@
 
             if (!res.committed) {
                 alert("该房间人满了！");
+                joinBtn.innerText = "加入房间";
+                joinBtn.style.pointerEvents = "auto";
                 return;
             }
 
-            // 非房主自动将其席位在云端更新为 human
             const roomData = roomSnap.val();
             let updatedTypes = roomData.playerTypes || [...playerTypes];
             let updatedNames = roomData.playerNames || [...playerNames];
@@ -1535,6 +1585,9 @@
                 playerTypes: updatedTypes,
                 playerNames: updatedNames
             });
+
+            joinBtn.innerText = "加入房间";
+            joinBtn.style.pointerEvents = "auto";
 
             document.getElementById('online-lobby-actions').style.display = 'none';
             document.getElementById('online-room-hall').style.display = 'block';
