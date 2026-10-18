@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>COLOR WAR - 完美全屏与分段爆裂终极版</title>
+    <title>COLOR WAR - 邀请码联机与完美动画版</title>
     <style>
         :root {
             --bg-dark: #050810;
@@ -148,7 +148,7 @@
             background: rgba(0,0,0,0.4);
             border: 1px solid var(--glass-border);
             color: white;
-            padding: 6px 12px;
+            padding: 8px 12px;
             border-radius: 10px;
             outline: none;
             font-weight: 600;
@@ -331,7 +331,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
-        /* 升级版分段爆裂飞行动画 */
+        /* 优雅分段飞行动画 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
@@ -339,7 +339,7 @@
             box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
-            transition: transform 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.24s ease-out;
+            transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.32s ease-out;
             transform: scale(0.6);
             opacity: 1;
         }
@@ -396,16 +396,16 @@
             border: 2px solid rgba(255,255,255,0.8);
         }
 
-        .copy-box {
-            background: rgba(0,0,0,0.5);
-            border: 1px dashed var(--accent-cyan);
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+        .code-display {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: 6px;
             color: var(--accent-cyan);
-            word-break: break-all;
-            margin-bottom: 10px;
-            cursor: pointer;
+            margin: 10px 0;
+            background: rgba(0, 242, 254, 0.1);
+            padding: 10px;
+            border-radius: 14px;
+            border: 1px dashed var(--accent-cyan);
         }
     </style>
 </head>
@@ -421,6 +421,7 @@
                 <div id="tab-online" class="tab-btn">云端联机</div>
             </div>
 
+            <!-- 单机模式面板 -->
             <div id="panel-local" style="width: 100%;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
@@ -454,20 +455,50 @@
                 <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
             </div>
 
+            <!-- 联机模式大厅面板 -->
             <div id="panel-online" style="width: 100%; display: none;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
                         <span>我的玩家昵称:</span>
-                        <input type="text" id="online-nickname" value="玩家" style="width: 140px;">
+                        <input type="text" id="online-nickname" value="玩家1" style="width: 140px;">
                     </div>
                 </div>
 
-                <button id="btn-create-room" class="glass-btn primary" style="width:100%; margin-bottom:12px;">创建联机房间</button>
+                <!-- 大厅初始选单 -->
+                <div id="online-lobby-actions" style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="btn-create-room" class="glass-btn primary" style="width:100%;">创建联机房间 (担任房主)</button>
+                    <div style="display: flex; gap: 8px; margin-top: 5px;">
+                        <input type="text" id="join-code-input" placeholder="输入6位房间邀请码" style="flex: 1; text-align: center; font-size: 0.9rem; letter-spacing: 2px;">
+                        <button id="btn-join-room" class="glass-btn" style="background: rgba(0, 242, 254, 0.2);">加入房间</button>
+                    </div>
+                </div>
 
-                <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
-                    <div id="room-link-box" class="copy-box">点击复制专属邀请链接</div>
-                    <p id="room-members-text" style="font-size: 0.85rem; margin-bottom: 12px;"></p>
-                    <button id="host-start-online-btn" class="glass-btn primary" style="width: 100%; display: none;">全员开始对决</button>
+                <!-- 房间内大厅控制区 (房主/玩家界面) -->
+                <div id="online-room-hall" class="setting-card glass-panel" style="display: none; text-align: center;">
+                    <span style="font-size: 0.8rem; color: #aaa;">房间邀请码</span>
+                    <div class="code-display" id="room-code-display">------</div>
+                    
+                    <!-- 房主专属高级设置区 -->
+                    <div id="host-control-section" style="display: none; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 10px; margin-top: 10px; text-align: left;">
+                        <div class="setting-row">
+                            <span>网格尺寸: <b id="online-board-size-label">8 × 8</b></span>
+                        </div>
+                        <input type="range" id="online-board-size-slider" min="5" max="12" value="8">
+                        
+                        <div class="setting-row" style="margin-top: 8px;">
+                            <span>🧠 AI 算力等级:</span>
+                            <span id="online-ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
+                        </div>
+                        <input type="range" id="online-ai-level-slider" min="1" max="4" value="2">
+                    </div>
+
+                    <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">📋 房间席位配置</div>
+                    <div class="player-list glass-panel" id="online-player-list" style="max-height: 160px;"></div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                        <button id="btn-leave-room" class="glass-btn" style="flex: 1;">退出房间</button>
+                        <button id="host-start-online-btn" class="glass-btn primary" style="flex: 2; display: none;">全员开始对决 ▶</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -577,16 +608,14 @@
         let snapshotSeq = 0;
 
         let isInGame = false;
-        let fullShareUrl = "";
 
-        const initialRoomParams = new URLSearchParams(window.location.search);
-        let currentRoomId = initialRoomParams.get('room');
+        let currentRoomId = null;
         let myPlayerIndex = 0;
         let isHost = false;
         let editingEmojiPlayerIdx = null;
         let localMoveSeq = 0;
         let lastHandledRestartTrigger = 0;
-        let isFirstRoomLoad = true;
+        let roomUnsubscribe = null;
 
         const Haptics = {
             light() { if (navigator.vibrate) navigator.vibrate(12); },
@@ -713,8 +742,7 @@
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedBackground();
-            renderPlayerList();
-            checkUrlRoomJoin();
+            renderPlayerList('local-player-list');
 
             document.getElementById('tab-local').onclick = () => switchModeTab('local');
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
@@ -730,12 +758,27 @@
                 document.getElementById('ai-level-desc').innerText = AI_DIFFICULTY_DESCS[aiLevel];
             };
 
+            // 联机模式房主动态控制器绑步
+            document.getElementById('online-board-size-slider').oninput = (e) => {
+                boardSize = parseInt(e.target.value);
+                document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
+                if (currentRoomId && isHost) syncRoomSettingsToCloud();
+            };
+
+            document.getElementById('online-ai-level-slider').oninput = (e) => {
+                aiLevel = parseInt(e.target.value);
+                document.getElementById('online-ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
+                if (currentRoomId && isHost) syncRoomSettingsToCloud();
+            };
+
             document.getElementById('btn-bg-upload').onclick = () => document.getElementById('bg-file-input').click();
             document.getElementById('bg-file-input').onchange = handleBackgroundUpload;
             document.getElementById('btn-bg-reset').onclick = resetBackgroundToDefault;
 
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
+            document.getElementById('btn-join-room').onclick = joinCloudRoomByCode;
+            document.getElementById('btn-leave-room').onclick = leaveCloudRoom;
             document.getElementById('host-start-online-btn').onclick = startOnlineGame;
             
             document.getElementById('btn-exit-game').onclick = exitToMenu;
@@ -746,29 +789,12 @@
             document.getElementById('btn-close-emoji').onclick = () => {
                 if (editingEmojiPlayerIdx !== null) playerEmojis[editingEmojiPlayerIdx] = null;
                 document.getElementById('emoji-modal').classList.remove('active');
-                renderPlayerList();
+                renderPlayerList(currentRoomId ? 'online-player-list' : 'local-player-list');
                 if (currentRoomId && isHost) syncRoomSettingsToCloud();
             };
 
-            document.getElementById('room-link-box').onclick = copyShareLink;
-
             renderEmojiGrid();
         });
-
-        function copyShareLink() {
-            if (!fullShareUrl) return;
-            navigator.clipboard.writeText(fullShareUrl).then(() => {
-                const box = document.getElementById('room-link-box');
-                box.innerText = "✓ 已成功复制邀请链接！";
-                box.style.borderColor = "#30D158";
-                setTimeout(() => {
-                    box.innerText = "点击复制专属邀请链接";
-                    box.style.borderColor = "var(--accent-cyan)";
-                }, 2000);
-            }).catch(() => {
-                alert("复制失败，请手动长按链接复制：" + fullShareUrl);
-            });
-        }
 
         function handleBackgroundUpload(e) {
             const file = e.target.files[0];
@@ -800,8 +826,10 @@
             document.getElementById('panel-online').style.display = mode === 'online' ? 'block' : 'none';
         }
 
-        function renderPlayerList() {
-            const container = document.getElementById('local-player-list');
+        // 重构 PlayerList 渲染，支持多列表视角
+        function renderPlayerList(targetContainerId = 'local-player-list') {
+            const container = document.getElementById(targetContainerId);
+            if (!container) return;
             container.innerHTML = '';
             const isReadOnly = Boolean(currentRoomId) && !isHost;
 
@@ -809,10 +837,10 @@
                 const row = document.createElement('div');
                 row.className = 'player-row';
                 row.innerHTML = `
-                    <div class="color-dot" style="background:${playerColors[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="color-dot-${i}">${playerEmojis[i] || ''}</div>
-                    <input type="color" value="${playerColors[i]}" id="color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
-                    <input type="text" value="${playerNames[i]}" id="p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
-                    <select id="p-type-${i}" style="font-size: 0.75rem;" ${isReadOnly ? 'disabled' : ''}>
+                    <div class="color-dot" style="background:${playerColors[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="${targetContainerId}-color-dot-${i}">${playerEmojis[i] || ''}</div>
+                    <input type="color" value="${playerColors[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
+                    <input type="text" value="${playerNames[i]}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
+                    <select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;" ${isReadOnly ? 'disabled' : ''}>
                         <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
                         <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
                         <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
@@ -822,17 +850,17 @@
                 container.appendChild(row);
 
                 if (!isReadOnly) {
-                    document.getElementById(`color-dot-${i}`).onclick = () => { editingEmojiPlayerIdx = i; document.getElementById('emoji-modal').classList.add('active'); };
-                    document.getElementById(`color-picker-${i}`).onchange = (e) => { 
+                    document.getElementById(`${targetContainerId}-color-dot-${i}`).onclick = () => { editingEmojiPlayerIdx = i; document.getElementById('emoji-modal').classList.add('active'); };
+                    document.getElementById(`${targetContainerId}-color-picker-${i}`).onchange = (e) => { 
                         playerColors[i] = e.target.value; 
-                        renderPlayerList(); 
+                        renderPlayerList(targetContainerId); 
                         if (currentRoomId && isHost) syncRoomSettingsToCloud();
                     };
-                    document.getElementById(`p-name-${i}`).onchange = (e) => {
+                    document.getElementById(`${targetContainerId}-p-name-${i}`).onchange = (e) => {
                         playerNames[i] = e.target.value;
                         if (currentRoomId && isHost) syncRoomSettingsToCloud();
                     };
-                    document.getElementById(`p-type-${i}`).onchange = (e) => {
+                    document.getElementById(`${targetContainerId}-p-type-${i}`).onchange = (e) => {
                         playerTypes[i] = e.target.value;
                         if (currentRoomId && isHost) syncRoomSettingsToCloud();
                     };
@@ -851,7 +879,7 @@
                 btn.onclick = () => {
                     if (editingEmojiPlayerIdx !== null) {
                         playerEmojis[editingEmojiPlayerIdx] = emoji;
-                        renderPlayerList();
+                        renderPlayerList(currentRoomId ? 'online-player-list' : 'local-player-list');
                         if (currentRoomId && isHost) syncRoomSettingsToCloud();
                     }
                     document.getElementById('emoji-modal').classList.remove('active');
@@ -1039,6 +1067,7 @@
             renderSidePlayers();
         }
 
+        // 解决问题 2：修正 3 点为标准“品”字布局，并微调间距
         function syncDotsDOM(container, count) {
             const targetCount = Math.min(4, count);
             const currentDots = container.querySelectorAll('.dot');
@@ -1048,9 +1077,9 @@
                 const dotPositions = [
                     [], 
                     [[50, 50]], 
-                    [[50, 26], [50, 74]], 
-                    [[50, 22], [28, 70], [72, 70]], 
-                    [[26, 26], [74, 26], [26, 74], [74, 74]]
+                    [[50, 32], [50, 68]], 
+                    [[32, 50], [68, 34], [68, 66]], // 正品字型：顶部居中1个，底部平行2个
+                    [[32, 32], [68, 32], [32, 68], [68, 68]]
                 ];
                 dotPositions[targetCount].forEach(([top, left]) => {
                     const dot = document.createElement('div');
@@ -1125,7 +1154,7 @@
             }
         }
 
-        // 解决问题 2：分段飞行动画与物理碰撞感
+        // 解决问题 3：延长飞行动画过渡与视觉停留
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1151,10 +1180,10 @@
                 orb.style.transform = 'scale(1.25)';
             });
 
-            setTimeout(() => orb.remove(), 240);
+            setTimeout(() => orb.remove(), 320);
         }
 
-        // 解决问题 2：重构算法实现“逐格多段式连锁爆裂”
+        // 解决问题 3：放慢连锁多段爆裂节奏（增加 450ms 优雅停顿）
         async function executeMove(row, col, player, signal = null) {
             if (!isInGame) return false;
             isProcessingCascade = true;
@@ -1200,17 +1229,15 @@
             emphasizedCells = new Set([row * boardSize + col]);
             updateBoardCellsDOM();
 
-            await sleep(200);
+            await sleep(250);
             if (signal?.aborted || !isInGame) { rollback(); return false; }
 
             let wave = board[row][col].count >= 4 ? [[row, col]] : [];
             const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
-            // 逐格分段推进爆裂，不再一次性全部并爆
             while (wave.length > 0) {
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
                 
-                // 每次取出队列最前面的单格处理爆裂
                 const [r, c] = wave.shift();
                 if (board[r][c].count < 4) continue;
 
@@ -1231,11 +1258,10 @@
                 emphasizedCells = new Set(affectedCells.map(([nr, nc]) => nr * boardSize + nc));
                 updateBoardCellsDOM();
 
-                // 分段停留时长，形成清淅的分段连爆视觉体验
-                await sleep(240);
+                // 放慢分段爆裂间隔，提升节奏质感
+                await sleep(450);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
-                // 将产生新满 4 的格子按顺序追加到队列末尾
                 affectedCells.forEach(([nr, nc]) => {
                     if (board[nr][nc].count >= 4 && !wave.some(([wr, wc]) => wr === nr && wc === nc)) {
                         wave.push([nr, nc]);
@@ -1366,7 +1392,7 @@
         function syncRoomSettingsToCloud() {
             if (currentRoomId && isHost) {
                 update(ref(db, `rooms/${currentRoomId}`), {
-                    playerTypes, playerColors, playerEmojis, playerNames
+                    boardSize, aiLevel, playerTypes, playerColors, playerEmojis, playerNames
                 });
             }
         }
@@ -1406,17 +1432,21 @@
             }
         }
 
+        // 解决问题 1：全新邀请码房主开房架构
         function createCloudRoom() {
-            isHost = true; myPlayerIndex = 0;
-            currentRoomId = 'cw-' + Math.floor(100000 + Math.random() * 900000);
+            isHost = true; 
+            myPlayerIndex = 0;
+            const roomCode = String(Math.floor(100000 + Math.random() * 900000));
+            currentRoomId = 'cw-' + roomCode;
+            
             const nickname = document.getElementById('online-nickname').value || "房主";
             playerNames[0] = nickname;
-            
-            fullShareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+            playerTypes = ["human", "human", "disabled", "disabled", "disabled", "disabled", "disabled", "disabled"];
 
             const roomRef = ref(db, `rooms/${currentRoomId}`);
             set(roomRef, {
-                status: 'waiting', boardSize: boardSize,
+                roomCode: roomCode,
+                status: 'waiting', boardSize: boardSize, aiLevel: aiLevel,
                 players: [{ name: nickname, isHost: true }],
                 playerTypes, playerColors, playerEmojis, playerNames,
                 restartTrigger: 0, lastExecutedSeq: -1
@@ -1424,13 +1454,14 @@
 
             onDisconnect(roomRef).remove();
 
-            document.getElementById('cloud-room-card').style.display = 'block';
+            document.getElementById('online-lobby-actions').style.display = 'none';
+            document.getElementById('online-room-hall').style.display = 'block';
+            document.getElementById('room-code-display').innerText = roomCode;
+            document.getElementById('host-control-section').style.display = 'block';
             document.getElementById('host-start-online-btn').style.display = 'block';
 
-            onValue(ref(db, `rooms/${currentRoomId}/players`), (snapshot) => {
-                const players = snapshot.val() || [];
-                document.getElementById('room-members-text').innerText = `已加入 ${players.length} 名玩家`;
-            });
+            renderPlayerList('online-player-list');
+            subscribeRoomData();
 
             let localHostLastExecutedSeq = -1;
             get(ref(db, `rooms/${currentRoomId}/lastExecutedSeq`)).then(snap => {
@@ -1458,149 +1489,143 @@
             });
         }
 
-        function areBoardsEqual(b1, b2) {
-            if (!b1 || !b2 || b1.length !== b2.length) return false;
-            for (let r = 0; r < b1.length; r++) {
-                for (let c = 0; c < b1[r].length; c++) {
-                    const cell1 = b1[r][c], cell2 = b2[r][c];
-                    const owner1 = cell1.owner ?? null;
-                    const owner2 = cell2.owner ?? null;
-                    if (owner1 !== owner2 || cell1.count !== cell2.count) return false;
-                }
+        // 解决问题 1：全新邀请码加入逻辑
+        async function joinCloudRoomByCode() {
+            const inputCode = document.getElementById('join-code-input').value.trim();
+            if (!inputCode || inputCode.length < 6) {
+                alert("请输入正确的 6 位房间邀请码！");
+                return;
             }
-            return true;
+
+            const roomId = 'cw-' + inputCode;
+            const roomSnap = await get(ref(db, `rooms/${roomId}`));
+            if (!roomSnap.exists()) {
+                alert("不存在该邀请码对应的房间！");
+                return;
+            }
+
+            const nickname = document.getElementById('online-nickname').value || `玩家`;
+            isHost = false; 
+            currentRoomId = roomId;
+
+            const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
+            const res = await runTransaction(roomPlayersRef, (players) => {
+                if (!players) players = [];
+                if (players.length < MAX_PLAYERS) {
+                    myPlayerIndex = players.length;
+                    players.push({ name: nickname, isHost: false });
+                    return players;
+                }
+                return undefined;
+            });
+
+            if (!res.committed) {
+                alert("该房间人满了！");
+                return;
+            }
+
+            // 非房主自动将其席位在云端更新为 human
+            const roomData = roomSnap.val();
+            let updatedTypes = roomData.playerTypes || [...playerTypes];
+            let updatedNames = roomData.playerNames || [...playerNames];
+            updatedTypes[myPlayerIndex] = "human";
+            updatedNames[myPlayerIndex] = nickname;
+
+            await update(ref(db, `rooms/${roomId}`), {
+                playerTypes: updatedTypes,
+                playerNames: updatedNames
+            });
+
+            document.getElementById('online-lobby-actions').style.display = 'none';
+            document.getElementById('online-room-hall').style.display = 'block';
+            document.getElementById('room-code-display').innerText = inputCode;
+            document.getElementById('host-control-section').style.display = 'none';
+            document.getElementById('host-start-online-btn').style.display = 'none';
+
+            subscribeRoomData();
         }
 
-        // 解决问题 1：重构 URL 进房握手逻辑
-        async function checkUrlRoomJoin() {
-            const params = new URLSearchParams(window.location.search);
-            const roomId = params.get('room');
-            if (roomId) {
-                switchModeTab('online'); 
-                currentRoomId = roomId; 
-                isHost = false;
-
-                const roomSnap = await get(ref(db, `rooms/${roomId}`));
-                if (!roomSnap.exists()) {
-                    alert("房间不存在或已被销毁！");
-                    window.location.href = window.location.pathname;
-                    return;
-                }
-
-                const nickname = prompt("请输入你的昵称进入房间：", "玩家") || "玩家";
-
-                const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
-                const res = await runTransaction(roomPlayersRef, (players) => {
-                    if (!players) players = [];
-                    if (players.length < MAX_PLAYERS) {
-                        myPlayerIndex = players.length;
-                        players.push({ name: nickname, isHost: false });
-                        return players;
-                    }
-                    return undefined;
-                });
-
-                if (!res.committed) {
-                    alert("房间已满员！");
-                    window.location.href = window.location.pathname;
-                    return;
-                }
-
-                document.getElementById('cloud-room-card').style.display = 'block';
-                document.getElementById('room-link-box').style.display = 'none';
-                document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
-
-                onValue(ref(db, `rooms/${roomId}`), (snap) => {
-                    const roomData = snap.val();
-                    if (!roomData) {
-                        alert("房主已断开连接，对局结束！");
-                        window.location.href = window.location.pathname;
-                        return;
-                    }
-
-                    if (roomData.playerTypes) playerTypes = roomData.playerTypes;
-                    if (roomData.playerColors) playerColors = roomData.playerColors;
-                    if (roomData.playerEmojis) playerEmojis = roomData.playerEmojis;
-                    if (roomData.playerNames) playerNames = roomData.playerNames;
-                    renderPlayerList();
-
-                    if (roomData.restartTrigger !== undefined) {
-                        if (isFirstRoomLoad) {
-                            lastHandledRestartTrigger = roomData.restartTrigger;
-                            isFirstRoomLoad = false;
-                        } else if (roomData.restartTrigger > lastHandledRestartTrigger) {
-                            lastHandledRestartTrigger = roomData.restartTrigger;
-                            document.getElementById('winner-overlay').classList.remove('active');
-                            if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
-                                runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
-                            } else {
-                                initBoard(roomData.firstPlayer);
-                            }
-                        }
-                    }
-
-                    if (roomData.status === 'playing') {
-                        if (!isInGame && !board.length) {
-                            boardSize = roomData.boardSize;
-                            if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
-                                runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
-                            } else {
-                                initBoard(roomData.firstPlayer);
-                            }
-                        }
-
-                        if (roomData.snapshot && roomData.snapshotSeq > snapshotSeq) {
-                            snapshotSeq = roomData.snapshotSeq;
-                            const isBoardIdentical = areBoardsEqual(board, roomData.snapshot.board);
-                            
-                            board = roomData.snapshot.board;
-                            hasEntered = roomData.snapshot.hasEntered;
-                            eliminated = roomData.snapshot.eliminated;
-                            currentPlayer = roomData.snapshot.currentPlayer;
-
-                            if (!isBoardIdentical) {
-                                const boardEl = document.getElementById('game-board');
-                                if (boardEl) {
-                                    boardEl.style.opacity = '0.5';
-                                    updateBoardCellsDOM();
-                                    updateTurnHeader();
-                                    setTimeout(() => boardEl.style.opacity = '1', 100);
-                                } else {
-                                    updateBoardCellsDOM();
-                                    updateTurnHeader();
-                                }
-                            } else {
-                                updateBoardCellsDOM();
-                                updateTurnHeader();
-                            }
-                        }
-                    }
-                });
+        function leaveCloudRoom() {
+            if (currentRoomId) {
+                if (roomUnsubscribe) roomUnsubscribe();
+                if (isHost) remove(ref(db, `rooms/${currentRoomId}`));
             }
+            currentRoomId = null;
+            isHost = false;
+            document.getElementById('online-lobby-actions').style.display = 'flex';
+            document.getElementById('online-room-hall').style.display = 'none';
+        }
+
+        function subscribeRoomData() {
+            if (!currentRoomId) return;
+            roomUnsubscribe = onValue(ref(db, `rooms/${currentRoomId}`), (snap) => {
+                const roomData = snap.val();
+                if (!roomData) {
+                    if (!isHost && currentRoomId) {
+                        alert("房间已被房主解散！");
+                        leaveCloudRoom();
+                    }
+                    return;
+                }
+
+                if (roomData.boardSize) {
+                    boardSize = roomData.boardSize;
+                    document.getElementById('online-board-size-slider').value = boardSize;
+                    document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
+                }
+                if (roomData.aiLevel) {
+                    aiLevel = roomData.aiLevel;
+                    document.getElementById('online-ai-level-slider').value = aiLevel;
+                    document.getElementById('online-ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
+                }
+
+                if (roomData.playerTypes) playerTypes = roomData.playerTypes;
+                if (roomData.playerColors) playerColors = roomData.playerColors;
+                if (roomData.playerEmojis) playerEmojis = roomData.playerEmojis;
+                if (roomData.playerNames) playerNames = roomData.playerNames;
+
+                renderPlayerList('online-player-list');
+
+                if (roomData.status === 'playing') {
+                    if (!isInGame) {
+                        if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
+                            runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
+                        } else {
+                            initBoard(roomData.firstPlayer);
+                        }
+                    }
+
+                    if (roomData.snapshot && roomData.snapshotSeq > snapshotSeq) {
+                        snapshotSeq = roomData.snapshotSeq;
+                        board = roomData.snapshot.board;
+                        hasEntered = roomData.snapshot.hasEntered;
+                        eliminated = roomData.snapshot.eliminated;
+                        currentPlayer = roomData.snapshot.currentPlayer;
+                        updateBoardCellsDOM();
+                        updateTurnHeader();
+                    }
+                }
+            });
         }
 
         async function startOnlineGame() {
             if (!isHost) return;
-            isRandomFirst = document.getElementById('random-first-toggle').checked;
             const active = getActivePlayers();
-            const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
+            if (active.length < 2) {
+                alert("房间内至少需要 2 位加入的玩家/AI！");
+                return;
+            }
+
+            const startFirstPlayer = active[0];
 
             await update(ref(db, `rooms/${currentRoomId}`), {
                 status: 'playing',
                 firstPlayer: startFirstPlayer,
-                wheelFirstPlayer: isRandomFirst ? startFirstPlayer : null,
-                playerTypes, playerColors, playerEmojis, playerNames
+                playerTypes, playerColors, playerEmojis, playerNames, boardSize, aiLevel
             });
 
-            if (isRandomFirst) {
-                runRandomWheel(active, (selected) => {
-                    initBoard(selected);
-                    syncFullSnapshotToCloud();
-                });
-            } else {
-                initBoard(startFirstPlayer);
-                syncFullSnapshotToCloud();
-            }
+            initBoard(startFirstPlayer);
+            syncFullSnapshotToCloud();
         }
 
         function syncFullSnapshotToCloud() {
@@ -1618,22 +1643,18 @@
             const active = getActivePlayers();
             
             if (currentRoomId && isHost) {
-                const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
+                const startFirstPlayer = active[0];
                 const updates = {};
                 updates[`rooms/${currentRoomId}/firstPlayer`] = startFirstPlayer;
-                updates[`rooms/${currentRoomId}/wheelFirstPlayer`] = isRandomFirst ? startFirstPlayer : null;
                 updates[`rooms/${currentRoomId}/restartTrigger`] = Date.now();
                 update(ref(db), updates);
             } else {
-                if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
-                else initBoard(selected);
+                initBoard(active[0]);
             }
         }
 
         function exitToMenu() {
             isInGame = false;
-            isHost = false;
-            myPlayerIndex = 0;
 
             if (currentAbortController) {
                 currentAbortController.abort();
@@ -1647,8 +1668,10 @@
             document.getElementById('winner-overlay').classList.remove('active');
             document.getElementById('view-game').classList.remove('active');
             document.getElementById('view-menu').classList.add('active');
-            currentRoomId = null;
-            isFirstRoomLoad = true;
+            
+            if (currentRoomId && !isHost) {
+                leaveCloudRoom();
+            }
         }
     </script>
 </body>
