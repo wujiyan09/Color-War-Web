@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>COLOR WAR - 终极体验版</title>
+    <title>COLOR WAR - 完美全屏与分段爆裂终极版</title>
     <style>
         :root {
             --bg-dark: #050810;
@@ -12,6 +12,7 @@
             --glass-border: rgba(255, 255, 255, 0.15);
             --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             --accent-cyan: #00f2fe;
+            --default-bg: radial-gradient(circle at 50% 20%, #102040 0%, #03050a 100%);
         }
 
         * {
@@ -31,7 +32,7 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            background-image: radial-gradient(circle at 50% 20%, #102040 0%, #03050a 100%);
+            background-image: var(--default-bg);
             background-size: cover;
             background-position: center;
         }
@@ -73,13 +74,15 @@
             display: none;
             width: 100%;
             height: 100%;
-            max-width: 600px;
-            padding: 16px;
+            padding: 12px;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
             z-index: 10;
         }
+
+        #view-menu { max-width: 480px; }
+        #view-game { max-width: 100vw; }
 
         .view.active { display: flex; }
 
@@ -163,7 +166,7 @@
 
         .player-list {
             width: 100%;
-            max-height: 200px;
+            max-height: 180px;
             overflow-y: auto;
             margin-bottom: 12px;
             padding: 8px;
@@ -192,6 +195,7 @@
 
         .game-header {
             width: 100%;
+            max-width: 1200px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -208,13 +212,13 @@
             gap: 8px;
         }
 
-        /* 解决问题 3：自适应视口全屏填充布局 */
         .board-container {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
+            height: calc(100vh - 80px);
             flex: 1;
             justify-content: center;
             min-height: 0;
@@ -223,8 +227,9 @@
         .side-players {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            width: 48px;
+            gap: 10px;
+            width: 52px;
+            justify-content: center;
         }
 
         .player-orb-card {
@@ -242,7 +247,7 @@
 
         .orb-circle-wrap {
             position: relative;
-            width: 38px; height: 38px;
+            width: 42px; height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -258,7 +263,7 @@
         .orb-svg-ring {
             position: absolute;
             top: -2px; left: -2px;
-            width: 42px; height: 42px;
+            width: 46px; height: 46px;
             transform: rotate(-90deg);
         }
 
@@ -266,7 +271,7 @@
             position: relative;
             padding: 6px;
             display: grid;
-            gap: 3px;
+            gap: 4px;
             background: rgba(255, 255, 255, 0.04);
             border-radius: 18px;
             border: 1px solid var(--glass-border);
@@ -310,35 +315,33 @@
             z-index: 3;
         }
 
-        /* 解决问题 5：重构点阵尺寸与呼吸间距，彻底消除挤压 */
         .dot-container {
             position: absolute;
+            top: 0; left: 0;
             width: 100%; height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             pointer-events: none;
             z-index: 2;
         }
 
         .dot {
-            width: 12%; height: 12%;
+            width: 14%; height: 14%;
             background: #ffffff;
             border-radius: 50%;
             position: absolute;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
-        /* 解决问题 4：流畅自然物理平滑飞行动画 */
+        /* 升级版分段爆裂飞行动画 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
             border: 1.5px solid #ffffff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
-            transition: all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            transform: scale(1.1);
+            transition: transform 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.24s ease-out;
+            transform: scale(0.6);
+            opacity: 1;
         }
 
         .overlay {
@@ -413,7 +416,7 @@
         <div style="width:100%;">
             <div class="game-title">COLOR WAR</div>
             
-            <div class="tab-switcher" style="margin: 0 auto 16px auto;">
+            <div class="tab-switcher" style="margin: 0 auto 12px auto;">
                 <div id="tab-local" class="tab-btn active">单机模式</div>
                 <div id="tab-online" class="tab-btn">云端联机</div>
             </div>
@@ -425,7 +428,7 @@
                     </div>
                     <input type="range" id="board-size-slider" min="5" max="12" value="8">
                     
-                    <div class="setting-row" style="margin-top: 10px;">
+                    <div class="setting-row" style="margin-top: 8px;">
                         <label for="random-first-toggle">随机挑选先手</label>
                         <input type="checkbox" id="random-first-toggle" checked style="width:18px; height:18px;">
                     </div>
@@ -442,8 +445,9 @@
 
                 <div class="player-list glass-panel" id="local-player-list"></div>
 
-                <div style="display:flex; gap:10px; margin-bottom: 12px;">
-                    <button id="btn-bg-upload" class="glass-btn" style="flex:1;">🖼 从相册选择背景</button>
+                <div style="display:flex; gap:8px; margin-bottom: 12px;">
+                    <button id="btn-bg-upload" class="glass-btn" style="flex:1; font-size:0.8rem;">🖼 选择背景</button>
+                    <button id="btn-bg-reset" class="glass-btn" style="font-size:0.8rem;">🗑 恢复背景</button>
                     <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
                 </div>
 
@@ -461,7 +465,6 @@
                 <button id="btn-create-room" class="glass-btn primary" style="width:100%; margin-bottom:12px;">创建联机房间</button>
 
                 <div id="cloud-room-card" class="setting-card glass-panel" style="display: none; text-align: center;">
-                    <!-- 解决问题 1：一键复制链接机制 -->
                     <div id="room-link-box" class="copy-box">点击复制专属邀请链接</div>
                     <p id="room-members-text" style="font-size: 0.85rem; margin-bottom: 12px;"></p>
                     <button id="host-start-online-btn" class="glass-btn primary" style="width: 100%; display: none;">全员开始对决</button>
@@ -590,13 +593,12 @@
             heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
         };
 
-        // 窗口大小调整时自适应重算棋盘
         window.addEventListener('resize', () => {
             if (isInGame) buildGridDOMOnce();
         });
 
         // ==========================================
-        // AISolver 引擎：开局策略彻底重构
+        // AISolver 引擎
         // ==========================================
         class AISolver {
             constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
@@ -644,16 +646,13 @@
                 return moves;
             }
 
-            // 解决问题 2：开局主动抢占中心，若被占领则在周边无人的空白格下子
             selectOptimalOpeningMove(validMoves) {
                 const centerR = Math.floor((this.boardSize - 1) / 2);
                 const centerC = Math.floor((this.boardSize - 1) / 2);
 
-                // 1. 优先抢占正中心
                 const centerMove = validMoves.find(m => m.r === centerR && m.c === centerC);
                 if (centerMove) return centerMove;
 
-                // 2. 若中心已被抢，寻找周围 8 格内完全没有其他人棋子的空白格
                 const isolatedAroundCenter = validMoves.filter(m => {
                     const isAroundCenter = Math.abs(m.r - centerR) <= 2 && Math.abs(m.c - centerC) <= 2;
                     const idx = m.r * this.boardSize + m.c;
@@ -663,7 +662,6 @@
 
                 if (isolatedAroundCenter.length > 0) return isolatedAroundCenter[0];
 
-                // 3. 兜底策略：寻找与敌人保持最大曼哈顿距离的安全空位
                 validMoves.sort((a, b) => {
                     const distA = Math.abs(a.r - centerR) + Math.abs(a.c - centerC);
                     const distB = Math.abs(b.r - centerR) + Math.abs(b.c - centerC);
@@ -677,7 +675,6 @@
                 const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
                 if (validMoves.length === 0) return null;
 
-                // 若未入场，严格执行安全开局布局策略
                 if (!this.hasEntered[this.currentPlayer]) {
                     return this.selectOptimalOpeningMove(validMoves);
                 }
@@ -735,6 +732,7 @@
 
             document.getElementById('btn-bg-upload').onclick = () => document.getElementById('bg-file-input').click();
             document.getElementById('bg-file-input').onchange = handleBackgroundUpload;
+            document.getElementById('btn-bg-reset').onclick = resetBackgroundToDefault;
 
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
@@ -757,7 +755,6 @@
             renderEmojiGrid();
         });
 
-        // 解决问题 1：点击复制专属卡片与链接
         function copyShareLink() {
             if (!fullShareUrl) return;
             navigator.clipboard.writeText(fullShareUrl).then(() => {
@@ -785,9 +782,15 @@
             }
         }
 
+        function resetBackgroundToDefault() {
+            localStorage.removeItem('CW_CustomBg');
+            document.body.style.backgroundImage = "var(--default-bg)";
+        }
+
         function loadSavedBackground() {
             const bg = localStorage.getItem('CW_CustomBg');
             if (bg) document.body.style.backgroundImage = `url(${bg})`;
+            else document.body.style.backgroundImage = "var(--default-bg)";
         }
 
         function switchModeTab(mode) {
@@ -912,17 +915,18 @@
             step();
         }
 
-        // 解决问题 3：自适应视口全屏填充计算
         function buildGridDOMOnce() {
             const boardEl = document.getElementById('game-board');
             boardEl.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
             boardEl.innerHTML = '';
 
             const container = document.getElementById('board-container');
-            const availWidth = container.clientWidth - 110;
-            const availHeight = container.clientHeight - 20;
+            const availWidth = container.clientWidth - 124;
+            const availHeight = container.clientHeight - 12;
             const maxDimension = Math.min(availWidth, availHeight);
-            const cellSize = Math.max(28, Math.floor((maxDimension - (boardSize - 1) * 3 - 12) / boardSize));
+            
+            const gapTotal = (boardSize - 1) * 4 + 12;
+            const cellSize = Math.max(24, Math.floor((maxDimension - gapTotal) / boardSize));
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
@@ -981,10 +985,12 @@
         function updateBoardCellsDOM() {
             const container = document.getElementById('board-container');
             if (!container) return;
-            const availWidth = container.clientWidth - 110;
-            const availHeight = container.clientHeight - 20;
+            const availWidth = container.clientWidth - 124;
+            const availHeight = container.clientHeight - 12;
             const maxDimension = Math.min(availWidth, availHeight);
-            const cellSize = Math.max(28, Math.floor((maxDimension - (boardSize - 1) * 3 - 12) / boardSize));
+            
+            const gapTotal = (boardSize - 1) * 4 + 12;
+            const cellSize = Math.max(24, Math.floor((maxDimension - gapTotal) / boardSize));
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
@@ -1002,7 +1008,7 @@
                             piece.className = 'piece';
                             cellEl.appendChild(piece);
                         }
-                        piece.style.width = '82%'; piece.style.height = '82%';
+                        piece.style.width = '84%'; piece.style.height = '84%';
                         piece.style.background = playerColors[cellData.owner];
 
                         let emojiEl = piece.querySelector('.emoji-text');
@@ -1013,7 +1019,7 @@
                                 piece.appendChild(emojiEl);
                             }
                             emojiEl.innerText = playerEmojis[cellData.owner];
-                            emojiEl.style.fontSize = `${cellSize * 0.42}px`;
+                            emojiEl.style.fontSize = `${cellSize * 0.45}px`;
                         } else if (emojiEl) {
                             emojiEl.remove();
                         }
@@ -1033,24 +1039,25 @@
             renderSidePlayers();
         }
 
-        // 解决问题 5：重构点阵极度舒展放宽的几何排列
         function syncDotsDOM(container, count) {
             const targetCount = Math.min(4, count);
             const currentDots = container.querySelectorAll('.dot');
             
             if (currentDots.length !== targetCount) {
                 container.innerHTML = '';
-                const offsets = [
+                const dotPositions = [
                     [], 
-                    [[0,0]], 
-                    [[-34,0],[34,0]], 
-                    [[0,-30],[-30,24],[30,24]], 
-                    [[-30,-30],[30,-30],[-30,30],[30,30]]
+                    [[50, 50]], 
+                    [[50, 26], [50, 74]], 
+                    [[50, 22], [28, 70], [72, 70]], 
+                    [[26, 26], [74, 26], [26, 74], [74, 74]]
                 ];
-                offsets[targetCount].forEach(([x, y]) => {
+                dotPositions[targetCount].forEach(([top, left]) => {
                     const dot = document.createElement('div');
                     dot.className = 'dot';
-                    dot.style.transform = `translate(${x}%, ${y}%)`;
+                    dot.style.top = `${top}%`;
+                    dot.style.left = `${left}%`;
+                    dot.style.transform = 'translate(-50%, -50%)';
                     container.appendChild(dot);
                 });
             }
@@ -1118,7 +1125,7 @@
             }
         }
 
-        // 解决问题 4：平滑贝塞尔物理飞行散射动画
+        // 解决问题 2：分段飞行动画与物理碰撞感
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1131,22 +1138,23 @@
 
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
-            orb.style.width = '16px'; orb.style.height = '16px';
+            orb.style.width = '18px'; orb.style.height = '18px';
             orb.style.background = pColor;
-            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 8}px`;
-            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 8}px`;
+            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 9}px`;
+            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 9}px`;
 
             container.appendChild(orb);
 
             requestAnimationFrame(() => {
-                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 8}px`;
-                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 8}px`;
-                orb.style.opacity = '0.9';
+                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 9}px`;
+                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 9}px`;
+                orb.style.transform = 'scale(1.25)';
             });
 
-            setTimeout(() => orb.remove(), 220);
+            setTimeout(() => orb.remove(), 240);
         }
 
+        // 解决问题 2：重构算法实现“逐格多段式连锁爆裂”
         async function executeMove(row, col, player, signal = null) {
             if (!isInGame) return false;
             isProcessingCascade = true;
@@ -1192,47 +1200,46 @@
             emphasizedCells = new Set([row * boardSize + col]);
             updateBoardCellsDOM();
 
-            await sleep(210);
+            await sleep(200);
             if (signal?.aborted || !isInGame) { rollback(); return false; }
 
             let wave = board[row][col].count >= 4 ? [[row, col]] : [];
             const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
+            // 逐格分段推进爆裂，不再一次性全部并爆
             while (wave.length > 0) {
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
-                const exploding = wave;
-                wave = [];
+                
+                // 每次取出队列最前面的单格处理爆裂
+                const [r, c] = wave.shift();
+                if (board[r][c].count < 4) continue;
 
-                exploding.forEach(([r, c]) => {
-                    board[r][c].count -= 4;
-                    if (board[r][c].count === 0) board[r][c].owner = null;
+                board[r][c].count -= 4;
+                if (board[r][c].count === 0) board[r][c].owner = null;
+
+                const affectedCells = [];
+                dirs.forEach(([dr, dc]) => {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
+                        board[nr][nc].owner = player;
+                        board[nr][nc].count += 1;
+                        affectedCells.push([nr, nc]);
+                        createFlyingOrbAnimation(r, c, nr, nc, playerColors[player]);
+                    }
                 });
 
-                const changed = new Set();
-                exploding.forEach(([r, c]) => {
-                    dirs.forEach(([dr, dc]) => {
-                        const nr = r + dr, nc = c + dc;
-                        if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
-                            board[nr][nc].owner = player;
-                            board[nr][nc].count += 1;
-                            changed.add(`${nr},${nc}`);
-                            createFlyingOrbAnimation(r, c, nr, nc, playerColors[player]);
-                        }
-                    });
-                });
-
-                emphasizedCells = new Set([...changed].map(k => {
-                    const [r, c] = k.split(',').map(Number);
-                    return r * boardSize + c;
-                }));
-
+                emphasizedCells = new Set(affectedCells.map(([nr, nc]) => nr * boardSize + nc));
                 updateBoardCellsDOM();
-                await sleep(200);
+
+                // 分段停留时长，形成清淅的分段连爆视觉体验
+                await sleep(240);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
-                changed.forEach(key => {
-                    const [r, c] = key.split(',').map(Number);
-                    if (board[r][c].count >= 4) wave.push([r, c]);
+                // 将产生新满 4 的格子按顺序追加到队列末尾
+                affectedCells.forEach(([nr, nc]) => {
+                    if (board[nr][nc].count >= 4 && !wave.some(([wr, wc]) => wr === nr && wc === nc)) {
+                        wave.push([nr, nc]);
+                    }
                 });
             }
 
@@ -1464,12 +1471,22 @@
             return true;
         }
 
+        // 解决问题 1：重构 URL 进房握手逻辑
         async function checkUrlRoomJoin() {
             const params = new URLSearchParams(window.location.search);
             const roomId = params.get('room');
             if (roomId) {
-                switchModeTab('online'); currentRoomId = roomId; isHost = false;
-                renderPlayerList();
+                switchModeTab('online'); 
+                currentRoomId = roomId; 
+                isHost = false;
+
+                const roomSnap = await get(ref(db, `rooms/${roomId}`));
+                if (!roomSnap.exists()) {
+                    alert("房间不存在或已被销毁！");
+                    window.location.href = window.location.pathname;
+                    return;
+                }
+
                 const nickname = prompt("请输入你的昵称进入房间：", "玩家") || "玩家";
 
                 const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
@@ -1484,12 +1501,13 @@
                 });
 
                 if (!res.committed) {
-                    alert("房间已满员或已被销毁！");
+                    alert("房间已满员！");
                     window.location.href = window.location.pathname;
                     return;
                 }
 
                 document.getElementById('cloud-room-card').style.display = 'block';
+                document.getElementById('room-link-box').style.display = 'none';
                 document.getElementById('room-members-text').innerText = `你是 ${myPlayerIndex + 1} 号玩家，等待房主开局...`;
 
                 onValue(ref(db, `rooms/${roomId}`), (snap) => {
@@ -1522,7 +1540,7 @@
                     }
 
                     if (roomData.status === 'playing') {
-                        if (!board.length) {
+                        if (!isInGame && !board.length) {
                             boardSize = roomData.boardSize;
                             if (roomData.wheelFirstPlayer !== undefined && roomData.wheelFirstPlayer !== null) {
                                 runRandomWheel(getActivePlayers(), () => initBoard(roomData.wheelFirstPlayer));
