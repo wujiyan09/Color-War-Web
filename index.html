@@ -284,7 +284,7 @@
             position: relative;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -298,21 +298,39 @@
             border-color: var(--accent-cyan);
         }
 
+        /* ==========================================
+           SwiftUI PieceView 精准复刻 CSS 绘制
+           ========================================== */
         .piece {
             position: relative;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1.5px solid #ffffff;
             box-shadow: 0 3px 10px rgba(0,0,0,0.5);
             transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-sizing: border-box;
+            overflow: visible;
         }
 
-        .emoji-text {
+        /* 纯色棋子：对齐 SwiftUI 线性渐变 (LinearGradient) + 纯白外框 */
+        .piece.solid-piece {
+            border: 1.5px solid #ffffff;
+        }
+
+        /* Emoji 棋子：对齐 SwiftUI 0.25 透明底色 + 白描边 overlay */
+        .piece.emoji-piece {
+            border: 1.5px solid #ffffff;
+        }
+
+        .piece .emoji-text {
             position: absolute;
             pointer-events: none;
-            z-index: 3;
+            z-index: 1;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .dot-container {
@@ -323,15 +341,23 @@
             z-index: 2;
         }
 
+        /* 棋子内部点阵：纯白实心 + SwiftUI 点阵影效 */
         .dot {
-            width: 16%; height: 16%;
-            background: #ffffff;
-            border-radius: 50%;
             position: absolute;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            transform: translate(-50%, -50%);
         }
 
-        /* 复刻 Swift 原生平滑飞行动画 */
+        .dot.emoji-dot {
+            border: 1px solid rgba(0,0,0,0.65);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.85);
+        }
+
+        /* ==========================================
+           SwiftUI FlyingOrb 飞行特效 100% 对齐
+           ========================================== */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
@@ -339,8 +365,16 @@
             box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
-            transition: transform 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.24s ease-out;
-            transform: scale(0.7);
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* 采用 SwiftUI 3阶段贝塞尔缓动：0.07s ease-in -> 0.16s ease-out */
+            transition: left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                        top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                        transform 0.24s ease-out, 
+                        opacity 0.24s ease-out;
+            transform: scale(0.75);
             opacity: 1;
         }
 
@@ -562,7 +596,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
         import { getDatabase, ref, set, update, onValue, get, runTransaction, onDisconnect, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
 
-        // 彻底修复 Firebase 配置，显式绑定数据库根节点 URL，确保通信 100% 畅通
         const firebaseConfig = {
             apiKey: "AIzaSyBUJKB2ov62ulrlvTZxA1_MInCGyz5U2iE",
             authDomain: "color-war-web.firebaseapp.com",
@@ -626,9 +659,6 @@
             if (isInGame) buildGridDOMOnce();
         });
 
-        // ==========================================
-        // AISolver 引擎：完美参考 Swift 安全落子与启发计算
-        // ==========================================
         class AISolver {
             constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
                 this.boardSize = boardSize;
@@ -675,7 +705,6 @@
                 return moves;
             }
 
-            // 完全复刻 Swift 原生开局 8 格完全隔离法则
             selectOptimalOpeningMove(validMoves) {
                 const occupiedIndices = new Set();
                 this.cells.forEach((cell, idx) => {
@@ -693,7 +722,6 @@
                     return validMoves[0];
                 }
 
-                // 8 格强隔离：筛选 3x3 邻域内绝对无任何敌方棋子的盲点
                 const safe8Moves = validMoves.filter(m => {
                     for (let dr = -1; dr <= 1; dr++) {
                         for (let dc = -1; dc <= 1; dc++) {
@@ -781,9 +809,6 @@
             }
         }
 
-        // ==========================================
-        // UI 与流程管理
-        // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedBackground();
             renderPlayerList('local-player-list');
@@ -1052,6 +1077,9 @@
             return total > 0 ? (pCount / total) : 0;
         }
 
+        /* ==========================================
+           SwiftUI PieceView 100% 精准 DOM 渲染逻辑
+           ========================================== */
         function updateBoardCellsDOM() {
             const container = document.getElementById('board-container');
             if (!container) return;
@@ -1061,6 +1089,7 @@
             
             const gapTotal = (boardSize - 1) * 4 + 12;
             const cellSize = Math.max(24, Math.floor((maxDimension - gapTotal) / boardSize));
+            const pieceSize = cellSize * 0.76;
 
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
@@ -1073,23 +1102,35 @@
                     
                     let piece = cellEl.querySelector('.piece');
                     if (cellData.count > 0 && cellData.owner !== null) {
+                        const ownerColor = playerColors[cellData.owner];
+                        const ownerEmoji = playerEmojis[cellData.owner];
+                        const isEmojiPiece = Boolean(ownerEmoji && ownerEmoji.trim() !== "");
+
                         if (!piece) {
                             piece = document.createElement('div');
-                            piece.className = 'piece';
                             cellEl.appendChild(piece);
                         }
-                        piece.style.width = '84%'; piece.style.height = '84%';
-                        piece.style.background = playerColors[cellData.owner];
+                        
+                        piece.className = `piece ${isEmojiPiece ? 'emoji-piece' : 'solid-piece'}`;
+                        piece.style.width = `${pieceSize}px`;
+                        piece.style.height = `${pieceSize}px`;
+
+                        // 精准应用 SwiftUI LinearGradient 线性渐变和 Emoji 0.25 透明底色
+                        if (isEmojiPiece) {
+                            piece.style.background = hexToRgbA(ownerColor, 0.25);
+                        } else {
+                            piece.style.background = `linear-gradient(135deg, ${ownerColor} fff, ${hexToRgbA(ownerColor, 0.65)})`;
+                        }
 
                         let emojiEl = piece.querySelector('.emoji-text');
-                        if (playerEmojis[cellData.owner]) {
+                        if (isEmojiPiece) {
                             if (!emojiEl) {
                                 emojiEl = document.createElement('span');
                                 emojiEl.className = 'emoji-text';
                                 piece.appendChild(emojiEl);
                             }
-                            emojiEl.innerText = playerEmojis[cellData.owner];
-                            emojiEl.style.fontSize = `${cellSize * 0.45}px`;
+                            emojiEl.innerText = ownerEmoji;
+                            emojiEl.style.fontSize = `${pieceSize * 0.70}px`;
                         } else if (emojiEl) {
                             emojiEl.remove();
                         }
@@ -1100,7 +1141,7 @@
                             dotContainer.className = 'dot-container';
                             piece.appendChild(dotContainer);
                         }
-                        syncDotsDOM(dotContainer, cellData.count);
+                        syncDotsDOM(dotContainer, cellData.count, pieceSize, isEmojiPiece);
                     } else if (piece) {
                         piece.remove();
                     }
@@ -1109,29 +1150,58 @@
             renderSidePlayers();
         }
 
-        // 彻底还原 Swift 源码 100% 极具物理质感的品字与点阵排列
-        function syncDotsDOM(container, count) {
-            const targetCount = Math.min(4, count);
-            const currentDots = container.querySelectorAll('.dot');
-            
-            if (currentDots.length !== targetCount) {
-                container.innerHTML = '';
-                const dotPositions = [
-                    [], 
-                    [[50, 50]], 
-                    [[50, 22], [50, 78]], // 水平左右 28% 偏移
-                    [[28, 50], [68, 26], [68, 74]], // 极品质感“品”字型：上方居中，下方左右分布
-                    [[28, 28], [72, 28], [28, 72], [72, 72]]
-                ];
-                dotPositions[targetCount].forEach(([top, left]) => {
-                    const dot = document.createElement('div');
-                    dot.className = 'dot';
-                    dot.style.top = `${top}%`;
-                    dot.style.left = `${left}%`;
-                    dot.style.transform = 'translate(-50%, -50%)';
-                    container.appendChild(dot);
-                });
+        // 辅助函数：HEX 转 RGBA
+        function hexToRgbA(hex, alpha) {
+            let c;
+            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+                c = hex.substring(1).split('');
+                if (c.length === 3) {
+                    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c = '0x' + c.join('');
+                return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
             }
+            return hex;
+        }
+
+        /* 100% 对齐 SwiftUI DotPattern 点阵布局 (0.16 直径, 1.25 Step 偏移量) */
+        function syncDotsDOM(container, count, pieceSize, isEmoji) {
+            const targetCount = Math.min(4, Math.max(0, count));
+            container.innerHTML = '';
+
+            const diameter = pieceSize * 0.16;
+            const step = diameter * 1.25;
+
+            let offsets = [];
+            if (targetCount === 1) {
+                offsets = [[0, 0]];
+            } else if (targetCount === 2) {
+                offsets = [[-step * 0.7, 0], [step * 0.7, 0]];
+            } else if (targetCount === 3) {
+                const downOffset = step * 0.15;
+                offsets = [
+                    [0, -step * 0.866 + downOffset],
+                    [-step * 0.75, step * 0.433 + downOffset],
+                    [step * 0.75, step * 0.433 + downOffset]
+                ];
+            } else if (targetCount >= 4) {
+                offsets = [
+                    [-step * 0.65, -step * 0.65],
+                    [step * 0.65, -step * 0.65],
+                    [-step * 0.65, step * 0.65],
+                    [step * 0.65, step * 0.65]
+                ];
+            }
+
+            offsets.forEach(([dx, dy]) => {
+                const dot = document.createElement('div');
+                dot.className = `dot ${isEmoji ? 'emoji-dot' : ''}`;
+                dot.style.width = `${diameter}px`;
+                dot.style.height = `${diameter}px`;
+                dot.style.left = `calc(50% + ${dx}px)`;
+                dot.style.top = `calc(50% + ${dy}px)`;
+                container.appendChild(dot);
+            });
         }
 
         function renderSidePlayers() {
@@ -1196,8 +1266,10 @@
             }
         }
 
-        // 完全平滑复刻 Swift 原生三阶段飞行动画
-        function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor) {
+        /* ==========================================
+           SwiftUI 3阶段飞行动画逻辑 100% 精准对齐
+           ========================================== */
+        function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
             const toEl = document.getElementById(`cell-${toR}-${toC}`);
@@ -1207,25 +1279,43 @@
             const toRect = toEl.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
 
+            const cellSize = fromRect.width;
+            const size = Math.max(8, cellSize * 0.40);
+            const isEmoji = Boolean(pEmoji && pEmoji.trim() !== "");
+
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
-            orb.style.width = '18px'; orb.style.height = '18px';
-            orb.style.background = pColor;
-            orb.style.left = `${fromRect.left - containerRect.left + fromRect.width / 2 - 9}px`;
-            orb.style.top = `${fromRect.top - containerRect.top + fromRect.height / 2 - 9}px`;
+            orb.style.width = `${size}px`; 
+            orb.style.height = `${size}px`;
+            
+            if (isEmoji) {
+                orb.style.background = hexToRgbA(pColor, 0.25);
+                orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${pEmoji}</span>`;
+            } else {
+                orb.style.background = `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
+            }
+
+            orb.style.left = `${fromRect.left - containerRect.left + (fromRect.width - size) / 2}px`;
+            orb.style.top = `${fromRect.top - containerRect.top + (fromRect.height - size) / 2}px`;
 
             container.appendChild(orb);
 
+            // 1. Ease-In (70ms) 起飞
             requestAnimationFrame(() => {
-                orb.style.left = `${toRect.left - containerRect.left + toRect.width / 2 - 9}px`;
-                orb.style.top = `${toRect.top - containerRect.top + toRect.height / 2 - 9}px`;
+                orb.style.left = `${toRect.left - containerRect.left + (toRect.width - size) / 2}px`;
+                orb.style.top = `${toRect.top - containerRect.top + (toRect.height - size) / 2}px`;
                 orb.style.transform = 'scale(1.25)';
             });
+
+            // 2. Ease-Out (165ms) 落地与消隐
+            setTimeout(() => {
+                orb.style.opacity = '0';
+                orb.style.transform = 'scale(1.0)';
+            }, 165);
 
             setTimeout(() => orb.remove(), 240);
         }
 
-        // 重构逐格多段式连锁爆裂 (与 Swift 逻辑 100% 对齐)
         async function executeMove(row, col, player, signal = null) {
             if (!isInGame) return false;
             isProcessingCascade = true;
@@ -1293,7 +1383,7 @@
                         board[nr][nc].owner = player;
                         board[nr][nc].count += 1;
                         affectedCells.push([nr, nc]);
-                        createFlyingOrbAnimation(r, c, nr, nc, playerColors[player]);
+                        createFlyingOrbAnimation(r, c, nr, nc, playerColors[player], playerEmojis[player]);
                     }
                 });
 
@@ -1434,7 +1524,7 @@
             if (currentRoomId && isHost) {
                 update(ref(db, `rooms/${currentRoomId}`), {
                     boardSize, aiLevel, playerTypes, playerColors, playerEmojis, playerNames
-                });
+                }).catch(err => console.error("网络连通性异常:", err));
             }
         }
 
@@ -1468,12 +1558,13 @@
                         }
                     }
                 }
+            } catch (err) {
+                console.error("重处理移动错误:", err);
             } finally {
                 isReprocessingMoves = false;
             }
         }
 
-        // 完美修复 6 位邀请码开房事务
         function createCloudRoom() {
             isHost = true; 
             myPlayerIndex = 0;
@@ -1491,46 +1582,48 @@
                 players: [{ name: nickname, isHost: true }],
                 playerTypes, playerColors, playerEmojis, playerNames,
                 restartTrigger: 0, lastExecutedSeq: -1
-            });
+            }).then(() => {
+                onDisconnect(roomRef).remove();
 
-            onDisconnect(roomRef).remove();
+                document.getElementById('online-lobby-actions').style.display = 'none';
+                document.getElementById('online-room-hall').style.display = 'block';
+                document.getElementById('room-code-display').innerText = roomCode;
+                document.getElementById('host-control-section').style.display = 'block';
+                document.getElementById('host-start-online-btn').style.display = 'block';
 
-            document.getElementById('online-lobby-actions').style.display = 'none';
-            document.getElementById('online-room-hall').style.display = 'block';
-            document.getElementById('room-code-display').innerText = roomCode;
-            document.getElementById('host-control-section').style.display = 'block';
-            document.getElementById('host-start-online-btn').style.display = 'block';
+                renderPlayerList('online-player-list');
+                subscribeRoomData();
 
-            renderPlayerList('online-player-list');
-            subscribeRoomData();
+                let localHostLastExecutedSeq = -1;
+                get(ref(db, `rooms/${currentRoomId}/lastExecutedSeq`)).then(snap => {
+                    if (snap.exists()) localHostLastExecutedSeq = snap.val();
 
-            let localHostLastExecutedSeq = -1;
-            get(ref(db, `rooms/${currentRoomId}/lastExecutedSeq`)).then(snap => {
-                if (snap.exists()) localHostLastExecutedSeq = snap.val();
-
-                onChildAdded(ref(db, `rooms/${currentRoomId}/moves`), async (snap) => {
-                    const move = snap.val();
-                    if (move && isHost) {
-                        if (move.seq > localHostLastExecutedSeq) {
-                            const success = await executeMove(move.r, move.c, move.player);
-                            if (success) {
-                                localHostLastExecutedSeq = move.seq;
-                                const updates = {};
-                                updates[`rooms/${currentRoomId}/lastExecutedSeq`] = localHostLastExecutedSeq;
-                                updates[`rooms/${currentRoomId}/moves/${snap.key}`] = null;
-                                update(ref(db), updates);
+                    onChildAdded(ref(db, `rooms/${currentRoomId}/moves`), async (snap) => {
+                        const move = snap.val();
+                        if (move && isHost) {
+                            if (move.seq > localHostLastExecutedSeq) {
+                                const success = await executeMove(move.r, move.c, move.player);
+                                if (success) {
+                                    localHostLastExecutedSeq = move.seq;
+                                    const updates = {};
+                                    updates[`rooms/${currentRoomId}/lastExecutedSeq`] = localHostLastExecutedSeq;
+                                    updates[`rooms/${currentRoomId}/moves/${snap.key}`] = null;
+                                    update(ref(db), updates);
+                                }
+                            } else {
+                                remove(ref(db, `rooms/${currentRoomId}/moves/${snap.key}`));
                             }
-                        } else {
-                            remove(ref(db, `rooms/${currentRoomId}/moves/${snap.key}`));
                         }
-                    }
-                });
+                    });
 
-                setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
+                    setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
+                });
+            }).catch(err => {
+                alert("创建房间失败，请确认 Firebase 数据库 Rules 是否已开启允许读写！");
+                console.error(err);
             });
         }
 
-        // 彻底修复“点击加入房间无响应”的逻辑陷阱
         async function joinCloudRoomByCode() {
             const joinBtn = document.getElementById('btn-join-room');
             const inputCode = document.getElementById('join-code-input').value.trim();
@@ -1544,58 +1637,65 @@
             joinBtn.style.pointerEvents = "none";
 
             const roomId = 'cw-' + inputCode;
-            const roomSnap = await get(ref(db, `rooms/${roomId}`));
-            
-            if (!roomSnap.exists()) {
-                alert("不存在该邀请码对应的房间！");
-                joinBtn.innerText = "加入房间";
-                joinBtn.style.pointerEvents = "auto";
-                return;
-            }
-
-            const nickname = document.getElementById('online-nickname').value || `玩家`;
-            isHost = false; 
-            currentRoomId = roomId;
-
-            const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
-            const res = await runTransaction(roomPlayersRef, (players) => {
-                if (!players) players = [];
-                if (players.length < MAX_PLAYERS) {
-                    myPlayerIndex = players.length;
-                    players.push({ name: nickname, isHost: false });
-                    return players;
+            try {
+                const roomSnap = await get(ref(db, `rooms/${roomId}`));
+                
+                if (!roomSnap.exists()) {
+                    alert("不存在该邀请码对应的房间！");
+                    joinBtn.innerText = "加入房间";
+                    joinBtn.style.pointerEvents = "auto";
+                    return;
                 }
-                return undefined;
-            });
 
-            if (!res.committed) {
-                alert("该房间人满了！");
+                const nickname = document.getElementById('online-nickname').value || `玩家`;
+                isHost = false; 
+                currentRoomId = roomId;
+
+                const roomPlayersRef = ref(db, `rooms/${roomId}/players`);
+                const res = await runTransaction(roomPlayersRef, (players) => {
+                    if (!players) players = [];
+                    if (players.length < MAX_PLAYERS) {
+                        myPlayerIndex = players.length;
+                        players.push({ name: nickname, isHost: false });
+                        return players;
+                    }
+                    return undefined;
+                });
+
+                if (!res.committed) {
+                    alert("该房间人满了！");
+                    joinBtn.innerText = "加入房间";
+                    joinBtn.style.pointerEvents = "auto";
+                    return;
+                }
+
+                const roomData = roomSnap.val();
+                let updatedTypes = roomData.playerTypes || [...playerTypes];
+                let updatedNames = roomData.playerNames || [...playerNames];
+                updatedTypes[myPlayerIndex] = "human";
+                updatedNames[myPlayerIndex] = nickname;
+
+                await update(ref(db, `rooms/${roomId}`), {
+                    playerTypes: updatedTypes,
+                    playerNames: updatedNames
+                });
+
                 joinBtn.innerText = "加入房间";
                 joinBtn.style.pointerEvents = "auto";
-                return;
+
+                document.getElementById('online-lobby-actions').style.display = 'none';
+                document.getElementById('online-room-hall').style.display = 'block';
+                document.getElementById('room-code-display').innerText = inputCode;
+                document.getElementById('host-control-section').style.display = 'none';
+                document.getElementById('host-start-online-btn').style.display = 'none';
+
+                subscribeRoomData();
+            } catch (err) {
+                alert("加入房间失败，请检查网络连接或 Firebase 配置！");
+                console.error(err);
+                joinBtn.innerText = "加入房间";
+                joinBtn.style.pointerEvents = "auto";
             }
-
-            const roomData = roomSnap.val();
-            let updatedTypes = roomData.playerTypes || [...playerTypes];
-            let updatedNames = roomData.playerNames || [...playerNames];
-            updatedTypes[myPlayerIndex] = "human";
-            updatedNames[myPlayerIndex] = nickname;
-
-            await update(ref(db, `rooms/${roomId}`), {
-                playerTypes: updatedTypes,
-                playerNames: updatedNames
-            });
-
-            joinBtn.innerText = "加入房间";
-            joinBtn.style.pointerEvents = "auto";
-
-            document.getElementById('online-lobby-actions').style.display = 'none';
-            document.getElementById('online-room-hall').style.display = 'block';
-            document.getElementById('room-code-display').innerText = inputCode;
-            document.getElementById('host-control-section').style.display = 'none';
-            document.getElementById('host-start-online-btn').style.display = 'none';
-
-            subscribeRoomData();
         }
 
         function leaveCloudRoom() {
