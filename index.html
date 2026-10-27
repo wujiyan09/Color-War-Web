@@ -298,9 +298,7 @@
             border-color: var(--accent-cyan);
         }
 
-        /* ==========================================
-           SwiftUI PieceView 精准复刻 CSS 绘制
-           ========================================== */
+        /* 棋子绘制：完全对齐 SwiftUI 渐变与白描边 */
         .piece {
             position: relative;
             border-radius: 50%;
@@ -313,15 +311,8 @@
             overflow: visible;
         }
 
-        /* 纯色棋子：对齐 SwiftUI 线性渐变 (LinearGradient) + 纯白外框 */
-        .piece.solid-piece {
-            border: 1.5px solid #ffffff;
-        }
-
-        /* Emoji 棋子：对齐 SwiftUI 0.25 透明底色 + 白描边 overlay */
-        .piece.emoji-piece {
-            border: 1.5px solid #ffffff;
-        }
+        .piece.solid-piece { border: 1.5px solid #ffffff; }
+        .piece.emoji-piece { border: 1.5px solid #ffffff; }
 
         .piece .emoji-text {
             position: absolute;
@@ -341,7 +332,6 @@
             z-index: 2;
         }
 
-        /* 棋子内部点阵：纯白实心 + SwiftUI 点阵影效 */
         .dot {
             position: absolute;
             border-radius: 50%;
@@ -355,9 +345,7 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.85);
         }
 
-        /* ==========================================
-           SwiftUI FlyingOrb 飞行特效 100% 对齐
-           ========================================== */
+        /* 飞行动画：复刻 Swift 3阶段贝塞尔缓动 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
@@ -369,7 +357,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* 采用 SwiftUI 3阶段贝塞尔缓动：0.07s ease-in -> 0.16s ease-out */
             transition: left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
                         top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
                         transform 0.24s ease-out, 
@@ -507,12 +494,12 @@
                     </div>
                 </div>
 
-                <!-- 房间内大厅控制区 (房主/玩家界面) -->
+                <!-- 房间内大厅控制区 -->
                 <div id="online-room-hall" class="setting-card glass-panel" style="display: none; text-align: center;">
                     <span style="font-size: 0.8rem; color: #aaa;">房间邀请码</span>
                     <div class="code-display" id="room-code-display">------</div>
                     
-                    <!-- 房主专属高级设置区 -->
+                    <!-- 房主专属设置区 -->
                     <div id="host-control-section" style="display: none; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 10px; margin-top: 10px; text-align: left;">
                         <div class="setting-row">
                             <span>网格尺寸: <b id="online-board-size-label">8 × 8</b></span>
@@ -1077,9 +1064,21 @@
             return total > 0 ? (pCount / total) : 0;
         }
 
-        /* ==========================================
-           SwiftUI PieceView 100% 精准 DOM 渲染逻辑
-           ========================================== */
+        function hexToRgbA(hex, alpha) {
+            if (!hex) return `rgba(255,255,255,${alpha})`;
+            let c = hex.trim().replace('#', '');
+            if (c.length === 3) {
+                c = c.split('').map(x => x + x).join('');
+            }
+            if (c.length === 6 || c.length === 8) {
+                const r = parseInt(c.substring(0, 2), 16);
+                const g = parseInt(c.substring(2, 4), 16);
+                const b = parseInt(c.substring(4, 6), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+            return hex;
+        }
+
         function updateBoardCellsDOM() {
             const container = document.getElementById('board-container');
             if (!container) return;
@@ -1102,7 +1101,7 @@
                     
                     let piece = cellEl.querySelector('.piece');
                     if (cellData.count > 0 && cellData.owner !== null) {
-                        const ownerColor = playerColors[cellData.owner];
+                        const ownerColor = playerColors[cellData.owner] || '#FF453A';
                         const ownerEmoji = playerEmojis[cellData.owner];
                         const isEmojiPiece = Boolean(ownerEmoji && ownerEmoji.trim() !== "");
 
@@ -1115,11 +1114,10 @@
                         piece.style.width = `${pieceSize}px`;
                         piece.style.height = `${pieceSize}px`;
 
-                        // 精准应用 SwiftUI LinearGradient 线性渐变和 Emoji 0.25 透明底色
                         if (isEmojiPiece) {
                             piece.style.background = hexToRgbA(ownerColor, 0.25);
                         } else {
-                            piece.style.background = `linear-gradient(135deg, ${ownerColor} fff, ${hexToRgbA(ownerColor, 0.65)})`;
+                            piece.style.background = `linear-gradient(135deg, ${ownerColor}, ${hexToRgbA(ownerColor, 0.65)})`;
                         }
 
                         let emojiEl = piece.querySelector('.emoji-text');
@@ -1150,21 +1148,6 @@
             renderSidePlayers();
         }
 
-        // 辅助函数：HEX 转 RGBA
-        function hexToRgbA(hex, alpha) {
-            let c;
-            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-                c = hex.substring(1).split('');
-                if (c.length === 3) {
-                    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-                }
-                c = '0x' + c.join('');
-                return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
-            }
-            return hex;
-        }
-
-        /* 100% 对齐 SwiftUI DotPattern 点阵布局 (0.16 直径, 1.25 Step 偏移量) */
         function syncDotsDOM(container, count, pieceSize, isEmoji) {
             const targetCount = Math.min(4, Math.max(0, count));
             container.innerHTML = '';
@@ -1266,9 +1249,6 @@
             }
         }
 
-        /* ==========================================
-           SwiftUI 3阶段飞行动画逻辑 100% 精准对齐
-           ========================================== */
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1300,14 +1280,12 @@
 
             container.appendChild(orb);
 
-            // 1. Ease-In (70ms) 起飞
             requestAnimationFrame(() => {
                 orb.style.left = `${toRect.left - containerRect.left + (toRect.width - size) / 2}px`;
                 orb.style.top = `${toRect.top - containerRect.top + (toRect.height - size) / 2}px`;
                 orb.style.transform = 'scale(1.25)';
             });
 
-            // 2. Ease-Out (165ms) 落地与消隐
             setTimeout(() => {
                 orb.style.opacity = '0';
                 orb.style.transform = 'scale(1.0)';
@@ -1565,7 +1543,14 @@
             }
         }
 
+        // 彻底修复：创建房间（担任房主）异常捕获与界面强行切换
         function createCloudRoom() {
+            const createBtn = document.getElementById('btn-create-room');
+            if (createBtn) {
+                createBtn.innerText = "创建中...";
+                createBtn.style.pointerEvents = "none";
+            }
+
             isHost = true; 
             myPlayerIndex = 0;
             const roomCode = String(Math.floor(100000 + Math.random() * 900000));
@@ -1576,12 +1561,19 @@
             playerTypes = ["human", "human", "disabled", "disabled", "disabled", "disabled", "disabled", "disabled"];
 
             const roomRef = ref(db, `rooms/${currentRoomId}`);
+            
             set(roomRef, {
                 roomCode: roomCode,
-                status: 'waiting', boardSize: boardSize, aiLevel: aiLevel,
+                status: 'waiting', 
+                boardSize: boardSize, 
+                aiLevel: aiLevel,
                 players: [{ name: nickname, isHost: true }],
-                playerTypes, playerColors, playerEmojis, playerNames,
-                restartTrigger: 0, lastExecutedSeq: -1
+                playerTypes: playerTypes, 
+                playerColors: playerColors, 
+                playerEmojis: playerEmojis, 
+                playerNames: playerNames,
+                restartTrigger: 0, 
+                lastExecutedSeq: -1
             }).then(() => {
                 onDisconnect(roomRef).remove();
 
@@ -1618,9 +1610,14 @@
 
                     setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
                 });
-            }).catch(err => {
-                alert("创建房间失败，请确认 Firebase 数据库 Rules 是否已开启允许读写！");
-                console.error(err);
+            }).catch((err) => {
+                console.error("Firebase 创建房间失败:", err);
+                alert("创建房间失败！请检查 Firebase 数据库安全规则是否已开启为允许读写 (.read: true, .write: true)");
+            }).finally(() => {
+                if (createBtn) {
+                    createBtn.innerText = "创建联机房间 (担任房主)";
+                    createBtn.style.pointerEvents = "auto";
+                }
             });
         }
 
