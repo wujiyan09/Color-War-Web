@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>COLOR WAR - 完美联机与物理质感版</title>
+    <title>COLOR WAR</title>
     <style>
         :root {
             --bg-dark: #050810;
@@ -298,7 +298,7 @@
             border-color: var(--accent-cyan);
         }
 
-        /* 棋子绘制：完全对齐 SwiftUI 渐变与白描边 */
+        /* 棋子渲染 CSS */
         .piece {
             position: relative;
             border-radius: 50%;
@@ -345,7 +345,6 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.85);
         }
 
-        /* 飞行动画：复刻 Swift 3阶段贝塞尔缓动 */
         .flying-orb {
             position: absolute;
             border-radius: 50%;
@@ -641,6 +640,22 @@
             light() { if (navigator.vibrate) navigator.vibrate(12); },
             heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
         };
+
+        // 强化的 HEX 转 RGBA 颜色处理工具类，百分百兼容所有格式
+        function hexToRgbA(hex, alpha = 1) {
+            if (!hex) return `rgba(255, 69, 58, ${alpha})`;
+            let c = String(hex).trim().replace('#', '');
+            if (c.length === 3) {
+                c = c.split('').map(x => x + x).join('');
+            }
+            if (c.length >= 6) {
+                const r = parseInt(c.substring(0, 2), 16) || 0;
+                const g = parseInt(c.substring(2, 4), 16) || 0;
+                const b = parseInt(c.substring(4, 6), 16) || 0;
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+            return hex;
+        }
 
         window.addEventListener('resize', () => {
             if (isInGame) buildGridDOMOnce();
@@ -1064,21 +1079,7 @@
             return total > 0 ? (pCount / total) : 0;
         }
 
-        function hexToRgbA(hex, alpha) {
-            if (!hex) return `rgba(255,255,255,${alpha})`;
-            let c = hex.trim().replace('#', '');
-            if (c.length === 3) {
-                c = c.split('').map(x => x + x).join('');
-            }
-            if (c.length === 6 || c.length === 8) {
-                const r = parseInt(c.substring(0, 2), 16);
-                const g = parseInt(c.substring(2, 4), 16);
-                const b = parseInt(c.substring(4, 6), 16);
-                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-            }
-            return hex;
-        }
-
+        // 彻底修复棋子颜色的渲染核心
         function updateBoardCellsDOM() {
             const container = document.getElementById('board-container');
             if (!container) return;
@@ -1101,7 +1102,7 @@
                     
                     let piece = cellEl.querySelector('.piece');
                     if (cellData.count > 0 && cellData.owner !== null) {
-                        const ownerColor = playerColors[cellData.owner] || '#FF453A';
+                        const rawColor = playerColors[cellData.owner] || DEFAULT_COLORS[cellData.owner] || '#FF453A';
                         const ownerEmoji = playerEmojis[cellData.owner];
                         const isEmojiPiece = Boolean(ownerEmoji && ownerEmoji.trim() !== "");
 
@@ -1114,10 +1115,11 @@
                         piece.style.width = `${pieceSize}px`;
                         piece.style.height = `${pieceSize}px`;
 
+                        // 强效内联渲染渐变背景，保证在所有浏览器正常显示
                         if (isEmojiPiece) {
-                            piece.style.background = hexToRgbA(ownerColor, 0.25);
+                            piece.style.background = hexToRgbA(rawColor, 0.25);
                         } else {
-                            piece.style.background = `linear-gradient(135deg, ${ownerColor}, ${hexToRgbA(ownerColor, 0.65)})`;
+                            piece.style.background = `linear-gradient(135deg, ${rawColor}, ${hexToRgbA(rawColor, 0.65)})`;
                         }
 
                         let emojiEl = piece.querySelector('.emoji-text');
@@ -1543,14 +1545,8 @@
             }
         }
 
-        // 彻底修复：创建房间（担任房主）异常捕获与界面强行切换
+        // 强效重构：UI 优先弹出切换，防假死并捕获 Firebase 异常
         function createCloudRoom() {
-            const createBtn = document.getElementById('btn-create-room');
-            if (createBtn) {
-                createBtn.innerText = "创建中...";
-                createBtn.style.pointerEvents = "none";
-            }
-
             isHost = true; 
             myPlayerIndex = 0;
             const roomCode = String(Math.floor(100000 + Math.random() * 900000));
@@ -1560,8 +1556,17 @@
             playerNames[0] = nickname;
             playerTypes = ["human", "human", "disabled", "disabled", "disabled", "disabled", "disabled", "disabled"];
 
+            // 1. 界面强行秒切大厅，防止点击无反应
+            document.getElementById('online-lobby-actions').style.display = 'none';
+            document.getElementById('online-room-hall').style.display = 'block';
+            document.getElementById('room-code-display').innerText = roomCode;
+            document.getElementById('host-control-section').style.display = 'block';
+            document.getElementById('host-start-online-btn').style.display = 'block';
+
+            renderPlayerList('online-player-list');
+
+            // 2. 异步将数据同步至 Firebase 云数据库
             const roomRef = ref(db, `rooms/${currentRoomId}`);
-            
             set(roomRef, {
                 roomCode: roomCode,
                 status: 'waiting', 
@@ -1576,14 +1581,6 @@
                 lastExecutedSeq: -1
             }).then(() => {
                 onDisconnect(roomRef).remove();
-
-                document.getElementById('online-lobby-actions').style.display = 'none';
-                document.getElementById('online-room-hall').style.display = 'block';
-                document.getElementById('room-code-display').innerText = roomCode;
-                document.getElementById('host-control-section').style.display = 'block';
-                document.getElementById('host-start-online-btn').style.display = 'block';
-
-                renderPlayerList('online-player-list');
                 subscribeRoomData();
 
                 let localHostLastExecutedSeq = -1;
@@ -1611,13 +1608,8 @@
                     setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
                 });
             }).catch((err) => {
-                console.error("Firebase 创建房间失败:", err);
-                alert("创建房间失败！请检查 Firebase 数据库安全规则是否已开启为允许读写 (.read: true, .write: true)");
-            }).finally(() => {
-                if (createBtn) {
-                    createBtn.innerText = "创建联机房间 (担任房主)";
-                    createBtn.style.pointerEvents = "auto";
-                }
+                console.error("Firebase 创建房间写操作失败:", err);
+                alert("连线提示：房间已在本地创建，但同步到云端失败。请检查 Firebase 的 Rules 是否已设置为允许读写！");
             });
         }
 
@@ -1688,7 +1680,7 @@
 
                 subscribeRoomData();
             } catch (err) {
-                alert("加入房间失败，请检查网络连接或 Firebase 配置！");
+                alert("加入房间失败，请检查网络连接或邀请码！");
                 console.error(err);
                 joinBtn.innerText = "加入房间";
                 joinBtn.style.pointerEvents = "auto";
