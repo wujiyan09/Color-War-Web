@@ -298,7 +298,7 @@
             border-color: var(--accent-cyan);
         }
 
-        /* 妫嬪瓙娓叉煋 CSS */
+        /* 棋子渲染 CSS */
         .piece {
             position: relative;
             border-radius: 50%;
@@ -431,108 +431,108 @@
 </head>
 <body>
 
-    <!-- 涓昏彍鍗� -->
+    <!-- 主菜单 -->
     <div id="view-menu" class="view active">
         <div style="width:100%;">
             <div class="game-title">COLOR WAR</div>
             
             <div class="tab-switcher" style="margin: 0 auto 12px auto;">
-                <div id="tab-local" class="tab-btn active">鍗曟満妯″紡</div>
-                <div id="tab-online" class="tab-btn">浜戠鑱旀満</div>
+                <div id="tab-local" class="tab-btn active">单机模式</div>
+                <div id="tab-online" class="tab-btn">云端联机</div>
             </div>
 
-            <!-- 鍗曟満妯″紡闈㈡澘 -->
+            <!-- 单机模式面板 -->
             <div id="panel-local" style="width: 100%;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
-                        <span>缃戞牸灏哄: <b id="board-size-label">8 脳 8</b></span>
+                        <span>网格尺寸: <b id="board-size-label">8 × 8</b></span>
                     </div>
                     <input type="range" id="board-size-slider" min="5" max="12" value="8">
                     
                     <div class="setting-row" style="margin-top: 8px;">
-                        <label for="random-first-toggle">闅忔満鎸戦€夊厛鎵�</label>
+                        <label for="random-first-toggle">随机挑选先手</label>
                         <input type="checkbox" id="random-first-toggle" checked style="width:18px; height:18px;">
                     </div>
                 </div>
 
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
-                        <span>馃 AI 绠楀姏/娣卞害:</span>
-                        <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2妗� 路 骞宠　</span>
+                        <span>🧠 AI 算力/深度:</span>
+                        <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
                     </div>
                     <input type="range" id="ai-level-slider" min="1" max="4" value="2">
-                    <p id="ai-level-desc" style="font-size: 0.7rem; color: #aaa; margin-top: 4px;">娣卞害 3-5 灞� | Alpha-Beta 鍓灊</p>
+                    <p id="ai-level-desc" style="font-size: 0.7rem; color: #aaa; margin-top: 4px;">深度 3-5 层 | Alpha-Beta 剪枝</p>
                 </div>
 
                 <div class="player-list glass-panel" id="local-player-list"></div>
 
                 <div style="display:flex; gap:8px; margin-bottom: 12px;">
-                    <button id="btn-bg-upload" class="glass-btn" style="flex:1; font-size:0.8rem;">馃柤 閫夋嫨鑳屾櫙</button>
-                    <button id="btn-bg-reset" class="glass-btn" style="font-size:0.8rem;">馃棏 鎭㈠鑳屾櫙</button>
+                    <button id="btn-bg-upload" class="glass-btn" style="flex:1; font-size:0.8rem;">🖼 选择背景</button>
+                    <button id="btn-bg-reset" class="glass-btn" style="font-size:0.8rem;">🗑 恢复背景</button>
                     <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
                 </div>
 
-                <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">鈻� 寮€濮嬪鍐�</button>
+                <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
             </div>
 
-            <!-- 鑱旀満妯″紡澶у巺闈㈡澘 -->
+            <!-- 联机模式大厅面板 -->
             <div id="panel-online" style="width: 100%; display: none;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
-                        <span>鎴戠殑鐜╁鏄电О:</span>
-                        <input type="text" id="online-nickname" value="鐜╁1" style="width: 140px;">
+                        <span>我的玩家昵称:</span>
+                        <input type="text" id="online-nickname" value="玩家1" style="width: 140px;">
                     </div>
                 </div>
 
-                <!-- 澶у巺鍒濆閫夊崟 -->
+                <!-- 大厅初始选单 -->
                 <div id="online-lobby-actions" style="display: flex; flex-direction: column; gap: 10px;">
-                    <button id="btn-create-room" class="glass-btn primary" style="width:100%;">鍒涘缓鑱旀満鎴块棿 (鎷呬换鎴夸富)</button>
+                    <button id="btn-create-room" class="glass-btn primary" style="width:100%;">创建联机房间 (担任房主)</button>
                     <div style="display: flex; gap: 8px; margin-top: 5px;">
-                        <input type="text" id="join-code-input" placeholder="杈撳叆6浣嶆埧闂撮個璇风爜" maxlength="6" style="flex: 1; text-align: center; font-size: 0.9rem; letter-spacing: 2px;">
-                        <button id="btn-join-room" class="glass-btn" style="background: rgba(0, 242, 254, 0.2);">鍔犲叆鎴块棿</button>
+                        <input type="text" id="join-code-input" placeholder="输入6位房间邀请码" maxlength="6" style="flex: 1; text-align: center; font-size: 0.9rem; letter-spacing: 2px;">
+                        <button id="btn-join-room" class="glass-btn" style="background: rgba(0, 242, 254, 0.2);">加入房间</button>
                     </div>
                 </div>
 
-                <!-- 鎴块棿鍐呭ぇ鍘呮帶鍒跺尯 -->
+                <!-- 房间内大厅控制区 -->
                 <div id="online-room-hall" class="setting-card glass-panel" style="display: none; text-align: center;">
-                    <span style="font-size: 0.8rem; color: #aaa;">鎴块棿閭€璇风爜</span>
+                    <span style="font-size: 0.8rem; color: #aaa;">房间邀请码</span>
                     <div class="code-display" id="room-code-display">------</div>
                     
-                    <!-- 鎴夸富涓撳睘璁剧疆鍖� -->
+                    <!-- 房主专属设置区 -->
                     <div id="host-control-section" style="display: none; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 10px; margin-top: 10px; text-align: left;">
                         <div class="setting-row">
-                            <span>缃戞牸灏哄: <b id="online-board-size-label">8 脳 8</b></span>
+                            <span>网格尺寸: <b id="online-board-size-label">8 × 8</b></span>
                         </div>
                         <input type="range" id="online-board-size-slider" min="5" max="12" value="8">
                         
                         <div class="setting-row" style="margin-top: 8px;">
-                            <span>馃 AI 绠楀姏绛夌骇:</span>
-                            <span id="online-ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2妗� 路 骞宠　</span>
+                            <span>🧠 AI 算力等级:</span>
+                            <span id="online-ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
                         </div>
                         <input type="range" id="online-ai-level-slider" min="1" max="4" value="2">
                     </div>
 
-                    <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">馃搵 鎴块棿甯綅閰嶇疆</div>
+                    <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">📋 房间席位配置</div>
                     <div class="player-list glass-panel" id="online-player-list" style="max-height: 160px;"></div>
 
                     <div style="display: flex; gap: 10px; margin-top: 12px;">
-                        <button id="btn-leave-room" class="glass-btn" style="flex: 1;">閫€鍑烘埧闂�</button>
-                        <button id="host-start-online-btn" class="glass-btn primary" style="flex: 2; display: none;">鍏ㄥ憳寮€濮嬪鍐� 鈻�</button>
+                        <button id="btn-leave-room" class="glass-btn" style="flex: 1;">退出房间</button>
+                        <button id="host-start-online-btn" class="glass-btn primary" style="flex: 2; display: none;">全员开始对决 ▶</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 瀵瑰眬鐣岄潰 -->
+    <!-- 对局界面 -->
     <div id="view-game" class="view">
         <div class="game-header">
-            <button id="btn-exit-game" class="glass-btn">鉂� 鑿滃崟</button>
+            <button id="btn-exit-game" class="glass-btn">❮ 菜单</button>
             <div id="current-turn-badge" class="turn-badge glass-panel">
                 <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
-                <span id="turn-text">鐜╁1 鍥炲悎</span>
+                <span id="turn-text">玩家1 回合</span>
             </div>
-            <button id="btn-control-panel" class="glass-btn">鈿� 鎺у埗</button>
+            <button id="btn-control-panel" class="glass-btn">⚙ 控制</button>
         </div>
 
         <div class="board-container" id="board-container">
@@ -542,39 +542,39 @@
         </div>
     </div>
 
-    <!-- 闅忔満鎶藉彇 Modal -->
+    <!-- 随机抽取 Modal -->
     <div id="wheel-overlay" class="overlay">
         <div class="modal-box glass-panel">
-            <h3 style="margin-bottom: 10px;">闅忔満鎶藉彇鍏堟墜鐜╁</h3>
+            <h3 style="margin-bottom: 10px;">随机抽取先手玩家</h3>
             <div class="wheel-players" id="wheel-players-container"></div>
         </div>
     </div>
 
-    <!-- Emoji 閫夋嫨 Sheet -->
+    <!-- Emoji 选择 Sheet -->
     <div id="emoji-modal" class="overlay">
         <div class="modal-box glass-panel">
-            <h3 style="margin-bottom: 15px;">閫夋嫨妫嬪瓙 Emoji 鏍峰紡</h3>
+            <h3 style="margin-bottom: 15px;">选择棋子 Emoji 样式</h3>
             <div id="emoji-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:15px; max-height:220px; overflow-y:auto;"></div>
-            <button id="btn-close-emoji" class="glass-btn" style="width:100%;">鎭㈠榛樿绾壊鏍峰紡</button>
+            <button id="btn-close-emoji" class="glass-btn" style="width:100%;">恢复默认纯色样式</button>
         </div>
     </div>
 
-    <!-- 瀹炴椂鎺у埗闈㈡澘 Modal -->
+    <!-- 实时控制面板 Modal -->
     <div id="control-modal" class="overlay">
         <div class="modal-box glass-panel" style="width: 380px;">
-            <h3 style="margin-bottom: 15px;">鈿� 瀵瑰眬鎺у埗闈㈡澘</h3>
+            <h3 style="margin-bottom: 15px;">⚙ 对局控制面板</h3>
             <div id="control-player-rows" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; text-align: left;"></div>
-            <button id="btn-close-control" class="glass-btn primary" style="width:100%;">瀹屾垚</button>
+            <button id="btn-close-control" class="glass-btn primary" style="width:100%;">完成</button>
         </div>
     </div>
 
-    <!-- 鑳滃埄缁撶畻 Overlay -->
+    <!-- 胜利结算 Overlay -->
     <div id="winner-overlay" class="overlay">
         <div class="modal-box glass-panel">
-            <div id="winner-crown-icon" style="font-size:3rem; margin-bottom:10px;">馃憫</div>
-            <h2 id="winner-text" style="margin-bottom: 20px; color: #ffd700;">鐜╁ 1 鑾峰緱鑳滃埄锛�</h2>
-            <button id="btn-restart-game" class="glass-btn primary" style="width: 100%; margin-bottom: 10px;">鍐嶆潵涓€灞€</button>
-            <button id="btn-return-menu" class="glass-btn" style="width: 100%;">杩斿洖涓昏彍鍗�</button>
+            <div id="winner-crown-icon" style="font-size:3rem; margin-bottom:10px;">👑</div>
+            <h2 id="winner-text" style="margin-bottom: 20px; color: #ffd700;">玩家 1 获得胜利！</h2>
+            <button id="btn-restart-game" class="glass-btn primary" style="width: 100%; margin-bottom: 10px;">再来一局</button>
+            <button id="btn-return-menu" class="glass-btn" style="width: 100%;">返回主菜单</button>
         </div>
     </div>
 
@@ -597,14 +597,14 @@
 
         const MAX_PLAYERS = 8;
         const DEFAULT_COLORS = ['#FF453A', '#0A84FF', '#30D158', '#FF9F0A', '#BF5AF2', '#64D2FF', '#FFD60A', '#FF70A6'];
-        const DEFAULT_NAMES = ["鐜╁1", "鐜╁2", "鐜╁3", "鐜╁4", "鐜╁5", "鐜╁6", "鐜╁7", "鐜╁8"];
-        const EMOJI_PRESETS = ["馃敶", "馃數", "馃煝", "馃煣", "馃煟", "馃┑", "馃煛", "馃┓", "馃", "馃惎", "馃惢", "馃", "馃惐", "馃惗", "馃惣", "馃惛", "馃敟", "鈿★笍", "馃挜", "馃拵", "馃殌", "馃憫", "馃懟", "馃ぁ"];
+        const DEFAULT_NAMES = ["玩家1", "玩家2", "玩家3", "玩家4", "玩家5", "玩家6", "玩家7", "玩家8"];
+        const EMOJI_PRESETS = ["🔴", "🔵", "🟢", "🟧", "🟣", "🩵", "🟡", "🩷", "🦁", "🐯", "🐻", "🦊", "🐱", "🐶", "🐼", "🐸", "🔥", "⚡️", "💥", "💎", "🚀", "👑", "👻", "🤡"];
 
         const AI_DIFFICULTY_DESCS = {
-            1: "娣卞害 2 灞� | 蹇墜鏋侀€�",
-            2: "娣卞害 3-4 灞� | Alpha-Beta 鍓灊",
-            3: "娣卞害 4-5 灞� | 缃崲琛�+闈欐鎼滅储",
-            4: "娣卞害 6-8 灞� | 鍏ㄥ眬閾惧浘+鏋侀檺鎺ㄧ悊"
+            1: "深度 2 层 | 快手极速",
+            2: "深度 3-4 层 | Alpha-Beta 剪枝",
+            3: "深度 4-5 层 | 置换表+静止搜索",
+            4: "深度 6-8 层 | 全局链图+极限推理"
         };
 
         let boardSize = 8;
@@ -641,7 +641,7 @@
             heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
         };
 
-        // 寮哄寲鐨� HEX 杞� RGBA 棰滆壊澶勭悊宸ュ叿绫伙紝鐧惧垎鐧惧吋瀹规墍鏈夋牸寮�
+        // 强化的 HEX 转 RGBA 颜色处理工具类，百分百兼容所有格式
         function hexToRgbA(hex, alpha = 1) {
             if (!hex) return `rgba(255, 69, 58, ${alpha})`;
             let c = String(hex).trim().replace('#', '');
@@ -820,24 +820,24 @@
             
             document.getElementById('board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
-                document.getElementById('board-size-label').innerText = `${boardSize} 脳 ${boardSize}`;
+                document.getElementById('board-size-label').innerText = `${boardSize} × ${boardSize}`;
             };
 
             document.getElementById('ai-level-slider').oninput = (e) => {
                 aiLevel = parseInt(e.target.value);
-                document.getElementById('ai-level-label').innerText = ["", "1妗� 路 蹇墜", "2妗� 路 骞宠　", "3妗� 路 娣辫皨", "4妗� 路 鏋侀檺"][aiLevel];
+                document.getElementById('ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
                 document.getElementById('ai-level-desc').innerText = AI_DIFFICULTY_DESCS[aiLevel];
             };
 
             document.getElementById('online-board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
-                document.getElementById('online-board-size-label').innerText = `${boardSize} 脳 ${boardSize}`;
+                document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
                 if (currentRoomId && isHost) syncRoomSettingsToCloud();
             };
 
             document.getElementById('online-ai-level-slider').oninput = (e) => {
                 aiLevel = parseInt(e.target.value);
-                document.getElementById('online-ai-level-label').innerText = ["", "1妗� 路 蹇墜", "2妗� 路 骞宠　", "3妗� 路 娣辫皨", "4妗� 路 鏋侀檺"][aiLevel];
+                document.getElementById('online-ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
                 if (currentRoomId && isHost) syncRoomSettingsToCloud();
             };
 
@@ -910,10 +910,10 @@
                     <input type="color" value="${playerColors[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
                     <input type="text" value="${playerNames[i]}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
                     <select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;" ${isReadOnly ? 'disabled' : ''}>
-                        <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>鐪熶汉</option>
-                        <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>绠楁硶-鍣╂ⅵ</option>
-                        <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>绠楁硶-鍣╂ⅵ(鍔犲己)</option>
-                        <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>鏈姞鍏�</option>
+                        <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
+                        <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                        <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                        <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
                     </select>
                 `;
                 container.appendChild(row);
@@ -967,7 +967,7 @@
 
         function startLocalGame() {
             const active = getActivePlayers();
-            if (active.length < 2) { alert("鑷冲皯闇€瑕� 2 鍚嶇帺瀹讹紒"); return; }
+            if (active.length < 2) { alert("至少需要 2 名玩家！"); return; }
             isRandomFirst = document.getElementById('random-first-toggle').checked;
             if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
             else initBoard(active[0]);
@@ -1079,7 +1079,7 @@
             return total > 0 ? (pCount / total) : 0;
         }
 
-        // 褰诲簳淇妫嬪瓙棰滆壊鐨勬覆鏌撴牳蹇�
+        // 彻底修复棋子颜色的渲染核心
         function updateBoardCellsDOM() {
             const container = document.getElementById('board-container');
             if (!container) return;
@@ -1115,7 +1115,7 @@
                         piece.style.width = `${pieceSize}px`;
                         piece.style.height = `${pieceSize}px`;
 
-                        // 寮烘晥鍐呰仈娓叉煋娓愬彉鑳屾櫙锛屼繚璇佸湪鎵€鏈夋祻瑙堝櫒姝ｅ父鏄剧ず
+                        // 强效内联渲染渐变背景，保证在所有浏览器正常显示
                         if (isEmojiPiece) {
                             piece.style.background = hexToRgbA(rawColor, 0.25);
                         } else {
@@ -1227,7 +1227,7 @@
 
         function updateTurnHeader() {
             document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
-            document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 鍥炲悎`;
+            document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 回合`;
             renderSidePlayers();
         }
 
@@ -1431,8 +1431,8 @@
 
         function showWinnerOverlay() {
             document.getElementById('winner-overlay').classList.add('active');
-            const winnerName = winnerIndex >= 0 ? playerNames[winnerIndex] : "鏃犱汉 (鍏ㄥ憳娣樻卑)";
-            document.getElementById('winner-text').innerText = `${winnerName} 鑾峰緱鑳滃埄锛乣;
+            const winnerName = winnerIndex >= 0 ? playerNames[winnerIndex] : "无人 (全员淘汰)";
+            document.getElementById('winner-text').innerText = `${winnerName} 获得胜利！`;
         }
 
         function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -1484,9 +1484,9 @@
                 row.innerHTML = `
                     <span>${playerNames[p]}</span>
                     <select id="ctrl-p-${p}">
-                        <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>鐪熶汉</option>
-                        <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>绠楁硶-鍣╂ⅵ</option>
-                        <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>绠楁硶-鍣╂ⅵ(鍔犲己)</option>
+                        <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
+                        <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                        <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
                     </select>
                 `;
                 container.appendChild(row);
@@ -1504,7 +1504,7 @@
             if (currentRoomId && isHost) {
                 update(ref(db, `rooms/${currentRoomId}`), {
                     boardSize, aiLevel, playerTypes, playerColors, playerEmojis, playerNames
-                }).catch(err => console.error("缃戠粶杩為€氭€у紓甯�:", err));
+                }).catch(err => console.error("网络连通性异常:", err));
             }
         }
 
@@ -1539,24 +1539,24 @@
                     }
                 }
             } catch (err) {
-                console.error("閲嶅鐞嗙Щ鍔ㄩ敊璇�:", err);
+                console.error("重处理移动错误:", err);
             } finally {
                 isReprocessingMoves = false;
             }
         }
 
-        // 寮烘晥閲嶆瀯锛歎I 浼樺厛寮瑰嚭鍒囨崲锛岄槻鍋囨骞舵崟鑾� Firebase 寮傚父
+        // 强效重构：UI 优先弹出切换，防假死并捕获 Firebase 异常
         function createCloudRoom() {
             isHost = true; 
             myPlayerIndex = 0;
             const roomCode = String(Math.floor(100000 + Math.random() * 900000));
             currentRoomId = 'cw-' + roomCode;
             
-            const nickname = document.getElementById('online-nickname').value || "鎴夸富";
+            const nickname = document.getElementById('online-nickname').value || "房主";
             playerNames[0] = nickname;
             playerTypes = ["human", "human", "disabled", "disabled", "disabled", "disabled", "disabled", "disabled"];
 
-            // 1. 鐣岄潰寮鸿绉掑垏澶у巺锛岄槻姝㈢偣鍑绘棤鍙嶅簲
+            // 1. 界面强行秒切大厅，防止点击无反应
             document.getElementById('online-lobby-actions').style.display = 'none';
             document.getElementById('online-room-hall').style.display = 'block';
             document.getElementById('room-code-display').innerText = roomCode;
@@ -1565,7 +1565,7 @@
 
             renderPlayerList('online-player-list');
 
-            // 2. 寮傛灏嗘暟鎹悓姝ヨ嚦 Firebase 浜戞暟鎹簱
+            // 2. 异步将数据同步至 Firebase 云数据库
             const roomRef = ref(db, `rooms/${currentRoomId}`);
             set(roomRef, {
                 roomCode: roomCode,
@@ -1608,8 +1608,8 @@
                     setInterval(() => { if (isInGame && isHost) reprocessPendingMoves(); }, 3000);
                 });
             }).catch((err) => {
-                console.error("Firebase 鍒涘缓鎴块棿鍐欐搷浣滃け璐�:", err);
-                alert("杩炵嚎鎻愮ず锛氭埧闂村凡鍦ㄦ湰鍦板垱寤猴紝浣嗗悓姝ュ埌浜戠澶辫触銆傝妫€鏌� Firebase 鐨� Rules 鏄惁宸茶缃负鍏佽璇诲啓锛�");
+                console.error("Firebase 创建房间写操作失败:", err);
+                alert("连线提示：房间已在本地创建，但同步到云端失败。请检查 Firebase 的 Rules 是否已设置为允许读写！");
             });
         }
 
@@ -1618,11 +1618,11 @@
             const inputCode = document.getElementById('join-code-input').value.trim();
 
             if (!inputCode || inputCode.length !== 6) {
-                alert("璇疯緭鍏ユ纭殑 6 浣嶆埧闂撮個璇风爜锛�");
+                alert("请输入正确的 6 位房间邀请码！");
                 return;
             }
 
-            joinBtn.innerText = "鍔犲叆涓�...";
+            joinBtn.innerText = "加入中...";
             joinBtn.style.pointerEvents = "none";
 
             const roomId = 'cw-' + inputCode;
@@ -1630,13 +1630,13 @@
                 const roomSnap = await get(ref(db, `rooms/${roomId}`));
                 
                 if (!roomSnap.exists()) {
-                    alert("涓嶅瓨鍦ㄨ閭€璇风爜瀵瑰簲鐨勬埧闂达紒");
-                    joinBtn.innerText = "鍔犲叆鎴块棿";
+                    alert("不存在该邀请码对应的房间！");
+                    joinBtn.innerText = "加入房间";
                     joinBtn.style.pointerEvents = "auto";
                     return;
                 }
 
-                const nickname = document.getElementById('online-nickname').value || `鐜╁`;
+                const nickname = document.getElementById('online-nickname').value || `玩家`;
                 isHost = false; 
                 currentRoomId = roomId;
 
@@ -1652,8 +1652,8 @@
                 });
 
                 if (!res.committed) {
-                    alert("璇ユ埧闂翠汉婊′簡锛�");
-                    joinBtn.innerText = "鍔犲叆鎴块棿";
+                    alert("该房间人满了！");
+                    joinBtn.innerText = "加入房间";
                     joinBtn.style.pointerEvents = "auto";
                     return;
                 }
@@ -1669,7 +1669,7 @@
                     playerNames: updatedNames
                 });
 
-                joinBtn.innerText = "鍔犲叆鎴块棿";
+                joinBtn.innerText = "加入房间";
                 joinBtn.style.pointerEvents = "auto";
 
                 document.getElementById('online-lobby-actions').style.display = 'none';
@@ -1680,9 +1680,9 @@
 
                 subscribeRoomData();
             } catch (err) {
-                alert("鍔犲叆鎴块棿澶辫触锛岃妫€鏌ョ綉缁滆繛鎺ユ垨閭€璇风爜锛�");
+                alert("加入房间失败，请检查网络连接或邀请码！");
                 console.error(err);
-                joinBtn.innerText = "鍔犲叆鎴块棿";
+                joinBtn.innerText = "加入房间";
                 joinBtn.style.pointerEvents = "auto";
             }
         }
@@ -1704,7 +1704,7 @@
                 const roomData = snap.val();
                 if (!roomData) {
                     if (!isHost && currentRoomId) {
-                        alert("鎴块棿宸茶鎴夸富瑙ｆ暎锛�");
+                        alert("房间已被房主解散！");
                         leaveCloudRoom();
                     }
                     return;
@@ -1713,12 +1713,12 @@
                 if (roomData.boardSize) {
                     boardSize = roomData.boardSize;
                     document.getElementById('online-board-size-slider').value = boardSize;
-                    document.getElementById('online-board-size-label').innerText = `${boardSize} 脳 ${boardSize}`;
+                    document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
                 }
                 if (roomData.aiLevel) {
                     aiLevel = roomData.aiLevel;
                     document.getElementById('online-ai-level-slider').value = aiLevel;
-                    document.getElementById('online-ai-level-label').innerText = ["", "1妗� 路 蹇墜", "2妗� 路 骞宠　", "3妗� 路 娣辫皨", "4妗� 路 鏋侀檺"][aiLevel];
+                    document.getElementById('online-ai-level-label').innerText = ["", "1档 · 快手", "2档 · 平衡", "3档 · 深谋", "4档 · 极限"][aiLevel];
                 }
 
                 if (roomData.playerTypes) playerTypes = roomData.playerTypes;
@@ -1754,7 +1754,7 @@
             if (!isHost) return;
             const active = getActivePlayers();
             if (active.length < 2) {
-                alert("鎴块棿鍐呰嚦灏戦渶瑕� 2 浣嶅姞鍏ョ殑鐜╁/AI锛�");
+                alert("房间内至少需要 2 位加入的玩家/AI！");
                 return;
             }
 
