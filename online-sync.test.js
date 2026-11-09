@@ -38,3 +38,12 @@ test("each client animates chain-reaction transfers and host publishes only the 
   assert.match(move, /while \(wave\.length > 0\)/);
   assert.match(move, /if \(currentRoomId && isHost\) syncFullSnapshotToCloud\(\);/);
 });
+
+
+test("player roles are read-only in connected rooms and control panel", () => {
+  const lobby = section("function renderPlayerList(", "function renderEmojiGrid()");
+  assert.match(lobby, /const roleLocked = Boolean\(currentRoomId\)/);
+  assert.match(lobby, /roleLocked[\s\S]*?WIRE_PLAYER_TYPES\[playerTypes\[i\]\][\s\S]*?p-type-\$\{i\}/);
+  const modal = section("function openControlPanelModal()", "const WIRE_PLAYER_TYPES =");
+  assert.match(modal, /currentRoomId[\s\S]*?WIRE_PLAYER_TYPES\[playerTypes\[p\]\][\s\S]*?if \(!currentRoomId\)/);
+});

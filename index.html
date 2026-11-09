@@ -893,6 +893,7 @@
             if (!container) return;
             container.innerHTML = '';
             const isReadOnly = Boolean(currentRoomId) && !isHost;
+            const roleLocked = Boolean(currentRoomId);
 
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 const row = document.createElement('div');
@@ -901,13 +902,14 @@
                     <div class="color-dot" style="background:${playerColors[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="${targetContainerId}-color-dot-${i}">${playerEmojis[i] || ''}</div>
                     <input type="color" value="${playerColors[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
                     <input type="text" value="${playerNames[i]}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
-                    <select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;" ${isReadOnly ? 'disabled' : ''}>
-                        <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
-                        <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
-                        <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
-                        ${currentRoomId ? `<option value="network" ${playerTypes[i] === 'network' ? 'selected' : ''}>网络玩家</option>` : ''}
-                        <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
-                    </select>
+                    ${roleLocked
+                        ? `<span>${WIRE_PLAYER_TYPES[playerTypes[i]] || '未加入'}</span>`
+                        : `<select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;">
+                            <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
+                            <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                            <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                            <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
+                        </select>`}
                 `;
                 container.appendChild(row);
 
@@ -922,10 +924,11 @@
                         playerNames[i] = e.target.value;
                         if (currentRoomId && isHost) syncRoomSettingsToCloud();
                     };
-                    document.getElementById(`${targetContainerId}-p-type-${i}`).onchange = (e) => {
-                        playerTypes[i] = e.target.value;
-                        if (currentRoomId && isHost) syncRoomSettingsToCloud();
-                    };
+                    if (!roleLocked) {
+                        document.getElementById(`${targetContainerId}-p-type-${i}`).onchange = (e) => {
+                            playerTypes[i] = e.target.value;
+                        };
+                    }
                 }
             }
         }
@@ -1491,19 +1494,22 @@
                 row.style.alignItems = 'center'; row.style.marginBottom = '10px';
                 row.innerHTML = `
                     <span>${playerNames[p]}</span>
-                    <select id="ctrl-p-${p}">
-                        <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
-                        <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
-                        <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
-                    </select>
+                    ${currentRoomId
+                        ? `<span>${WIRE_PLAYER_TYPES[playerTypes[p]] || playerTypes[p]}</span>`
+                        : `<select id="ctrl-p-${p}">
+                            <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
+                            <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
+                            <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                        </select>`}
                 `;
                 container.appendChild(row);
 
-                document.getElementById(`ctrl-p-${p}`).onchange = (e) => {
-                    playerTypes[p] = e.target.value;
-                    if (currentRoomId && isHost) syncRoomSettingsToCloud();
-                    checkAndRunAITurn();
-                };
+                if (!currentRoomId) {
+                    document.getElementById(`ctrl-p-${p}`).onchange = (e) => {
+                        playerTypes[p] = e.target.value;
+                        checkAndRunAITurn();
+                    };
+                }
             });
             modal.classList.add('active');
         }
