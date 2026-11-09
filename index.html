@@ -479,8 +479,8 @@
             <div id="panel-online" style="width: 100%; display: none;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row" style="display:block; text-align:left;">
-                        <label for="websocket-server-url" style="font-size:.78rem;color:#aaa;">WebSocket 服务地址（部署 Worker 后填写）</label>
-                        <input type="url" id="websocket-server-url" placeholder="https://你的域名.workers.dev" style="width:100%;margin-top:6px;">
+                        <label for="websocket-server-url" style="font-size:.78rem;color:#aaa;">WebSocket 服务地址</label>
+                        <input type="url" id="websocket-server-url" placeholder="https://colorwar-server.wujiyan2009.workers.dev" style="width:100%;margin-top:6px;">
                     </div>
                     <div class="setting-row">
                         <span>我的玩家昵称:</span>
@@ -583,7 +583,8 @@
     </div>
 
     <script type="module">
-        const savedWsEndpoint = localStorage.getItem('CW_WebSocketServerURL') || '';
+        const DEFAULT_WEBSOCKET_SERVER_URL = 'https://colorwar-server.wujiyan2009.workers.dev';
+        const savedWsEndpoint = (localStorage.getItem('CW_WebSocketServerURL') || '').trim() || DEFAULT_WEBSOCKET_SERVER_URL;
 
         const MAX_PLAYERS = 8;
         const DEFAULT_COLORS = ['#FF453A', '#0A84FF', '#30D158', '#FF9F0A', '#BF5AF2', '#64D2FF', '#FFD60A', '#FF70A6'];
