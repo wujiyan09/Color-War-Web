@@ -478,10 +478,6 @@
             <!-- 联机模式大厅面板 -->
             <div id="panel-online" style="width: 100%; display: none;">
                 <div class="setting-card glass-panel">
-                    <div class="setting-row" style="display:block; text-align:left;">
-                        <label for="websocket-server-url" style="font-size:.78rem;color:#aaa;">WebSocket 服务地址</label>
-                        <input type="url" id="websocket-server-url" placeholder="https://colorwar-server.wujiyan2009.workers.dev" style="width:100%;margin-top:6px;">
-                    </div>
                     <div class="setting-row">
                         <span>我的玩家昵称:</span>
                         <input type="text" id="online-nickname" value="玩家1" style="width: 140px;">
@@ -584,7 +580,6 @@
 
     <script type="module">
         const DEFAULT_WEBSOCKET_SERVER_URL = 'https://colorwar-server.wujiyan2009.workers.dev';
-        const savedWsEndpoint = (localStorage.getItem('CW_WebSocketServerURL') || '').trim() || DEFAULT_WEBSOCKET_SERVER_URL;
 
         const MAX_PLAYERS = 8;
         const DEFAULT_COLORS = ['#FF453A', '#0A84FF', '#30D158', '#FF9F0A', '#BF5AF2', '#64D2FF', '#FFD60A', '#FF70A6'];
@@ -627,6 +622,9 @@
         let roomSocket = null;
         let lastReceivedSeqID = 0;
         let outgoingSeqID = 0;
+        let onlinePacketQueue = [];
+        let isProcessingOnlinePackets = false;
+        let pendingOnlineMove = false;
 
         const Haptics = {
             light() { if (navigator.vibrate) navigator.vibrate(12); },
@@ -805,13 +803,6 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedBackground();
-            document.getElementById('websocket-server-url').value = savedWsEndpoint;
-            document.getElementById('websocket-server-url').onchange = (e) => {
-                localStorage.setItem('CW_WebSocketServerURL', e.target.value.trim());
-            };
-            document.getElementById('websocket-server-url').oninput = (e) => {
-                localStorage.setItem('CW_WebSocketServerURL', e.target.value.trim());
-            };
             renderPlayerList('local-player-list');
 
             document.getElementById('tab-local').onclick = () => switchModeTab('local');
@@ -1232,7 +1223,7 @@
         }
 
         async function handleCellClick(r, c) {
-            if (!isInGame || isProcessingCascade || winnerIndex !== null) return;
+            if (!isInGame || isProcessingCascade || pendingOnlineMove || winnerIndex !== null) return;
 
             const cell = board[r][c];
             const ownsAny = board.some(row => row.some(cell => cell.owner === currentPlayer));
@@ -1242,8 +1233,9 @@
                 const canControl = currentPlayer === myPlayerIndex || (isHost && ['mathNightmare', 'enhancedNightmare'].includes(playerTypes[currentPlayer]));
                 if (!canControl || roomSocket?.readyState !== WebSocket.OPEN) return;
                 Haptics.light();
-                sendGamePacket('playerMove', { row: r, col: c, playerIndex: currentPlayer });
-                await executeMove(r, c, currentPlayer);
+                const sent = sendGamePacket('playerMove', { row: r, col: c, playerIndex: currentPlayer });
+                if (sent && isHost) await executeMove(r, c, currentPlayer);
+                else pendingOnlineMove = sent;
             } else {
                 if (playerTypes[currentPlayer] !== 'human') return;
                 Haptics.light();
@@ -1385,7 +1377,7 @@
             if (checkGameOver()) {
                 Haptics.heavy();
                 showWinnerOverlay();
-            } else {
+            } else if (!currentRoomId || isHost) {
                 advanceToNextTurn();
             }
             if (currentRoomId && isHost) syncFullSnapshotToCloud();
@@ -1456,7 +1448,13 @@
                         const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
-                            await executeMove(move.r, move.c, currentPlayer, signal);
+                            if (currentRoomId) {
+                                const sent = sendGamePacket('playerMove', { row: move.r, col: move.c, playerIndex: currentPlayer });
+                                if (sent && isHost) await executeMove(move.r, move.c, currentPlayer, signal);
+                                else pendingOnlineMove = sent;
+                            } else {
+                                await executeMove(move.r, move.c, currentPlayer, signal);
+                            }
                         }
                     } finally {
                         if (currentAbortController?.signal === signal) {
@@ -1575,7 +1573,7 @@
         }
 
         function connectRoom(roomCode, role) {
-            const base = document.getElementById('websocket-server-url').value.trim() || savedWsEndpoint;
+            const base = DEFAULT_WEBSOCKET_SERVER_URL;
             let url;
             try {
                 url = new URL(base);
@@ -1589,6 +1587,9 @@
                 return;
             }
             currentRoomId = roomCode;
+            onlinePacketQueue = [];
+            isProcessingOnlinePackets = false;
+            pendingOnlineMove = false;
             lastReceivedSeqID = 0;
             outgoingSeqID = 0;
             roomSocket = new WebSocket(url.toString());
@@ -1636,23 +1637,11 @@
                         break;
                     case 'playerMove':
                         if (Number.isInteger(packet.row) && Number.isInteger(packet.col) && Number.isInteger(packet.playerIndex)) {
-                            executeMove(packet.row, packet.col, packet.playerIndex);
+                            enqueueOnlinePacket(packet);
                         }
                         break;
                     case 'stateSnapshot':
-                        if (!isHost && Array.isArray(packet.compactBoardSnapshot)) {
-                            const nextBoard = Array(boardSize).fill(null).map(() => Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 })));
-                            packet.compactBoardSnapshot.forEach(cell => {
-                                const r = Number(cell.r), c = Number(cell.c);
-                                if (r >= 0 && r < boardSize && c >= 0 && c < boardSize) nextBoard[r][c] = { owner: Number(cell.owner) < 0 ? null : Number(cell.owner), count: Number(cell.count) };
-                            });
-                            board = nextBoard;
-                            if (Array.isArray(packet.hasEnteredSnapshot)) hasEntered = packet.hasEnteredSnapshot;
-                            if (Array.isArray(packet.eliminatedSnapshot)) eliminated = packet.eliminatedSnapshot;
-                            if (Number.isInteger(packet.currentTurnIndex)) currentPlayer = packet.currentTurnIndex;
-                            updateBoardCellsDOM();
-                            updateTurnHeader();
-                        }
+                        if (!isHost && Array.isArray(packet.compactBoardSnapshot)) enqueueOnlinePacket(packet);
                         break;
                     default: break;
                 }
@@ -1671,6 +1660,44 @@
                     document.getElementById('online-room-hall').style.display = 'none';
                 }
             };
+        }
+
+        function enqueueOnlinePacket(packet) {
+            onlinePacketQueue.push(packet);
+            if (!isProcessingOnlinePackets) void drainOnlinePacketQueue();
+        }
+
+        async function drainOnlinePacketQueue() {
+            if (isProcessingOnlinePackets) return;
+            isProcessingOnlinePackets = true;
+            try {
+                while (onlinePacketQueue.length && currentRoomId) {
+                    const packet = onlinePacketQueue.shift();
+                    if (packet.action === 'playerMove') {
+                        pendingOnlineMove = false;
+                        await executeMove(packet.row, packet.col, packet.playerIndex);
+                    } else if (packet.action === 'stateSnapshot') {
+                        const nextSize = Number(packet.boardSize) || boardSize;
+                        const nextBoard = Array(nextSize).fill(null).map(() => Array(nextSize).fill(null).map(() => ({ owner: null, count: 0 })));
+                        packet.compactBoardSnapshot.forEach(cell => {
+                            const r = Number(cell.r), c = Number(cell.c);
+                            if (r >= 0 && r < nextSize && c >= 0 && c < nextSize) nextBoard[r][c] = { owner: Number(cell.owner) < 0 ? null : Number(cell.owner), count: Number(cell.count) };
+                        });
+                        boardSize = nextSize;
+                        board = nextBoard;
+                        if (Array.isArray(packet.hasEnteredSnapshot)) hasEntered = [...packet.hasEnteredSnapshot];
+                        if (Array.isArray(packet.eliminatedSnapshot)) eliminated = [...packet.eliminatedSnapshot];
+                        if (Number.isInteger(packet.currentTurnIndex)) currentPlayer = packet.currentTurnIndex;
+                        pendingOnlineMove = false;
+                        updateBoardCellsDOM();
+                        updateTurnHeader();
+                        checkAndRunAITurn();
+                    }
+                }
+            } finally {
+                isProcessingOnlinePackets = false;
+                if (onlinePacketQueue.length && currentRoomId) void drainOnlinePacketQueue();
+            }
         }
 
         function syncRoomSettingsToCloud() {
@@ -1711,6 +1738,8 @@
                 } else if (socket.readyState === WebSocket.CONNECTING) socket.close();
             }
             currentRoomId = null;
+            onlinePacketQueue = [];
+            pendingOnlineMove = false;
             isHost = false;
             myPlayerIndex = 0;
             playerTypes = playerTypes.map(type => type === 'network' ? 'disabled' : type);
