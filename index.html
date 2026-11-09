@@ -625,6 +625,7 @@
         let onlinePacketQueue = [];
         let isProcessingOnlinePackets = false;
         let pendingOnlineMove = false;
+        let onlineSyncTimer = null;
 
         const Haptics = {
             light() { if (navigator.vibrate) navigator.vibrate(12); },
@@ -1235,7 +1236,10 @@
                 Haptics.light();
                 const sent = sendGamePacket('playerMove', { row: r, col: c, playerIndex: currentPlayer });
                 if (sent && isHost) await executeMove(r, c, currentPlayer);
-                else pendingOnlineMove = sent;
+                else if (sent) {
+                    pendingOnlineMove = true;
+                    scheduleOnlineStateRequest();
+                }
             } else {
                 if (playerTypes[currentPlayer] !== 'human') return;
                 Haptics.light();
@@ -1451,7 +1455,10 @@
                             if (currentRoomId) {
                                 const sent = sendGamePacket('playerMove', { row: move.r, col: move.c, playerIndex: currentPlayer });
                                 if (sent && isHost) await executeMove(move.r, move.c, currentPlayer, signal);
-                                else pendingOnlineMove = sent;
+                                else if (sent) {
+                                    pendingOnlineMove = true;
+                                    scheduleOnlineStateRequest();
+                                }
                             } else {
                                 await executeMove(move.r, move.c, currentPlayer, signal);
                             }
@@ -1643,6 +1650,10 @@
                     case 'stateSnapshot':
                         if (!isHost && Array.isArray(packet.compactBoardSnapshot)) enqueueOnlinePacket(packet);
                         break;
+                    case 'syncRequest':
+                        if (isHost && isInGame && !isProcessingCascade) syncFullSnapshotToCloud();
+                        // An in-progress host cascade sends its final snapshot when it completes.
+                        break;
                     default: break;
                 }
             };
@@ -1662,6 +1673,15 @@
             };
         }
 
+        function scheduleOnlineStateRequest() {
+            if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
+            onlineSyncTimer = setTimeout(() => {
+                onlineSyncTimer = null;
+                if (!currentRoomId || isHost || !pendingOnlineMove) return;
+                sendGamePacket('syncRequest');
+            }, 1200);
+        }
+
         function enqueueOnlinePacket(packet) {
             onlinePacketQueue.push(packet);
             if (!isProcessingOnlinePackets) void drainOnlinePacketQueue();
@@ -1677,6 +1697,8 @@
                         pendingOnlineMove = false;
                         await executeMove(packet.row, packet.col, packet.playerIndex);
                     } else if (packet.action === 'stateSnapshot') {
+                        if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
+                        onlineSyncTimer = null;
                         const nextSize = Number(packet.boardSize) || boardSize;
                         const nextBoard = Array(nextSize).fill(null).map(() => Array(nextSize).fill(null).map(() => ({ owner: null, count: 0 })));
                         packet.compactBoardSnapshot.forEach(cell => {
@@ -1739,6 +1761,8 @@
             }
             currentRoomId = null;
             onlinePacketQueue = [];
+            if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
+            onlineSyncTimer = null;
             pendingOnlineMove = false;
             isHost = false;
             myPlayerIndex = 0;
