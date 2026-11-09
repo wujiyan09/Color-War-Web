@@ -102,14 +102,52 @@ test("remote explosion travel uses explicit keyframes and a visible destination 
   assert.ok(travel, "flight keyframe contains a translated destination");
   assert.ok(Math.abs(Number(travel[1]) - 60) < 0.01);
   assert.ok(Math.abs(Number(travel[2]) - 40) < 0.01);
-  assert.equal(animationCall.options.duration, 300);
+  assert.equal(animationCall.options.duration, 500);
   assert.match(html, /\.board-animation-layer\s*\{[^}]*z-index:\s*10;[^}]*pointer-events:\s*none;/s);
   animationCall.animation.onfinish();
   assert.equal(removed, true, "the temporary orb is removed after the flight");
 
   const impact = section("function createCascadeImpactAnimation(", "async function executeMove(");
   assert.match(impact, /cell\.animate\(\[/);
-  assert.match(impact, /boxShadow: `0 0 20px/);
+  assert.match(impact, /boxShadow: `0 0 28px/);
+  assert.match(impact, /duration: 500/);
   const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
+  assert.match(move, /createCascadeBurstAnimation\(r, c, playerColors\[player\]\)/);
   assert.match(move, /affectedCells\.forEach\(\(\[nr, nc\]\) => createCascadeImpactAnimation/);
+  assert.match(move, /await sleep\(500\)/);
+});
+
+test("remote cascade renders a persistent burst around the source cell", () => {
+  const burstSource = section("function createCascadeBurstAnimation(", "function createFlyingOrbAnimation(");
+  let animationCall;
+  let removed = false;
+  const rects = {
+    "cell-1-2": { left: 20, top: 30, width: 40, height: 40 }
+  };
+  const burst = {
+    style: {},
+    animate: (frames, options) => {
+      animationCall = { frames, options, animation: { onfinish: null } };
+      return animationCall.animation;
+    },
+    remove: () => { removed = true; }
+  };
+  const layer = { appendChild(child) { assert.equal(child, burst); } };
+  const container = { getBoundingClientRect: () => ({ left: 10, top: 10 }), appendChild() {} };
+  const document = {
+    getElementById: id => id === "board-container" ? container : id === "board-animation-layer" ? layer : rects[id] ? { getBoundingClientRect: () => rects[id] } : null,
+    createElement: () => burst
+  };
+  const createCascadeBurstAnimation = new Function("document", "hexToRgbA", `${burstSource}; return createCascadeBurstAnimation;`)(document, (color, alpha) => `rgba(1, 2, 3, ${alpha})`);
+  createCascadeBurstAnimation(1, 2, "#123456");
+  assert.equal(burst.className, "cascade-burst");
+  assert.equal(burst.style.left, "14.399999999999999px");
+  assert.equal(burst.style.top, "24.4px");
+  assert.equal(burst.style.borderColor, "rgba(1, 2, 3, 0.98)");
+  assert.equal(animationCall.frames.length, 3);
+  assert.match(animationCall.frames.at(-1).transform, /scale\(2\.05\)/);
+  assert.equal(animationCall.options.duration, 500);
+  animationCall.animation.onfinish();
+  assert.equal(removed, true);
+  assert.match(html, /\.cascade-burst\s*\{[^}]*z-index:\s*1001;[^}]*pointer-events:\s*none;/s);
 });

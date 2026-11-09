@@ -232,6 +232,16 @@
             pointer-events: none;
         }
 
+        .cascade-burst {
+            position: absolute;
+            z-index: 1001;
+            border: 3px solid rgba(255, 255, 255, 0.96);
+            border-radius: 50%;
+            box-sizing: border-box;
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+
         .side-players {
             display: flex;
             flex-direction: column;
@@ -1279,6 +1289,53 @@
             }
         }
 
+        function createCascadeBurstAnimation(row, col, pColor) {
+            const container = document.getElementById('board-container');
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            if (!container || !cell) return;
+
+            let animationLayer = document.getElementById('board-animation-layer');
+            if (!animationLayer) {
+                animationLayer = document.createElement('div');
+                animationLayer.id = 'board-animation-layer';
+                animationLayer.className = 'board-animation-layer';
+                container.appendChild(animationLayer);
+            }
+
+            const cellRect = cell.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const size = Math.max(24, cellRect.width * 0.78);
+            const burst = document.createElement('div');
+            burst.className = 'cascade-burst';
+            burst.style.width = `${size}px`;
+            burst.style.height = `${size}px`;
+            burst.style.left = `${cellRect.left - containerRect.left + (cellRect.width - size) / 2}px`;
+            burst.style.top = `${cellRect.top - containerRect.top + (cellRect.height - size) / 2}px`;
+            burst.style.borderColor = hexToRgbA(pColor, 0.98);
+            burst.style.background = `radial-gradient(circle, ${hexToRgbA(pColor, 0.58)} 0%, ${hexToRgbA(pColor, 0.08)} 55%, transparent 76%)`;
+            burst.style.boxShadow = `0 0 22px ${hexToRgbA(pColor, 0.95)}, inset 0 0 12px ${hexToRgbA(pColor, 0.72)}`;
+            animationLayer.appendChild(burst);
+
+            if (typeof burst.animate === 'function') {
+                const animation = burst.animate([
+                    { transform: 'scale(0.28)', opacity: 0.98 },
+                    { transform: 'scale(1.15)', opacity: 0.88, offset: 0.48 },
+                    { transform: 'scale(2.05)', opacity: 0 }
+                ], { duration: 500, easing: 'cubic-bezier(0.16, 0.72, 0.25, 1)' });
+                animation.onfinish = () => burst.remove();
+            } else {
+                burst.style.transform = 'scale(0.28)';
+                burst.style.opacity = '0.98';
+                void burst.offsetWidth;
+                burst.style.transition = 'transform 500ms ease-out, opacity 500ms ease-out';
+                requestAnimationFrame(() => {
+                    burst.style.transform = 'scale(2.05)';
+                    burst.style.opacity = '0';
+                });
+                setTimeout(() => burst.remove(), 540);
+            }
+        }
+
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1296,7 +1353,7 @@
             const fromRect = fromEl.getBoundingClientRect();
             const toRect = toEl.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-            const size = Math.max(10, fromRect.width * 0.42);
+            const size = Math.max(14, fromRect.width * 0.56);
             const fromLeft = fromRect.left - containerRect.left + (fromRect.width - size) / 2;
             const fromTop = fromRect.top - containerRect.top + (fromRect.height - size) / 2;
             const toLeft = toRect.left - containerRect.left + (toRect.width - size) / 2;
@@ -1326,31 +1383,31 @@
                     { transform: 'translate3d(0, 0, 0) scale(0.68)', opacity: 1, offset: 0 },
                     { transform: `translate3d(${dx}px, ${dy}px, 0) scale(1.18)`, opacity: 1, offset: 0.76 },
                     { transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.82)`, opacity: 0, offset: 1 }
-                ], { duration: 300, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
+                ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
                 flight.onfinish = () => orb.remove();
             } else {
                 // Older WebKit fallback: force the source frame to be laid out before moving it.
                 void orb.offsetWidth;
-                orb.style.transition = 'left 300ms cubic-bezier(0.2, 0.75, 0.25, 1), top 300ms cubic-bezier(0.2, 0.75, 0.25, 1), transform 300ms ease, opacity 300ms ease';
+                orb.style.transition = 'left 500ms cubic-bezier(0.2, 0.75, 0.25, 1), top 500ms cubic-bezier(0.2, 0.75, 0.25, 1), transform 500ms ease, opacity 500ms ease';
                 requestAnimationFrame(() => {
                     orb.style.left = `${toLeft}px`;
                     orb.style.top = `${toTop}px`;
                     orb.style.transform = 'scale(1.18)';
                 });
-                setTimeout(() => { orb.style.opacity = '0'; orb.style.transform = 'scale(0.82)'; }, 210);
-                setTimeout(() => orb.remove(), 320);
+                setTimeout(() => { orb.style.opacity = '0'; orb.style.transform = 'scale(0.82)'; }, 360);
+                setTimeout(() => orb.remove(), 530);
             }
         }
 
         function createCascadeImpactAnimation(row, col, pColor) {
             const cell = document.getElementById(`cell-${row}-${col}`);
             if (!cell || typeof cell.animate !== 'function') return;
-            const glow = hexToRgbA(pColor, 0.95);
+            const glow = hexToRgbA(pColor, 0.98);
             cell.animate([
                 { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
-                { transform: 'scale(1.12)', filter: 'brightness(1.65)', boxShadow: `0 0 20px ${glow}` },
+                { transform: 'scale(1.2)', filter: 'brightness(2.1)', boxShadow: `0 0 28px ${glow}` },
                 { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' }
-            ], { duration: 300, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
+            ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
         }
 
         async function executeMove(row, col, player, signal = null) {
@@ -1406,6 +1463,7 @@
                 const [r, c] = wave.shift();
                 if (board[r][c].count < 4) continue;
 
+                createCascadeBurstAnimation(r, c, playerColors[player]);
                 board[r][c].count -= 4;
                 if (board[r][c].count === 0) board[r][c].owner = null;
 
@@ -1424,7 +1482,9 @@
                 updateBoardCellsDOM();
                 affectedCells.forEach(([nr, nc]) => createCascadeImpactAnimation(nr, nc, playerColors[player]));
 
-                await sleep(240);
+                // Keep each wave on screen long enough for remote clients to perceive
+                // the flying orbs and burst before the authoritative snapshot is applied.
+                await sleep(500);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
                 affectedCells.forEach(([nr, nc]) => {
