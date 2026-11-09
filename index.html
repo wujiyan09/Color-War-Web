@@ -626,6 +626,7 @@
         let isProcessingOnlinePackets = false;
         let pendingOnlineMove = false;
         let onlineSyncTimer = null;
+        let onlineSyncRetryCount = 0;
 
         const Haptics = {
             light() { if (navigator.vibrate) navigator.vibrate(12); },
@@ -1238,6 +1239,7 @@
                 if (sent && isHost) await executeMove(r, c, currentPlayer);
                 else if (sent) {
                     pendingOnlineMove = true;
+                    onlineSyncRetryCount = 0;
                     scheduleOnlineStateRequest();
                 }
             } else {
@@ -1597,6 +1599,7 @@
             onlinePacketQueue = [];
             isProcessingOnlinePackets = false;
             pendingOnlineMove = false;
+            onlineSyncRetryCount = 0;
             lastReceivedSeqID = 0;
             outgoingSeqID = 0;
             roomSocket = new WebSocket(url.toString());
@@ -1622,8 +1625,7 @@
                         leaveCloudRoom();
                         break;
                     case 'roomClosed':
-                        alert(packet.message || '房主已离开房间。');
-                        leaveCloudRoom();
+                        endCloudRoom(packet.message || '房主已断开连接，对局已结束。');
                         break;
                     case 'playerLeft':
                         if (isHost && Number.isInteger(packet.playerIndex)) {
@@ -1631,6 +1633,7 @@
                             playerTypes[i] = isInGame ? 'mathNightmare' : 'disabled';
                             playerNames[i] = isInGame ? `AI 玩家${i + 1}` : DEFAULT_NAMES[i];
                             syncRoomSettingsToCloud();
+                            if (isInGame && currentPlayer === i) checkAndRunAITurn();
                         }
                         break;
                     case 'hostConfig':
@@ -1659,18 +1662,18 @@
             };
             roomSocket.onerror = () => {
                 if (!currentRoomId) return;
-                alert('WebSocket 连接失败；请检查服务地址、房间码及 Worker 是否已部署。');
-                leaveCloudRoom();
+                endCloudRoom('与联机房间的连接中断，对局已结束。');
             };
             roomSocket.onclose = () => {
-                if (currentRoomId) {
-                    currentRoomId = null;
-                    isHost = false;
-                    myPlayerIndex = 0;
-                    document.getElementById('online-lobby-actions').style.display = 'flex';
-                    document.getElementById('online-room-hall').style.display = 'none';
-                }
+                if (currentRoomId) endCloudRoom('与联机房间的连接已关闭，对局已结束。');
             };
+        }
+
+        function endCloudRoom(message) {
+            if (!currentRoomId) return;
+            if (isInGame) exitToMenu();
+            if (currentRoomId) leaveCloudRoom();
+            alert(message);
         }
 
         function scheduleOnlineStateRequest() {
@@ -1678,7 +1681,13 @@
             onlineSyncTimer = setTimeout(() => {
                 onlineSyncTimer = null;
                 if (!currentRoomId || isHost || !pendingOnlineMove) return;
+                if (onlineSyncRetryCount >= 6) {
+                    alert('仍未收到房主的棋盘同步；请稍后重连房间。');
+                    return;
+                }
+                onlineSyncRetryCount += 1;
                 sendGamePacket('syncRequest');
+                scheduleOnlineStateRequest();
             }, 1200);
         }
 
@@ -1699,7 +1708,12 @@
                     } else if (packet.action === 'stateSnapshot') {
                         if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
                         onlineSyncTimer = null;
-                        const nextSize = Number(packet.boardSize) || boardSize;
+                        const reportedSize = Number(packet.boardSize);
+                        const nextSize = Number.isInteger(reportedSize) && reportedSize >= 5 && reportedSize <= 12 ? reportedSize : boardSize;
+                        const sizeSlider = document.getElementById('online-board-size-slider');
+                        const sizeLabel = document.getElementById('online-board-size-label');
+                        if (sizeSlider) sizeSlider.value = nextSize;
+                        if (sizeLabel) sizeLabel.innerText = `${nextSize} × ${nextSize}`;
                         const nextBoard = Array(nextSize).fill(null).map(() => Array(nextSize).fill(null).map(() => ({ owner: null, count: 0 })));
                         packet.compactBoardSnapshot.forEach(cell => {
                             const r = Number(cell.r), c = Number(cell.c);
@@ -1711,6 +1725,7 @@
                         if (Array.isArray(packet.eliminatedSnapshot)) eliminated = [...packet.eliminatedSnapshot];
                         if (Number.isInteger(packet.currentTurnIndex)) currentPlayer = packet.currentTurnIndex;
                         pendingOnlineMove = false;
+                        onlineSyncRetryCount = 0;
                         updateBoardCellsDOM();
                         updateTurnHeader();
                         checkAndRunAITurn();
@@ -1764,6 +1779,7 @@
             if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
             onlineSyncTimer = null;
             pendingOnlineMove = false;
+            onlineSyncRetryCount = 0;
             isHost = false;
             myPlayerIndex = 0;
             playerTypes = playerTypes.map(type => type === 'network' ? 'disabled' : type);
