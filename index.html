@@ -232,16 +232,6 @@
             pointer-events: none;
         }
 
-        .cascade-burst {
-            position: absolute;
-            z-index: 1001;
-            border: 3px solid rgba(255, 255, 255, 0.96);
-            border-radius: 50%;
-            box-sizing: border-box;
-            pointer-events: none;
-            will-change: transform, opacity;
-        }
-
         .side-players {
             display: flex;
             flex-direction: column;
@@ -311,9 +301,8 @@
             z-index: 2;
         }
 
-        .cell.emphasized {
-            box-shadow: 0 0 14px var(--accent-cyan);
-            border-color: var(--accent-cyan);
+        .cell.emphasized .piece {
+            transform: scale(1.09);
         }
 
         /* 棋子渲染 CSS */
@@ -324,7 +313,7 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 3px 10px rgba(0,0,0,0.5);
-            transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
             box-sizing: border-box;
             overflow: visible;
         }
@@ -356,6 +345,7 @@
             background: #ffffff;
             box-shadow: 0 1px 3px rgba(0,0,0,0.6);
             transform: translate(-50%, -50%);
+            transition: left 0.20s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.20s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .dot.emoji-dot {
@@ -367,19 +357,32 @@
             position: absolute;
             border-radius: 50%;
             border: 1.5px solid #ffffff;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
             box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-                        top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-                        transform 0.24s ease-out, 
-                        opacity 0.24s ease-out;
-            transform: scale(0.75);
+            transform: scale(1);
             opacity: 1;
+        }
+
+        .flying-orb-dot {
+            position: absolute;
+            z-index: 2;
+            left: 50%;
+            top: 50%;
+            width: 16%;
+            height: 16%;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            transform: translate(-50%, -50%);
+        }
+
+        .flying-orb-dot.emoji-dot {
+            border: 1px solid rgba(0,0,0,0.65);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.85);
         }
 
         .overlay {
@@ -532,6 +535,7 @@
 
                     <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">📋 房间席位配置</div>
                     <div class="player-list glass-panel" id="online-player-list" style="max-height: 160px;"></div>
+                    <button id="btn-add-online-ai" class="glass-btn" style="display:none; width:100%; margin-top:8px;">＋ 增加 AI 人机 (随机噩梦/加强版)</button>
 
                     <div style="display: flex; gap: 10px; margin-top: 12px;">
                         <button id="btn-leave-room" class="glass-btn" style="flex: 1;">退出房间</button>
@@ -869,6 +873,7 @@
 
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
+            document.getElementById('btn-add-online-ai').onclick = addOnlineAI;
             document.getElementById('btn-join-room').onclick = joinCloudRoomByCode;
             document.getElementById('btn-leave-room').onclick = leaveCloudRoom;
             document.getElementById('host-start-online-btn').onclick = startOnlineGame;
@@ -961,6 +966,7 @@
                     }
                 }
             }
+            updateOnlineAIButton();
         }
 
         function renderEmojiGrid() {
@@ -981,6 +987,25 @@
                 };
                 container.appendChild(btn);
             });
+        }
+
+        function updateOnlineAIButton() {
+            const button = document.getElementById('btn-add-online-ai');
+            if (!button) return;
+            const canAdd = Boolean(currentRoomId && isHost && !isInGame);
+            button.style.display = canAdd ? 'block' : 'none';
+            button.disabled = !playerTypes.includes('disabled');
+        }
+
+        function addOnlineAI() {
+            if (!currentRoomId || !isHost || isInGame) return;
+            const seat = playerTypes.findIndex(type => type === 'disabled');
+            if (seat < 0) return;
+            const type = Math.random() < 0.5 ? 'mathNightmare' : 'enhancedNightmare';
+            playerTypes[seat] = type;
+            playerNames[seat] = `${WIRE_PLAYER_TYPES[type]} ${seat + 1}`;
+            renderPlayerList('online-player-list');
+            syncRoomSettingsToCloud();
         }
 
         function getActivePlayers() {
@@ -1067,6 +1092,7 @@
 
         function initBoard(firstPlayer) {
             isInGame = true;
+            updateOnlineAIButton();
             if (currentAbortController) {
                 currentAbortController.abort();
                 currentAbortController = null;
@@ -1178,7 +1204,7 @@
 
         function syncDotsDOM(container, count, pieceSize, isEmoji) {
             const targetCount = Math.min(4, Math.max(0, count));
-            container.innerHTML = '';
+            const existingDots = Array.from(container.children);
 
             const diameter = pieceSize * 0.16;
             const step = diameter * 1.25;
@@ -1204,8 +1230,8 @@
                 ];
             }
 
-            offsets.forEach(([dx, dy]) => {
-                const dot = document.createElement('div');
+            offsets.forEach(([dx, dy], index) => {
+                const dot = existingDots[index] || document.createElement('div');
                 dot.className = `dot ${isEmoji ? 'emoji-dot' : ''}`;
                 dot.style.width = `${diameter}px`;
                 dot.style.height = `${diameter}px`;
@@ -1213,6 +1239,7 @@
                 dot.style.top = `calc(50% + ${dy}px)`;
                 container.appendChild(dot);
             });
+            existingDots.slice(offsets.length).forEach(dot => dot.remove());
         }
 
         function renderSidePlayers() {
@@ -1289,58 +1316,11 @@
             }
         }
 
-        function createCascadeBurstAnimation(row, col, pColor) {
-            const container = document.getElementById('board-container');
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            if (!container || !cell) return;
-
-            let animationLayer = document.getElementById('board-animation-layer');
-            if (!animationLayer) {
-                animationLayer = document.createElement('div');
-                animationLayer.id = 'board-animation-layer';
-                animationLayer.className = 'board-animation-layer';
-                container.appendChild(animationLayer);
-            }
-
-            const cellRect = cell.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const size = Math.max(24, cellRect.width * 0.78);
-            const burst = document.createElement('div');
-            burst.className = 'cascade-burst';
-            burst.style.width = `${size}px`;
-            burst.style.height = `${size}px`;
-            burst.style.left = `${cellRect.left - containerRect.left + (cellRect.width - size) / 2}px`;
-            burst.style.top = `${cellRect.top - containerRect.top + (cellRect.height - size) / 2}px`;
-            burst.style.borderColor = hexToRgbA(pColor, 0.98);
-            burst.style.background = `radial-gradient(circle, ${hexToRgbA(pColor, 0.58)} 0%, ${hexToRgbA(pColor, 0.08)} 55%, transparent 76%)`;
-            burst.style.boxShadow = `0 0 22px ${hexToRgbA(pColor, 0.95)}, inset 0 0 12px ${hexToRgbA(pColor, 0.72)}`;
-            animationLayer.appendChild(burst);
-
-            if (typeof burst.animate === 'function') {
-                const animation = burst.animate([
-                    { transform: 'scale(0.28)', opacity: 0.98 },
-                    { transform: 'scale(1.15)', opacity: 0.88, offset: 0.48 },
-                    { transform: 'scale(2.05)', opacity: 0 }
-                ], { duration: 500, easing: 'cubic-bezier(0.16, 0.72, 0.25, 1)' });
-                animation.onfinish = () => burst.remove();
-            } else {
-                burst.style.transform = 'scale(0.28)';
-                burst.style.opacity = '0.98';
-                void burst.offsetWidth;
-                burst.style.transition = 'transform 500ms ease-out, opacity 500ms ease-out';
-                requestAnimationFrame(() => {
-                    burst.style.transform = 'scale(2.05)';
-                    burst.style.opacity = '0';
-                });
-                setTimeout(() => burst.remove(), 540);
-            }
-        }
-
-        function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
+        function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji, startImmediately = true) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
             const toEl = document.getElementById(`cell-${toR}-${toC}`);
-            if (!fromEl || !toEl || !container) return;
+            if (!fromEl || !toEl || !container) return null;
 
             let animationLayer = document.getElementById('board-animation-layer');
             if (!animationLayer) {
@@ -1353,14 +1333,14 @@
             const fromRect = fromEl.getBoundingClientRect();
             const toRect = toEl.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-            const size = Math.max(14, fromRect.width * 0.56);
+            const size = Math.max(8, fromRect.width * 0.40);
             const fromLeft = fromRect.left - containerRect.left + (fromRect.width - size) / 2;
             const fromTop = fromRect.top - containerRect.top + (fromRect.height - size) / 2;
             const toLeft = toRect.left - containerRect.left + (toRect.width - size) / 2;
             const toTop = toRect.top - containerRect.top + (toRect.height - size) / 2;
             const dx = toLeft - fromLeft;
             const dy = toTop - fromTop;
-            const isEmoji = Boolean(pEmoji && pEmoji.trim() !== "");
+            const isEmoji = Boolean(pEmoji && pEmoji.trim() !== '');
 
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
@@ -1368,46 +1348,43 @@
             orb.style.height = `${size}px`;
             orb.style.left = `${fromLeft}px`;
             orb.style.top = `${fromTop}px`;
+            orb.style.background = isEmoji
+                ? hexToRgbA(pColor, 0.25)
+                : `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
             if (isEmoji) {
-                orb.style.background = hexToRgbA(pColor, 0.25);
-                orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${escapeHTML(pEmoji)}</span>`;
-            } else {
-                orb.style.background = `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
+                const emoji = document.createElement('span');
+                emoji.style.fontSize = `${size * 0.70}px`;
+                emoji.style.lineHeight = '1';
+                emoji.style.zIndex = '1';
+                emoji.innerText = pEmoji;
+                orb.appendChild(emoji);
             }
+            const dot = document.createElement('span');
+            dot.className = `flying-orb-dot ${isEmoji ? 'emoji-dot' : ''}`;
+            orb.appendChild(dot);
             animationLayer.appendChild(orb);
 
-            // Use explicit keyframes: a newly inserted element can otherwise have its
-            // start/end CSS positions coalesced before the first paint on remote clients.
-            if (typeof orb.animate === 'function') {
-                const flight = orb.animate([
-                    { transform: 'translate3d(0, 0, 0) scale(0.68)', opacity: 1, offset: 0 },
-                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(1.18)`, opacity: 1, offset: 0.76 },
-                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.82)`, opacity: 0, offset: 1 }
-                ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
-                flight.onfinish = () => orb.remove();
-            } else {
-                // Older WebKit fallback: force the source frame to be laid out before moving it.
-                void orb.offsetWidth;
-                orb.style.transition = 'left 500ms cubic-bezier(0.2, 0.75, 0.25, 1), top 500ms cubic-bezier(0.2, 0.75, 0.25, 1), transform 500ms ease, opacity 500ms ease';
-                requestAnimationFrame(() => {
-                    orb.style.left = `${toLeft}px`;
-                    orb.style.top = `${toTop}px`;
-                    orb.style.transform = 'scale(1.18)';
-                });
-                setTimeout(() => { orb.style.opacity = '0'; orb.style.transform = 'scale(0.82)'; }, 360);
-                setTimeout(() => orb.remove(), 530);
-            }
-        }
+            const startFlight = () => new Promise(resolve => {
+                const finish = () => { orb.remove(); resolve(); };
+                if (typeof orb.animate === 'function') {
+                    const flight = orb.animate([
+                        { transform: 'translate3d(0, 0, 0) scale(1)' },
+                        { transform: `translate3d(${dx}px, ${dy}px, 0) scale(1)` }
+                    ], { duration: 160, easing: 'ease-out' });
+                    flight.onfinish = finish;
+                    flight.oncancel = finish;
+                } else {
+                    void orb.offsetWidth;
+                    orb.style.transition = 'left 160ms ease-out, top 160ms ease-out';
+                    requestAnimationFrame(() => {
+                        orb.style.left = `${toLeft}px`;
+                        orb.style.top = `${toTop}px`;
+                    });
+                    setTimeout(finish, 160);
+                }
+            });
 
-        function createCascadeImpactAnimation(row, col, pColor) {
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            if (!cell || typeof cell.animate !== 'function') return;
-            const glow = hexToRgbA(pColor, 0.98);
-            cell.animate([
-                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
-                { transform: 'scale(1.2)', filter: 'brightness(2.1)', boxShadow: `0 0 28px ${glow}` },
-                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' }
-            ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
+            return startImmediately ? startFlight() : startFlight;
         }
 
         async function executeMove(row, col, player, signal = null) {
@@ -1425,29 +1402,19 @@
                 hasEntered = preMoveSnapshot.hasEntered;
                 eliminated = preMoveSnapshot.eliminated;
                 emphasizedCells.clear();
-                
                 const container = document.getElementById('board-container');
-                if (container) {
-                    container.querySelectorAll('.flying-orb').forEach(el => el.remove());
-                }
-
+                if (container) container.querySelectorAll('.flying-orb').forEach(el => el.remove());
                 updateBoardCellsDOM();
                 updateTurnHeader();
                 isProcessingCascade = false;
-                
-
-                if (isInGame) {
-                    checkAndRunAITurn();
-                }
+                if (isInGame) checkAndRunAITurn();
             };
 
             const isFirst = !hasEntered[player];
             hasEntered[player] = true;
-
             const addCount = isFirst ? 3 : 1;
             board[row][col].owner = player;
             board[row][col].count += addCount;
-
             emphasizedCells = new Set([row * boardSize + col]);
             updateBoardCellsDOM();
 
@@ -1459,45 +1426,55 @@
 
             while (wave.length > 0) {
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
-                
-                const [r, c] = wave.shift();
-                if (board[r][c].count < 4) continue;
+                const exploding = wave.filter(([r, c]) => board[r]?.[c]?.count >= 4);
+                if (!exploding.length) break;
 
-                createCascadeBurstAnimation(r, c, playerColors[player]);
-                board[r][c].count -= 4;
-                if (board[r][c].count === 0) board[r][c].owner = null;
-
-                const affectedCells = [];
-                dirs.forEach(([dr, dc]) => {
-                    const nr = r + dr, nc = c + dc;
-                    if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
-                        board[nr][nc].owner = player;
-                        board[nr][nc].count += 1;
-                        affectedCells.push([nr, nc]);
-                        createFlyingOrbAnimation(r, c, nr, nc, playerColors[player], playerEmojis[player]);
-                    }
-                });
-
-                emphasizedCells = new Set(affectedCells.map(([nr, nc]) => nr * boardSize + nc));
+                emphasizedCells = new Set(exploding.map(([r, c]) => r * boardSize + c));
                 updateBoardCellsDOM();
-                affectedCells.forEach(([nr, nc]) => createCascadeImpactAnimation(nr, nc, playerColors[player]));
-
-                // Keep each wave on screen long enough for remote clients to perceive
-                // the flying orbs and burst before the authoritative snapshot is applied.
-                await sleep(500);
+                await sleep(85);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
-                affectedCells.forEach(([nr, nc]) => {
-                    if (board[nr][nc].count >= 4 && !wave.some(([wr, wc]) => wr === nr && wc === nc)) {
-                        wave.push([nr, nc]);
+                const transfers = [];
+                exploding.forEach(([r, c]) => dirs.forEach(([dr, dc]) => {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
+                        transfers.push({ fromR: r, fromC: c, toR: nr, toC: nc });
                     }
+                }));
+                const startFlights = transfers.map(({ fromR, fromC, toR, toC }) =>
+                    createFlyingOrbAnimation(fromR, fromC, toR, toC, playerColors[player], playerEmojis[player], false)
+                ).filter(Boolean);
+
+                exploding.forEach(([r, c]) => {
+                    board[r][c].count -= 4;
+                    board[r][c].owner = board[r][c].count === 0 ? null : player;
                 });
+                updateBoardCellsDOM();
+
+                await sleep(30);
+                const flightCompletion = Promise.all(startFlights.map(startFlight => startFlight()));
+                await sleep(165);
+                await flightCompletion;
+                if (signal?.aborted || !isInGame) { rollback(); return false; }
+
+                const changed = new Set();
+                transfers.forEach(({ toR, toC }) => {
+                    board[toR][toC].owner = player;
+                    board[toR][toC].count += 1;
+                    changed.add(toR * boardSize + toC);
+                });
+                emphasizedCells = changed;
+                updateBoardCellsDOM();
+                await sleep(120);
+                if (signal?.aborted || !isInGame) { rollback(); return false; }
+
+                wave = [...changed].map(index => [Math.floor(index / boardSize), index % boardSize])
+                    .filter(([r, c]) => board[r][c].count >= 4);
             }
 
             emphasizedCells.clear();
             updateEliminationStatus();
             updateBoardCellsDOM();
-
             isProcessingCascade = false;
 
             if (checkGameOver()) {
@@ -1507,7 +1484,6 @@
                 advanceToNextTurn();
             }
             if (currentRoomId && isHost) syncFullSnapshotToCloud();
-
             return true;
         }
 
@@ -1702,6 +1678,7 @@
             document.getElementById('host-control-section').style.display = isHost ? 'block' : 'none';
             document.getElementById('host-start-online-btn').style.display = isHost ? 'block' : 'none';
             renderPlayerList('online-player-list');
+            updateOnlineAIButton();
         }
 
         function connectRoom(roomCode, role) {
@@ -1755,6 +1732,7 @@
                             const i = packet.playerIndex;
                             playerTypes[i] = isInGame ? 'mathNightmare' : 'disabled';
                             playerNames[i] = isInGame ? `AI 玩家${i + 1}` : DEFAULT_NAMES[i];
+                            renderPlayerList('online-player-list');
                             syncRoomSettingsToCloud();
                             if (isInGame && currentPlayer === i) checkAndRunAITurn();
                         }
@@ -1898,6 +1876,7 @@
                 } else if (socket.readyState === WebSocket.CONNECTING) socket.close();
             }
             currentRoomId = null;
+            updateOnlineAIButton();
             onlinePacketQueue = [];
             if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
             onlineSyncTimer = null;

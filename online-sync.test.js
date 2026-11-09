@@ -34,7 +34,7 @@ test("queued move animation completes before authoritative snapshot replaces boa
 
 test("each client animates chain-reaction transfers and host publishes only the completed snapshot", () => {
   const move = section("async function executeMove(row, col, player", "function sleep(ms)");
-  assert.match(move, /createFlyingOrbAnimation\(r, c, nr, nc/);
+  assert.match(move, /createFlyingOrbAnimation\(fromR, fromC, toR, toC/);
   assert.match(move, /while \(wave\.length > 0\)/);
   assert.match(move, /if \(currentRoomId && isHost\) syncFullSnapshotToCloud\(\);/);
 });
@@ -72,82 +72,29 @@ test("remote player colors accept only six-digit hex values with optional alpha"
   assert.match(html, /playerColors\[i\] = normalizePlayerColor\(color\)/);
 });
 
-test("remote explosion travel uses explicit keyframes and a visible destination impact", () => {
-  const flying = section("function createFlyingOrbAnimation(", "function createCascadeImpactAnimation(");
-  let animationCall;
-  let removed = false;
-  const rects = {
-    "cell-1-2": { left: 20, top: 30, width: 40, height: 40 },
-    "cell-1-3": { left: 80, top: 70, width: 40, height: 40 }
-  };
-  const layer = { appendChild() {} };
-  const container = { getBoundingClientRect: () => ({ left: 10, top: 10 }), appendChild() {} };
-  const orb = {
-    style: {},
-    animate: (frames, options) => {
-      animationCall = { frames, options, animation: { onfinish: null } };
-      return animationCall.animation;
-    },
-    remove: () => { removed = true; }
-  };
-  const document = {
-    getElementById: id => id === "board-container" ? container : id === "board-animation-layer" ? layer : rects[id] ? { getBoundingClientRect: () => rects[id] } : null,
-    createElement: () => orb
-  };
-  const createFlyingOrbAnimation = new Function("document", "hexToRgbA", "escapeHTML", `${flying}; return createFlyingOrbAnimation;`)(document, () => "rgba(1,2,3,.6)", value => value);
-  createFlyingOrbAnimation(1, 2, 1, 3, "#123456", "");
-  assert.ok(animationCall, "the remote client starts a real animation");
-  assert.equal(animationCall.frames.length, 3);
-  const travel = animationCall.frames[1].transform.match(/translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\)/);
-  assert.ok(travel, "flight keyframe contains a translated destination");
-  assert.ok(Math.abs(Number(travel[1]) - 60) < 0.01);
-  assert.ok(Math.abs(Number(travel[2]) - 40) < 0.01);
-  assert.equal(animationCall.options.duration, 500);
-  assert.match(html, /\.board-animation-layer\s*\{[^}]*z-index:\s*10;[^}]*pointer-events:\s*none;/s);
-  animationCall.animation.onfinish();
-  assert.equal(removed, true, "the temporary orb is removed after the flight");
-
-  const impact = section("function createCascadeImpactAnimation(", "async function executeMove(");
-  assert.match(impact, /cell\.animate\(\[/);
-  assert.match(impact, /boxShadow: `0 0 28px/);
-  assert.match(impact, /duration: 500/);
-  const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
-  assert.match(move, /createCascadeBurstAnimation\(r, c, playerColors\[player\]\)/);
-  assert.match(move, /affectedCells\.forEach\(\(\[nr, nc\]\) => createCascadeImpactAnimation/);
-  assert.match(move, /await sleep\(500\)/);
+test("online AI is host-added in the lobby and the server keeps occupied seats locked", () => {
+  assert.match(html, /id="btn-add-online-ai"[^>]*>＋ 增加 AI 人机/);
+  const ai = section("function addOnlineAI()", "function getActivePlayers()");
+  assert.match(ai, /!currentRoomId \|\| !isHost \|\| isInGame/);
+  assert.match(ai, /playerTypes\.findIndex\(type => type === 'disabled'\)/);
+  assert.match(ai, /mathNightmare.*enhancedNightmare/);
+  assert.match(ai, /syncRoomSettingsToCloud\(\)/);
 });
 
-test("remote cascade renders a persistent burst around the source cell", () => {
-  const burstSource = section("function createCascadeBurstAnimation(", "function createFlyingOrbAnimation(");
-  let animationCall;
-  let removed = false;
-  const rects = {
-    "cell-1-2": { left: 20, top: 30, width: 40, height: 40 }
-  };
-  const burst = {
-    style: {},
-    animate: (frames, options) => {
-      animationCall = { frames, options, animation: { onfinish: null } };
-      return animationCall.animation;
-    },
-    remove: () => { removed = true; }
-  };
-  const layer = { appendChild(child) { assert.equal(child, burst); } };
-  const container = { getBoundingClientRect: () => ({ left: 10, top: 10 }), appendChild() {} };
-  const document = {
-    getElementById: id => id === "board-container" ? container : id === "board-animation-layer" ? layer : rects[id] ? { getBoundingClientRect: () => rects[id] } : null,
-    createElement: () => burst
-  };
-  const createCascadeBurstAnimation = new Function("document", "hexToRgbA", `${burstSource}; return createCascadeBurstAnimation;`)(document, (color, alpha) => `rgba(1, 2, 3, ${alpha})`);
-  createCascadeBurstAnimation(1, 2, "#123456");
-  assert.equal(burst.className, "cascade-burst");
-  assert.equal(burst.style.left, "14.399999999999999px");
-  assert.equal(burst.style.top, "24.4px");
-  assert.equal(burst.style.borderColor, "rgba(1, 2, 3, 0.98)");
-  assert.equal(animationCall.frames.length, 3);
-  assert.match(animationCall.frames.at(-1).transform, /scale\(2\.05\)/);
-  assert.equal(animationCall.options.duration, 500);
-  animationCall.animation.onfinish();
-  assert.equal(removed, true);
-  assert.match(html, /\.cascade-burst\s*\{[^}]*z-index:\s*1001;[^}]*pointer-events:\s*none;/s);
+test("online cascade uses iOS-sized orbs and its measured animation cadence", () => {
+  const flying = section("function createFlyingOrbAnimation(", "async function executeMove(");
+  assert.match(flying, /Math\.max\(8, fromRect\.width \* 0\.40\)/);
+  assert.match(flying, /duration: 160, easing: 'ease-out'/);
+  assert.doesNotMatch(flying, /scale\(1\.18\)|opacity: 0|duration: 500/);
+  assert.match(html, /\.cell\.emphasized \.piece\s*\{[^}]*scale\(1\.09\)/s);
+  const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
+  assert.match(move, /await sleep\(210\)/);
+  assert.match(move, /await sleep\(85\)/);
+  assert.match(move, /const exploding = wave\.filter/);
+  assert.match(move, /await sleep\(30\)/);
+  assert.match(move, /await sleep\(165\)/);
+  assert.match(move, /await sleep\(120\)/);
+  assert.match(move, /if \(currentRoomId && isHost\) syncFullSnapshotToCloud\(\)/);
+  assert.doesNotMatch(move, /sleep\(500\)|createCascadeBurstAnimation|createCascadeImpactAnimation/);
+  assert.doesNotMatch(html, /\.cascade-burst\s*\{/);
 });
