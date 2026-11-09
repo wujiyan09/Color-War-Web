@@ -1236,11 +1236,17 @@
                 if (!canControl || roomSocket?.readyState !== WebSocket.OPEN) return;
                 Haptics.light();
                 const sent = sendGamePacket('playerMove', { row: r, col: c, playerIndex: currentPlayer });
-                if (sent && isHost) await executeMove(r, c, currentPlayer);
-                else if (sent) {
+                if (sent) {
                     pendingOnlineMove = true;
                     onlineSyncRetryCount = 0;
                     scheduleOnlineStateRequest();
+                    // The server excludes the sender from its move broadcast. Queue a local
+                    // resolution so the mover animates too, and any authoritative snapshot waits
+                    // until this cascade finishes before reconciling the board and turn.
+                    enqueueOnlinePacket({
+                        action: 'playerMove', row: r, col: c, playerIndex: currentPlayer,
+                        localOptimisticMove: true
+                    });
                 }
             } else {
                 if (playerTypes[currentPlayer] !== 'human') return;
@@ -1703,7 +1709,7 @@
                 while (onlinePacketQueue.length && currentRoomId) {
                     const packet = onlinePacketQueue.shift();
                     if (packet.action === 'playerMove') {
-                        pendingOnlineMove = false;
+                        if (!packet.localOptimisticMove) pendingOnlineMove = false;
                         await executeMove(packet.row, packet.col, packet.playerIndex);
                     } else if (packet.action === 'stateSnapshot') {
                         if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
