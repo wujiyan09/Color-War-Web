@@ -71,3 +71,45 @@ test("remote player colors accept only six-digit hex values with optional alpha"
   assert.equal(normalizePlayerColor("#112233; background:url(x)"), null);
   assert.match(html, /playerColors\[i\] = normalizePlayerColor\(color\)/);
 });
+
+test("remote explosion travel uses explicit keyframes and a visible destination impact", () => {
+  const flying = section("function createFlyingOrbAnimation(", "function createCascadeImpactAnimation(");
+  let animationCall;
+  let removed = false;
+  const rects = {
+    "cell-1-2": { left: 20, top: 30, width: 40, height: 40 },
+    "cell-1-3": { left: 80, top: 70, width: 40, height: 40 }
+  };
+  const layer = { appendChild() {} };
+  const container = { getBoundingClientRect: () => ({ left: 10, top: 10 }), appendChild() {} };
+  const orb = {
+    style: {},
+    animate: (frames, options) => {
+      animationCall = { frames, options, animation: { onfinish: null } };
+      return animationCall.animation;
+    },
+    remove: () => { removed = true; }
+  };
+  const document = {
+    getElementById: id => id === "board-container" ? container : id === "board-animation-layer" ? layer : rects[id] ? { getBoundingClientRect: () => rects[id] } : null,
+    createElement: () => orb
+  };
+  const createFlyingOrbAnimation = new Function("document", "hexToRgbA", "escapeHTML", `${flying}; return createFlyingOrbAnimation;`)(document, () => "rgba(1,2,3,.6)", value => value);
+  createFlyingOrbAnimation(1, 2, 1, 3, "#123456", "");
+  assert.ok(animationCall, "the remote client starts a real animation");
+  assert.equal(animationCall.frames.length, 3);
+  const travel = animationCall.frames[1].transform.match(/translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\)/);
+  assert.ok(travel, "flight keyframe contains a translated destination");
+  assert.ok(Math.abs(Number(travel[1]) - 60) < 0.01);
+  assert.ok(Math.abs(Number(travel[2]) - 40) < 0.01);
+  assert.equal(animationCall.options.duration, 300);
+  assert.match(html, /\.board-animation-layer\s*\{[^}]*z-index:\s*10;[^}]*pointer-events:\s*none;/s);
+  animationCall.animation.onfinish();
+  assert.equal(removed, true, "the temporary orb is removed after the flight");
+
+  const impact = section("function createCascadeImpactAnimation(", "async function executeMove(");
+  assert.match(impact, /cell\.animate\(\[/);
+  assert.match(impact, /boxShadow: `0 0 20px/);
+  const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
+  assert.match(move, /affectedCells\.forEach\(\(\[nr, nc\]\) => createCascadeImpactAnimation/);
+});

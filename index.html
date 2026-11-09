@@ -224,6 +224,14 @@
             min-height: 0;
         }
 
+        .board-animation-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            overflow: visible;
+            pointer-events: none;
+        }
+
         .side-players {
             display: flex;
             flex-direction: column;
@@ -1277,43 +1285,72 @@
             const toEl = document.getElementById(`cell-${toR}-${toC}`);
             if (!fromEl || !toEl || !container) return;
 
+            let animationLayer = document.getElementById('board-animation-layer');
+            if (!animationLayer) {
+                animationLayer = document.createElement('div');
+                animationLayer.id = 'board-animation-layer';
+                animationLayer.className = 'board-animation-layer';
+                container.appendChild(animationLayer);
+            }
+
             const fromRect = fromEl.getBoundingClientRect();
             const toRect = toEl.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-
-            const cellSize = fromRect.width;
-            const size = Math.max(8, cellSize * 0.40);
+            const size = Math.max(10, fromRect.width * 0.42);
+            const fromLeft = fromRect.left - containerRect.left + (fromRect.width - size) / 2;
+            const fromTop = fromRect.top - containerRect.top + (fromRect.height - size) / 2;
+            const toLeft = toRect.left - containerRect.left + (toRect.width - size) / 2;
+            const toTop = toRect.top - containerRect.top + (toRect.height - size) / 2;
+            const dx = toLeft - fromLeft;
+            const dy = toTop - fromTop;
             const isEmoji = Boolean(pEmoji && pEmoji.trim() !== "");
 
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
-            orb.style.width = `${size}px`; 
+            orb.style.width = `${size}px`;
             orb.style.height = `${size}px`;
-            
+            orb.style.left = `${fromLeft}px`;
+            orb.style.top = `${fromTop}px`;
             if (isEmoji) {
                 orb.style.background = hexToRgbA(pColor, 0.25);
                 orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${escapeHTML(pEmoji)}</span>`;
             } else {
                 orb.style.background = `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
             }
+            animationLayer.appendChild(orb);
 
-            orb.style.left = `${fromRect.left - containerRect.left + (fromRect.width - size) / 2}px`;
-            orb.style.top = `${fromRect.top - containerRect.top + (fromRect.height - size) / 2}px`;
+            // Use explicit keyframes: a newly inserted element can otherwise have its
+            // start/end CSS positions coalesced before the first paint on remote clients.
+            if (typeof orb.animate === 'function') {
+                const flight = orb.animate([
+                    { transform: 'translate3d(0, 0, 0) scale(0.68)', opacity: 1, offset: 0 },
+                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(1.18)`, opacity: 1, offset: 0.76 },
+                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.82)`, opacity: 0, offset: 1 }
+                ], { duration: 300, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
+                flight.onfinish = () => orb.remove();
+            } else {
+                // Older WebKit fallback: force the source frame to be laid out before moving it.
+                void orb.offsetWidth;
+                orb.style.transition = 'left 300ms cubic-bezier(0.2, 0.75, 0.25, 1), top 300ms cubic-bezier(0.2, 0.75, 0.25, 1), transform 300ms ease, opacity 300ms ease';
+                requestAnimationFrame(() => {
+                    orb.style.left = `${toLeft}px`;
+                    orb.style.top = `${toTop}px`;
+                    orb.style.transform = 'scale(1.18)';
+                });
+                setTimeout(() => { orb.style.opacity = '0'; orb.style.transform = 'scale(0.82)'; }, 210);
+                setTimeout(() => orb.remove(), 320);
+            }
+        }
 
-            container.appendChild(orb);
-
-            requestAnimationFrame(() => {
-                orb.style.left = `${toRect.left - containerRect.left + (toRect.width - size) / 2}px`;
-                orb.style.top = `${toRect.top - containerRect.top + (toRect.height - size) / 2}px`;
-                orb.style.transform = 'scale(1.25)';
-            });
-
-            setTimeout(() => {
-                orb.style.opacity = '0';
-                orb.style.transform = 'scale(1.0)';
-            }, 165);
-
-            setTimeout(() => orb.remove(), 240);
+        function createCascadeImpactAnimation(row, col, pColor) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            if (!cell || typeof cell.animate !== 'function') return;
+            const glow = hexToRgbA(pColor, 0.95);
+            cell.animate([
+                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
+                { transform: 'scale(1.12)', filter: 'brightness(1.65)', boxShadow: `0 0 20px ${glow}` },
+                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' }
+            ], { duration: 300, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
         }
 
         async function executeMove(row, col, player, signal = null) {
@@ -1385,6 +1422,7 @@
 
                 emphasizedCells = new Set(affectedCells.map(([nr, nc]) => nr * boardSize + nc));
                 updateBoardCellsDOM();
+                affectedCells.forEach(([nr, nc]) => createCascadeImpactAnimation(nr, nc, playerColors[player]));
 
                 await sleep(240);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
