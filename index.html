@@ -633,6 +633,18 @@
             heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
         };
 
+        // Roster names/emojis come from other room participants; escape them before HTML templates.
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[character]);
+        }
+
+        function normalizePlayerColor(value) {
+            if (typeof value !== 'string' || !/^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value)) return null;
+            return value.length === 9 ? value.slice(0, 7) : value;
+        }
+
         // 强化的 HEX 转 RGBA 颜色处理工具类，百分百兼容所有格式
         function hexToRgbA(hex, alpha = 1) {
             if (!hex) return `rgba(255, 69, 58, ${alpha})`;
@@ -899,9 +911,9 @@
                 const row = document.createElement('div');
                 row.className = 'player-row';
                 row.innerHTML = `
-                    <div class="color-dot" style="background:${playerColors[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="${targetContainerId}-color-dot-${i}">${playerEmojis[i] || ''}</div>
-                    <input type="color" value="${playerColors[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
-                    <input type="text" value="${playerNames[i]}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
+                    <div class="color-dot" style="background:${normalizePlayerColor(playerColors[i]) || DEFAULT_COLORS[i]}; ${isReadOnly ? 'pointer-events:none;' : ''}" id="${targetContainerId}-color-dot-${i}">${escapeHTML(playerEmojis[i])}</div>
+                    <input type="color" value="${normalizePlayerColor(playerColors[i]) || DEFAULT_COLORS[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
+                    <input type="text" value="${escapeHTML(playerNames[i])}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
                     ${roleLocked
                         ? `<span>${WIRE_PLAYER_TYPES[playerTypes[i]] || '未加入'}</span>`
                         : `<select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;">
@@ -978,7 +990,7 @@
                 const div = document.createElement('div');
                 div.className = 'wheel-item';
                 div.id = `wheel-item-${pos}`;
-                div.innerHTML = `<div class="dot-avatar" style="background:${playerColors[pIdx]}">${playerEmojis[pIdx] || ''}</div><span>${playerNames[pIdx]}</span>`;
+                div.innerHTML = `<div class="dot-avatar" style="background:${normalizePlayerColor(playerColors[pIdx]) || DEFAULT_COLORS[pIdx]}">${escapeHTML(playerEmojis[pIdx])}</div><span>${escapeHTML(playerNames[pIdx])}</span>`;
                 container.appendChild(div);
             });
 
@@ -1198,20 +1210,21 @@
                     const pct = getOrbPercentage(pIdx);
                     const circumference = 2 * Math.PI * 18;
                     const strokeDashoffset = circumference * (1 - pct);
+                    const playerColor = normalizePlayerColor(playerColors[pIdx]) || DEFAULT_COLORS[pIdx];
 
                     const card = document.createElement('div');
                     card.className = `player-orb-card ${isTurn ? 'active' : ''} ${isElim ? 'eliminated' : ''}`;
                     
                     card.innerHTML = `
                         <div class="orb-circle-wrap">
-                            <div class="orb-circle-bg" style="background:${playerColors[pIdx]}"></div>
+                            <div class="orb-circle-bg" style="background:${playerColor}"></div>
                             <svg class="orb-svg-ring" viewBox="0 0 42 42">
-                                <circle cx="21" cy="21" r="18" fill="none" stroke="${playerColors[pIdx]}" stroke-width="3" 
+                                <circle cx="21" cy="21" r="18" fill="none" stroke="${playerColor}" stroke-width="3"
                                         stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"/>
                             </svg>
-                            <div style="font-size:1rem; z-index:2;">${playerEmojis[pIdx] || ''}</div>
+                            <div style="font-size:1rem; z-index:2;">${escapeHTML(playerEmojis[pIdx])}</div>
                         </div>
-                        <span style="color:${isTurn ? '#fff' : '#aaa'}">${playerNames[pIdx]}</span>
+                        <span style="color:${isTurn ? '#fff' : '#aaa'}">${escapeHTML(playerNames[pIdx])}</span>
                     `;
                     el.appendChild(card);
                 });
@@ -1279,7 +1292,7 @@
             
             if (isEmoji) {
                 orb.style.background = hexToRgbA(pColor, 0.25);
-                orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${pEmoji}</span>`;
+                orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${escapeHTML(pEmoji)}</span>`;
             } else {
                 orb.style.background = `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
             }
@@ -1493,7 +1506,7 @@
                 row.style.display = 'flex'; row.style.justifyContent = 'space-between';
                 row.style.alignItems = 'center'; row.style.marginBottom = '10px';
                 row.innerHTML = `
-                    <span>${playerNames[p]}</span>
+                    <span>${escapeHTML(playerNames[p])}</span>
                     ${currentRoomId
                         ? `<span>${WIRE_PLAYER_TYPES[playerTypes[p]] || playerTypes[p]}</span>`
                         : `<select id="ctrl-p-${p}">
@@ -1560,7 +1573,7 @@
             if (Array.isArray(packet.playerNames)) packet.playerNames.forEach((name, i) => { if (name && i < MAX_PLAYERS) playerNames[i] = name; });
             const wireColors = packet.colorsHex || packet.playerColors;
             if (Array.isArray(wireColors)) wireColors.forEach((color, i) => {
-                if (i < MAX_PLAYERS && typeof color === 'string') playerColors[i] = color.length === 9 ? color.slice(0, 7) : color;
+                if (i < MAX_PLAYERS) playerColors[i] = normalizePlayerColor(color) || playerColors[i];
             });
             if (Array.isArray(packet.emojis)) playerEmojis = packet.emojis.concat(Array(MAX_PLAYERS).fill(null)).slice(0, MAX_PLAYERS);
             if (Array.isArray(packet.playerEmojis)) playerEmojis = packet.playerEmojis.concat(Array(MAX_PLAYERS).fill(null)).slice(0, MAX_PLAYERS);

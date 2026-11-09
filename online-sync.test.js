@@ -47,3 +47,27 @@ test("player roles are read-only in connected rooms and control panel", () => {
   const modal = section("function openControlPanelModal()", "const WIRE_PLAYER_TYPES =");
   assert.match(modal, /currentRoomId[\s\S]*?WIRE_PLAYER_TYPES\[playerTypes\[p\]\][\s\S]*?if \(!currentRoomId\)/);
 });
+
+
+test("untrusted player names and emojis are escaped before HTML rendering", () => {
+  assert.ok(html.includes("function escapeHTML(value)"));
+  const helperMatch = html.match(/function escapeHTML\(value\) \{[\s\S]*?\n        \}/);
+  assert.ok(helperMatch, "escapeHTML helper exists");
+  const escapeHTML = new Function(`${helperMatch[0]}; return escapeHTML;`)();
+  assert.equal(escapeHTML(`"><img src=x onerror=alert(1)>`), `&quot;&gt;&lt;img src=x onerror=alert(1)&gt;`);
+  assert.match(html, /value="\$\{escapeHTML\(playerNames\[i\]\)\}"/);
+  assert.match(html, /<span>\$\{escapeHTML\(playerNames\[pIdx\]\)\}<\/span>/);
+  assert.match(html, /<span>\$\{escapeHTML\(playerNames\[p\]\)\}<\/span>/);
+  assert.match(html, /escapeHTML\(playerEmojis\[/);
+});
+
+test("remote player colors accept only six-digit hex values with optional alpha", () => {
+  const helperMatch = html.match(/function normalizePlayerColor\(value\) \{[\s\S]*?\n        \}/);
+  assert.ok(helperMatch, "normalizePlayerColor helper exists");
+  const normalizePlayerColor = new Function(`${helperMatch[0]}; return normalizePlayerColor;`)();
+  assert.equal(normalizePlayerColor("#12ab34FF"), "#12ab34");
+  assert.equal(normalizePlayerColor("#12ab34"), "#12ab34");
+  assert.equal(normalizePlayerColor("url(javascript:alert(1))"), null);
+  assert.equal(normalizePlayerColor("#112233; background:url(x)"), null);
+  assert.match(html, /playerColors\[i\] = normalizePlayerColor\(color\)/);
+});
