@@ -20,7 +20,7 @@ test("online move sender animates its own move although the server omits sender 
 });
 
 test("received remote move packets enter the same serialized animation queue", () => {
-  const receiver = section("roomSocket.onmessage = (event) =>", "roomSocket.onerror = () =>");
+  const receiver = section("socket.onmessage = (event) =>", "socket.onerror = () =>");
   assert.match(receiver, /case 'playerMove':[\s\S]*?enqueueOnlinePacket\(packet\)/);
   assert.match(receiver, /case 'stateSnapshot':[\s\S]*?enqueueOnlinePacket\(packet\)/);
 });
@@ -97,4 +97,23 @@ test("online cascade uses iOS-sized orbs and its measured animation cadence", ()
   assert.match(move, /if \(currentRoomId && isHost\) syncFullSnapshotToCloud\(\)/);
   assert.doesNotMatch(move, /sleep\(500\)|createCascadeBurstAnimation|createCascadeImpactAnimation/);
   assert.doesNotMatch(html, /\.cascade-burst\s*\{/);
+});
+
+
+test("host reconnection uses a short-lived ticket instead of placing the secret in the WebSocket URL", () => {
+  const connect = section("async function connectRoom(roomCode, role, restoring = false)", "function endCloudRoom(message)");
+  assert.match(connect, /sessionStorage\.getItem\(roomResumeTokenKey\(targetRoom\)\)/);
+  assert.match(connect, /fetch\(httpBase\.toString\(\),[\s\S]*?body: token/);
+  assert.match(connect, /url\.searchParams\.set\('resumeTicket', ticketPayload\.ticket\)/);
+  assert.doesNotMatch(connect, /searchParams\.set\([^,]*token|hostResumeToken[^\n]*url/);
+});
+
+test("network loss keeps the current room and retries, while authoritative snapshots restore a host match", () => {
+  const connect = section("function scheduleRoomReconnect()", "function endCloudRoom(message)");
+  assert.match(connect, /Math\.min\(15000/);
+  assert.match(connect, /socket\.onclose = \(\) => \{[\s\S]*?scheduleRoomReconnect\(\)/);
+  assert.match(connect, /case 'stateSnapshot':[\s\S]*?hostRecoveryPending/);
+  assert.match(connect, /roomStarted/);
+  const queue = section("async function drainOnlinePacketQueue()", "function syncRoomSettingsToCloud()");
+  assert.match(queue, /已恢复并同步棋局/);
 });

@@ -518,6 +518,7 @@
                 <div id="online-room-hall" class="setting-card glass-panel" style="display: none; text-align: center;">
                     <span style="font-size: 0.8rem; color: #aaa;">房间邀请码</span>
                     <div class="code-display" id="room-code-display">------</div>
+                    <div id="online-connection-status" role="status" aria-live="polite" style="min-height:1.2em; margin:4px 0 8px; color:#9fdcff; font-size:0.78rem;">已连接</div>
                     
                     <!-- 房主专属设置区 -->
                     <div id="host-control-section" style="display: none; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 10px; margin-top: 10px; text-align: left;">
@@ -649,6 +650,12 @@
         let pendingOnlineMove = false;
         let onlineSyncTimer = null;
         let onlineSyncRetryCount = 0;
+        let roomRole = null;
+        let reconnectTimer = null;
+        let reconnectAttempt = 0;
+        let reconnectInFlight = false;
+        let roomConnectionRestoring = false;
+        let hostRecoveryPending = false;
 
         const Haptics = {
             light() { if (navigator.vibrate) navigator.vibrate(12); },
@@ -685,6 +692,11 @@
 
         window.addEventListener('resize', () => {
             if (isInGame) buildGridDOMOnce();
+        });
+
+        window.addEventListener('online', reconnectRoomIfNeeded);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') reconnectRoomIfNeeded();
         });
 
         class AISolver {
@@ -1668,7 +1680,7 @@
             }
             if (myPlayerIndex >= 0 && myPlayerIndex < MAX_PLAYERS && !isHost) playerTypes[myPlayerIndex] = 'human';
             renderPlayerList('online-player-list');
-            if (isHost) syncRoomSettingsToCloud();
+            if (isHost && !hostRecoveryPending) syncRoomSettingsToCloud();
         }
 
         function showRoomLobby() {
@@ -1681,93 +1693,191 @@
             updateOnlineAIButton();
         }
 
-        function connectRoom(roomCode, role) {
-            const base = DEFAULT_WEBSOCKET_SERVER_URL;
-            let url;
+        function setRoomConnectionStatus(text, connected = false) {
+            const status = document.getElementById('online-connection-status');
+            if (!status) return;
+            status.textContent = text;
+            status.style.color = connected ? '#a8f0c6' : '#ffd28a';
+        }
+
+        function scheduleRoomReconnect() {
+            if (!currentRoomId || !roomRole || reconnectTimer || reconnectInFlight) return;
+            reconnectAttempt += 1;
+            const delay = Math.min(15000, 1000 * (2 ** Math.min(reconnectAttempt - 1, 4)));
+            setRoomConnectionStatus(reconnectAttempt < 4 ? '连接中断，正在自动恢复…' : '仍在尝试恢复连接…');
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                void connectRoom(currentRoomId, roomRole, true);
+            }, delay);
+        }
+
+        function reconnectRoomIfNeeded() {
+            if (!currentRoomId || !roomRole || reconnectInFlight) return;
+            if (roomSocket && (roomSocket.readyState === WebSocket.CONNECTING || roomSocket.readyState === WebSocket.OPEN)) return;
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            void connectRoom(currentRoomId, roomRole, true);
+        }
+
+        function roomResumeTokenKey(roomCode) { return `colorwar-host-resume:${roomCode}`; }
+
+        async function connectRoom(roomCode, role, restoring = false) {
+            if (!restoring) {
+                currentRoomId = roomCode;
+                roomRole = role;
+                reconnectAttempt = 0;
+                lastReceivedSeqID = 0;
+                outgoingSeqID = 0;
+                hostRecoveryPending = false;
+            }
+            if (!currentRoomId || reconnectInFlight || (roomSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(roomSocket.readyState))) return;
+            const targetRoom = currentRoomId;
+            const targetRole = roomRole || role;
+            reconnectInFlight = true;
+            roomConnectionRestoring = restoring;
+            setRoomConnectionStatus(restoring ? '正在恢复房间…' : '正在连接…');
+
             try {
-                url = new URL(base);
+                const base = DEFAULT_WEBSOCKET_SERVER_URL;
+                const url = new URL(base);
                 if (url.protocol === 'https:') url.protocol = 'wss:';
                 else if (url.protocol === 'http:') url.protocol = 'ws:';
                 if (!['ws:', 'wss:'].includes(url.protocol)) throw new Error('地址必须是 https:// 或 wss://');
-                url.pathname = `/ws/${roomCode}`;
-                url.search = new URLSearchParams({ role, nickname: document.getElementById('online-nickname').value || '玩家' }).toString();
-            } catch (error) {
-                alert(`WebSocket 地址无效：${error.message}`);
-                return;
-            }
-            currentRoomId = roomCode;
-            onlinePacketQueue = [];
-            isProcessingOnlinePackets = false;
-            pendingOnlineMove = false;
-            onlineSyncRetryCount = 0;
-            lastReceivedSeqID = 0;
-            outgoingSeqID = 0;
-            roomSocket = new WebSocket(url.toString());
-            roomSocket.onmessage = (event) => {
-                let packet;
-                try { packet = JSON.parse(event.data); } catch { return; }
-                if (Number.isFinite(packet.sequenceID) && packet.action !== 'ping' && packet.action !== 'ack') {
-                    if (packet.sequenceID <= lastReceivedSeqID) return;
-                    lastReceivedSeqID = packet.sequenceID;
+                url.pathname = `/ws/${targetRoom}`;
+                url.search = new URLSearchParams({ role: targetRole, nickname: document.getElementById('online-nickname').value || '玩家' }).toString();
+
+                if (restoring && targetRole === 'host') {
+                    const token = sessionStorage.getItem(roomResumeTokenKey(targetRoom));
+                    if (!token) throw new Error('找不到房主恢复凭据');
+                    const httpBase = new URL(base);
+                    httpBase.protocol = httpBase.protocol === 'wss:' ? 'https:' : httpBase.protocol === 'ws:' ? 'http:' : httpBase.protocol;
+                    httpBase.pathname = `/resume-ticket/${targetRoom}`;
+                    httpBase.search = '';
+                    const ticketResponse = await fetch(httpBase.toString(), {
+                        method: 'POST',
+                        mode: 'cors',
+                        credentials: 'omit',
+                        cache: 'no-store',
+                        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                        body: token
+                    });
+                    if (currentRoomId !== targetRoom) return;
+                    if (ticketResponse.status === 404 || ticketResponse.status === 403) {
+                        sessionStorage.removeItem(roomResumeTokenKey(targetRoom));
+                        throw new Error(ticketResponse.status === 404 ? '房间已过期或不存在' : '房主恢复凭据已失效');
+                    }
+                    if (!ticketResponse.ok) throw new Error('恢复凭据暂不可用');
+                    const ticketPayload = await ticketResponse.json();
+                    if (!ticketPayload.ticket) throw new Error('服务器没有返回恢复票据');
+                    url.searchParams.set('resumeTicket', ticketPayload.ticket);
                 }
-                switch (packet.action) {
-                    case 'roomJoined':
-                        myPlayerIndex = Number(packet.playerIndex || 0);
-                        isHost = Boolean(packet.isHost);
-                        currentRoomId = packet.roomCode || currentRoomId;
-                        showRoomLobby();
-                        updateRoster(packet);
-                        if (isHost) syncRoomSettingsToCloud();
-                        break;
-                    case 'roomRoster': updateRoster(packet); break;
-                    case 'roomError':
-                        alert(packet.message || '无法加入房间。');
-                        leaveCloudRoom();
-                        break;
-                    case 'roomClosed':
-                        endCloudRoom(packet.message || '房主已断开连接，对局已结束。');
-                        break;
-                    case 'playerLeft':
-                        if (isHost && Number.isInteger(packet.playerIndex)) {
-                            const i = packet.playerIndex;
-                            playerTypes[i] = isInGame ? 'mathNightmare' : 'disabled';
-                            playerNames[i] = isInGame ? `AI 玩家${i + 1}` : DEFAULT_NAMES[i];
+                if (currentRoomId !== targetRoom) return;
+                onlinePacketQueue = [];
+                isProcessingOnlinePackets = false;
+                pendingOnlineMove = false;
+                onlineSyncRetryCount = 0;
+                const socket = new WebSocket(url.toString());
+                roomSocket = socket;
+                reconnectInFlight = false;
+                socket.onmessage = (event) => {
+                    if (socket !== roomSocket) return;
+                    let packet;
+                    try { packet = JSON.parse(event.data); } catch { return; }
+                    if (Number.isFinite(packet.sequenceID) && packet.action !== 'ping' && packet.action !== 'ack') {
+                        if (packet.sequenceID <= lastReceivedSeqID) return;
+                        lastReceivedSeqID = packet.sequenceID;
+                    }
+                    switch (packet.action) {
+                        case 'roomJoined': {
+                            myPlayerIndex = Number(packet.playerIndex || 0);
+                            isHost = Boolean(packet.isHost);
+                            currentRoomId = packet.roomCode || currentRoomId;
+                            reconnectAttempt = 0;
+                            hostRecoveryPending = Boolean(roomConnectionRestoring && isHost && packet.roomStarted);
+                            setRoomConnectionStatus('已连接', true);
+                            showRoomLobby();
+                            updateRoster(packet);
+                            if (isHost && packet.hostResumeToken) sessionStorage.setItem(roomResumeTokenKey(currentRoomId), packet.hostResumeToken);
+                            if (isHost && !hostRecoveryPending) syncRoomSettingsToCloud();
+                            roomConnectionRestoring = false;
+                            break;
+                        }
+                        case 'roomRoster': updateRoster(packet); break;
+                        case 'roomError':
+                            alert(packet.message || '无法加入房间。');
+                            leaveCloudRoom();
+                            break;
+                        case 'roomClosed':
+                            sessionStorage.removeItem(roomResumeTokenKey(currentRoomId));
+                            endCloudRoom(packet.message || '房主已结束房间。');
+                            break;
+                        case 'hostDisconnected':
+                            setRoomConnectionStatus('房主暂时断线，等待恢复…');
+                            break;
+                        case 'hostReconnected':
+                            setRoomConnectionStatus('房主已恢复连接，正在同步…');
+                            break;
+                        case 'playerLeft':
+                            if (isHost && Number.isInteger(packet.playerIndex)) {
+                                const i = packet.playerIndex;
+                                playerTypes[i] = isInGame ? 'mathNightmare' : 'disabled';
+                                playerNames[i] = isInGame ? `AI 玩家${i + 1}` : DEFAULT_NAMES[i];
+                                renderPlayerList('online-player-list');
+                                syncRoomSettingsToCloud();
+                                if (isInGame && currentPlayer === i) checkAndRunAITurn();
+                            }
+                            break;
+                        case 'hostConfig':
+                            setPlayerConfigFromPacket(packet);
+                            if (!isHost) playerTypes[myPlayerIndex] = 'human';
                             renderPlayerList('online-player-list');
-                            syncRoomSettingsToCloud();
-                            if (isInGame && currentPlayer === i) checkAndRunAITurn();
-                        }
-                        break;
-                    case 'hostConfig':
-                        setPlayerConfigFromPacket(packet);
-                        if (!isHost) playerTypes[myPlayerIndex] = 'human';
-                        renderPlayerList('online-player-list');
-                        break;
-                    case 'startGame':
-                        setPlayerConfigFromPacket(packet);
-                        if (packet.firstPlayerIndex !== undefined && !isHost) initBoard(Number(packet.firstPlayerIndex));
-                        break;
-                    case 'playerMove':
-                        if (Number.isInteger(packet.row) && Number.isInteger(packet.col) && Number.isInteger(packet.playerIndex)) {
-                            enqueueOnlinePacket(packet);
-                        }
-                        break;
-                    case 'stateSnapshot':
-                        if (!isHost && Array.isArray(packet.compactBoardSnapshot)) enqueueOnlinePacket(packet);
-                        break;
-                    case 'syncRequest':
-                        if (isHost && isInGame && !isProcessingCascade) syncFullSnapshotToCloud();
-                        // An in-progress host cascade sends its final snapshot when it completes.
-                        break;
-                    default: break;
+                            break;
+                        case 'startGame':
+                            setPlayerConfigFromPacket(packet);
+                            if (packet.firstPlayerIndex !== undefined && !isHost) initBoard(Number(packet.firstPlayerIndex));
+                            break;
+                        case 'playerMove':
+                            if (Number.isInteger(packet.row) && Number.isInteger(packet.col) && Number.isInteger(packet.playerIndex)) enqueueOnlinePacket(packet);
+                            break;
+                        case 'stateSnapshot':
+                            if (Array.isArray(packet.compactBoardSnapshot) && (!isHost || hostRecoveryPending)) enqueueOnlinePacket(packet);
+                            break;
+                        case 'syncRequest':
+                            if (isHost && isInGame && !isProcessingCascade) syncFullSnapshotToCloud();
+                            break;
+                        default: break;
+                    }
+                };
+                socket.onerror = () => {
+                    if (socket === roomSocket && currentRoomId) {
+                        setRoomConnectionStatus('连接中断，正在自动恢复…');
+                        try { socket.close(); } catch {}
+                    }
+                };
+                socket.onclose = () => {
+                    if (socket !== roomSocket) return;
+                    roomSocket = null;
+                    reconnectInFlight = false;
+                    if (currentRoomId) scheduleRoomReconnect();
+                };
+            } catch (error) {
+                reconnectInFlight = false;
+                roomConnectionRestoring = false;
+                if (currentRoomId !== targetRoom) return;
+                if (!restoring && error.message.includes('地址必须')) {
+                    currentRoomId = null;
+                    roomRole = null;
+                    alert(`WebSocket 地址无效：${error.message}`);
+                    return;
                 }
-            };
-            roomSocket.onerror = () => {
-                if (!currentRoomId) return;
-                endCloudRoom('与联机房间的连接中断，对局已结束。');
-            };
-            roomSocket.onclose = () => {
-                if (currentRoomId) endCloudRoom('与联机房间的连接已关闭，对局已结束。');
-            };
+                if (error.message.includes('房间已过期') || error.message.includes('凭据已失效') || error.message.includes('找不到房主恢复凭据')) {
+                    setRoomConnectionStatus(error.message);
+                    alert(error.message);
+                    leaveCloudRoom();
+                    return;
+                }
+                scheduleRoomReconnect();
+            }
         }
 
         function endCloudRoom(message) {
@@ -1821,6 +1931,13 @@
                             if (r >= 0 && r < nextSize && c >= 0 && c < nextSize) nextBoard[r][c] = { owner: Number(cell.owner) < 0 ? null : Number(cell.owner), count: Number(cell.count) };
                         });
                         boardSize = nextSize;
+                        if (isHost && hostRecoveryPending && !isInGame) {
+                            isInGame = true;
+                            updateOnlineAIButton();
+                            document.getElementById('view-menu').classList.remove('active');
+                            document.getElementById('view-game').classList.add('active');
+                            buildGridDOMOnce();
+                        }
                         board = nextBoard;
                         if (Array.isArray(packet.hasEnteredSnapshot)) hasEntered = [...packet.hasEnteredSnapshot];
                         if (Array.isArray(packet.eliminatedSnapshot)) eliminated = [...packet.eliminatedSnapshot];
@@ -1829,6 +1946,10 @@
                         onlineSyncRetryCount = 0;
                         updateBoardCellsDOM();
                         updateTurnHeader();
+                        if (isHost && hostRecoveryPending) {
+                            hostRecoveryPending = false;
+                            setRoomConnectionStatus('已恢复并同步棋局', true);
+                        }
                         checkAndRunAITurn();
                     }
                 }
@@ -1867,6 +1988,11 @@
         }
 
         function leaveCloudRoom() {
+            const leavingRoomId = currentRoomId;
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            reconnectInFlight = false;
+            if (leavingRoomId) sessionStorage.removeItem(roomResumeTokenKey(leavingRoomId));
             if (roomSocket) {
                 const socket = roomSocket;
                 roomSocket = null;
@@ -1876,6 +2002,11 @@
                 } else if (socket.readyState === WebSocket.CONNECTING) socket.close();
             }
             currentRoomId = null;
+            roomRole = null;
+            roomConnectionRestoring = false;
+            hostRecoveryPending = false;
+            reconnectAttempt = 0;
+            setRoomConnectionStatus('');
             updateOnlineAIButton();
             onlinePacketQueue = [];
             if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
