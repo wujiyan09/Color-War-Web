@@ -212,6 +212,25 @@
             gap: 8px;
         }
 
+        .turn-clock {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 74px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            font: 800 0.88rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+            user-select: none;
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .turn-clock.interactive:active { transform: scale(0.96); }
+        @media (hover: hover) {
+            .turn-clock.interactive:hover { background: rgba(255, 255, 255, 0.18); }
+        }
+
         .board-container {
             position: relative;
             display: flex;
@@ -551,9 +570,12 @@
     <div id="view-game" class="view">
         <div class="game-header">
             <button id="btn-exit-game" class="glass-btn">❮ 菜单</button>
-            <div id="current-turn-badge" class="turn-badge glass-panel">
-                <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
-                <span id="turn-text">玩家1 回合</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div id="current-turn-badge" class="turn-badge glass-panel">
+                    <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
+                    <span id="turn-text">玩家1 回合</span>
+                </div>
+                <div id="turn-clock" class="turn-clock glass-panel interactive" role="timer" aria-label="本回合用时">⏱ <span id="turn-clock-time">00:00</span></div>
             </div>
             <button id="btn-control-panel" class="glass-btn">⚙ 控制</button>
         </div>
@@ -626,6 +648,8 @@
 
         let board = [];
         let currentPlayer = 0;
+        let turnClockPlayer = null;
+        let turnStartedAt = Date.now();
         let hasEntered = Array(MAX_PLAYERS).fill(false);
         let eliminated = Array(MAX_PLAYERS).fill(false);
         let emphasizedCells = new Set();
@@ -1118,6 +1142,7 @@
             currentPlayer = firstPlayer;
             isProcessingCascade = false;
             winnerIndex = null;
+            resetTurnClock();
 
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
@@ -1291,7 +1316,24 @@
             buildSide('right-side-players', rights);
         }
 
+        function resetTurnClock() {
+            turnClockPlayer = currentPlayer;
+            turnStartedAt = Date.now();
+            updateTurnClock();
+        }
+
+        function updateTurnClock() {
+            if (!isInGame || winnerIndex !== null) return;
+            const elapsed = Math.max(0, Math.floor((Date.now() - turnStartedAt) / 1000));
+            const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const seconds = String(elapsed % 60).padStart(2, '0');
+            document.getElementById('turn-clock-time').textContent = `${minutes}:${seconds}`;
+        }
+
+        setInterval(updateTurnClock, 1000);
+
         function updateTurnHeader() {
+            if (turnClockPlayer !== currentPlayer) resetTurnClock();
             document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
             document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 回合`;
             renderSidePlayers();
