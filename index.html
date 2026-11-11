@@ -575,7 +575,10 @@
                     <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
                     <span id="turn-text">玩家1 回合</span>
                 </div>
-                <div id="turn-clock" class="turn-clock glass-panel interactive" role="timer" aria-label="本回合用时">⏱ <span id="turn-clock-time">00:00</span></div>
+                <div id="turn-clocks" style="display:flex; gap:6px; align-items:center;">
+                    <button id="clock-player-0" class="turn-clock glass-panel interactive" type="button" aria-label="玩家1棋钟">⏱ <span>∞</span></button>
+                    <button id="clock-player-1" class="turn-clock glass-panel interactive" type="button" aria-label="玩家2棋钟">⏱ <span>∞</span></button>
+                </div>
             </div>
             <button id="btn-control-panel" class="glass-btn">⚙ 控制</button>
         </div>
@@ -610,6 +613,25 @@
             <h3 style="margin-bottom: 15px;">⚙ 对局控制面板</h3>
             <div id="control-player-rows" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; text-align: left;"></div>
             <button id="btn-close-control" class="glass-btn primary" style="width:100%;">完成</button>
+        </div>
+    </div>
+
+    <!-- 棋钟设置 -->
+    <div id="clock-modal" class="overlay">
+        <div class="modal-box glass-panel" style="width:min(440px,94vw); max-height:88vh; overflow:auto; text-align:left;">
+            <h3 style="margin-bottom:12px;">⏱ 棋钟设置</h3>
+            <label>计时模式 <select id="clock-mode" class="glass-input" style="width:100%; margin:6px 0 10px;">
+                <option value="untimed">不限时</option><option value="fixed">包干制</option><option value="fischer">Fischer 加时</option><option value="byoyomi">读秒制</option><option value="bronstein">Bronstein 延迟</option>
+            </select></label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 12px;">
+                <button class="glass-btn clock-preset" data-mode="fixed" data-minutes="3">超快棋 3+0</button><button class="glass-btn clock-preset" data-mode="fischer" data-minutes="5" data-increment="3">快棋 5+3</button><button class="glass-btn clock-preset" data-mode="fischer" data-minutes="10" data-increment="5">慢棋 10+5</button><button class="glass-btn clock-preset" data-mode="byoyomi" data-minutes="10">读秒 10分/30秒×3</button><button class="glass-btn clock-preset" data-mode="bronstein" data-minutes="5" data-delay="3">延迟 5分+3秒</button>
+            </div>
+            <div id="clock-player-settings" style="display:grid; gap:8px; margin-bottom:10px;"></div>
+            <div id="clock-extra-settings" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button id="clock-apply" class="glass-btn primary">应用设置</button><button id="clock-toggle" class="glass-btn">继续</button><button id="clock-reset" class="glass-btn">重置棋钟</button><button id="clock-close" class="glass-btn">关闭</button>
+            </div>
+            <small id="clock-status" style="display:block; opacity:.75; margin-top:8px;"></small>
         </div>
     </div>
 
@@ -648,8 +670,9 @@
 
         let board = [];
         let currentPlayer = 0;
-        let turnClockPlayer = null;
-        let turnStartedAt = Date.now();
+        const defaultClockConfig = () => ({ mode: 'untimed', initialSeconds: Array(MAX_PLAYERS).fill(600), incrementSeconds: 0, delaySeconds: 0, byoPeriodSeconds: 30, byoPeriods: 3 });
+        let clockConfig = defaultClockConfig();
+        let clockState = { remainingSeconds: [...clockConfig.initialSeconds], moveCounts: Array(MAX_PLAYERS).fill(0), periodsRemaining: Array(MAX_PLAYERS).fill(3), periodRemaining: Array(MAX_PLAYERS).fill(30), activePlayer: 0, running: false, paused: false, startedAt: Date.now(), expiredPlayer: null };
         let hasEntered = Array(MAX_PLAYERS).fill(false);
         let eliminated = Array(MAX_PLAYERS).fill(false);
         let emphasizedCells = new Set();
@@ -916,6 +939,21 @@
             
             document.getElementById('btn-exit-game').onclick = exitToMenu;
             document.getElementById('btn-control-panel').onclick = openControlPanelModal;
+            document.getElementById('clock-player-0').onclick = openClockSettings;
+            document.getElementById('clock-player-1').onclick = openClockSettings;
+            document.getElementById('clock-mode').onchange = renderClockSettings;
+            document.querySelectorAll('.clock-preset').forEach(button => button.onclick = () => {
+                document.getElementById('clock-mode').value = button.dataset.mode;
+                renderClockSettings();
+                document.querySelector('#clock-player-settings input[data-player="0"]').value = Number(button.dataset.minutes) * 60;
+                document.querySelector('#clock-player-settings input[data-player="1"]').value = Number(button.dataset.minutes) * 60;
+                if (button.dataset.increment) document.getElementById('clock-increment').value = button.dataset.increment;
+                if (button.dataset.delay) document.getElementById('clock-delay').value = button.dataset.delay;
+            });
+            document.getElementById('clock-apply').onclick = applyClockSettings;
+            document.getElementById('clock-toggle').onclick = toggleClock;
+            document.getElementById('clock-reset').onclick = resetClock;
+            document.getElementById('clock-close').onclick = () => document.getElementById('clock-modal').classList.remove('active');
             document.getElementById('btn-close-control').onclick = () => document.getElementById('control-modal').classList.remove('active');
             document.getElementById('btn-restart-game').onclick = restartCurrentGame;
             document.getElementById('btn-return-menu').onclick = exitToMenu;
@@ -1142,7 +1180,9 @@
             currentPlayer = firstPlayer;
             isProcessingCascade = false;
             winnerIndex = null;
-            resetTurnClock();
+            if (!currentRoomId) clockState = makeClockState(clockConfig, firstPlayer, Date.now(), clockConfig.mode !== 'untimed');
+            else if (isHost) sendGamePacket('clockControl', { command: 'reset' });
+            renderChessClocks();
 
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
@@ -1316,31 +1356,129 @@
             buildSide('right-side-players', rights);
         }
 
-        function resetTurnClock() {
-            turnClockPlayer = currentPlayer;
-            turnStartedAt = Date.now();
-            updateTurnClock();
+        function makeClockState(config, activePlayer, now = Date.now(), running = false) {
+            return { config: structuredClone(config), remainingSeconds: [...config.initialSeconds], moveCounts: Array(MAX_PLAYERS).fill(0), periodsRemaining: Array(MAX_PLAYERS).fill(config.byoPeriods), periodRemaining: Array(MAX_PLAYERS).fill(config.byoPeriodSeconds), activePlayer, running, paused: !running, startedAt: now, expiredPlayer: null };
         }
-
+        function normalizedClockConfig(raw) {
+            const modes = ['untimed','fixed','fischer','byoyomi','bronstein'];
+            const clamp = (v, max = 86400) => Math.max(0, Math.min(max, Math.floor(Number(v) || 0)));
+            return { mode: modes.includes(raw?.mode) ? raw.mode : 'untimed', initialSeconds: Array.from({length:MAX_PLAYERS},(_,i)=>clamp(raw?.initialSeconds?.[i] ?? 600)), incrementSeconds:clamp(raw?.incrementSeconds,3600), delaySeconds:clamp(raw?.delaySeconds,3600), byoPeriodSeconds:Math.max(1,clamp(raw?.byoPeriodSeconds ?? 30,3600)), byoPeriods:Math.max(1,Math.min(20,clamp(raw?.byoPeriods ?? 3,20))) };
+        }
+        function clockPosition(player, now = Date.now()) {
+            const cfg = clockState.config || clockConfig;
+            let main = Math.max(0, clockState.remainingSeconds?.[player] ?? 0);
+            let period = Math.max(0, clockState.periodRemaining?.[player] ?? cfg.byoPeriodSeconds);
+            let periods = clockState.periodsRemaining?.[player] ?? cfg.byoPeriods;
+            if (clockState.running && !clockState.paused && clockState.activePlayer === player && cfg.mode !== 'untimed') {
+                const elapsed = Math.max(0, (now - Number(clockState.startedAt || now)) / 1000);
+                let charge = cfg.mode === 'bronstein' ? Math.max(0, elapsed - cfg.delaySeconds) : elapsed;
+                if (main > 0) { const used = Math.min(main, charge); main -= used; charge -= used; }
+                if (cfg.mode === 'byoyomi' && main <= 0) {
+                    period -= charge;
+                    while (period <= 0 && periods > 1) { periods--; period += cfg.byoPeriodSeconds; }
+                    if (period <= 0) { period = 0; periods = 0; }
+                }
+            }
+            return { main: Math.max(0, main), period: Math.max(0, period), periods, expired: cfg.mode !== 'untimed' && (cfg.mode === 'byoyomi' ? main <= 0 && (period <= 0 || periods <= 0) : main <= 0) };
+        }
+        function clockValue(player, now = Date.now()) {
+            const cfg = clockState.config || clockConfig;
+            if (cfg.mode === 'untimed') return '∞';
+            const value = clockPosition(player, now);
+            if (cfg.mode === 'byoyomi' && value.main <= 0) return `0:${String(Math.ceil(value.period)).padStart(2,'0')} ×${value.periods}`;
+            const n = Math.ceil(value.main); return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+        }
+        function handleClockExpiration(player) {
+            if (player == null || winnerIndex !== null) return;
+            const winner = getActivePlayers().find(p => p !== player && !eliminated[p]);
+            winnerIndex = winner ?? -1;
+            showWinnerOverlay();
+        }
+        function renderChessClocks() {
+            for (let i=0;i<2;i++) {
+                const el=document.getElementById(`clock-player-${i}`); if (!el) continue;
+                const idx = i; el.querySelector('span').textContent=clockValue(idx);
+                el.setAttribute('aria-label', `${playerNames[idx]} 棋钟 ${clockValue(idx)}，${clockState.moveCounts?.[idx]||0} 步`);
+                el.style.outline = idx===currentPlayer && clockState.running && !clockState.paused ? '2px solid #ffd60a' : '';
+                el.title = `${playerNames[idx]} · ${clockState.moveCounts?.[idx]||0} 步${clockState.paused?' · 已暂停':''}`;
+            }
+        }
         function updateTurnClock() {
             if (!isInGame || winnerIndex !== null) return;
-            const elapsed = Math.max(0, Math.floor((Date.now() - turnStartedAt) / 1000));
-            const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            const seconds = String(elapsed % 60).padStart(2, '0');
-            document.getElementById('turn-clock-time').textContent = `${minutes}:${seconds}`;
+            if (!currentRoomId && clockState.running && !clockState.paused) {
+                const position = clockPosition(clockState.activePlayer);
+                if (position.expired) { settleLocalPause(); handleClockExpiration(clockState.expiredPlayer); }
+            }
+            renderChessClocks();
         }
-
-        setInterval(updateTurnClock, 1000);
+        setInterval(updateTurnClock, 250);
+        function settleLocalClock(nextPlayer) {
+            if (clockState.config.mode==='untimed') { const p=clockState.activePlayer; clockState.moveCounts[p]=(clockState.moveCounts[p]||0)+1; clockState.activePlayer=nextPlayer; clockState.startedAt=Date.now(); return; }
+            if (!clockState.running || clockState.paused) { clockState.activePlayer=nextPlayer; clockState.startedAt=Date.now(); return; }
+            const p=clockState.activePlayer, cfg=clockState.config, elapsed=Math.max(0,(Date.now()-clockState.startedAt)/1000);
+            let charge=cfg.mode==='bronstein'?Math.max(0,elapsed-cfg.delaySeconds):elapsed;
+            if(clockState.remainingSeconds[p]>0){const used=Math.min(clockState.remainingSeconds[p],charge);clockState.remainingSeconds[p]-=used;charge-=used;}
+            if(cfg.mode==='byoyomi'&&clockState.remainingSeconds[p]<=0){
+                let period=clockState.periodRemaining[p]-charge;
+                while(period<=0&&clockState.periodsRemaining[p]>1){clockState.periodsRemaining[p]--;period+=cfg.byoPeriodSeconds;}
+                if(period<=0){clockState.periodsRemaining[p]=0;clockState.periodRemaining[p]=0;clockState.expiredPlayer=p;clockState.running=false;clockState.paused=true;renderChessClocks();handleClockExpiration(p);return;}
+                clockState.periodRemaining[p]=cfg.byoPeriodSeconds;
+            } else if(clockState.remainingSeconds[p]<=0){clockState.expiredPlayer=p;clockState.running=false;clockState.paused=true;renderChessClocks();handleClockExpiration(p);return;}
+            clockState.moveCounts[p]++; if(cfg.mode==='fischer') clockState.remainingSeconds[p]+=cfg.incrementSeconds;
+            clockState.activePlayer=nextPlayer;clockState.startedAt=Date.now();renderChessClocks();
+        }
+        function openClockSettings() {
+            if (currentRoomId) sendGamePacket('clockControl',{command:'pause'});
+            else if(clockState.running&&!clockState.paused) settleLocalPause();
+            if(clockState.expiredPlayer!=null) return;
+            document.getElementById('clock-mode').value=clockConfig.mode; renderClockSettings(); document.getElementById('clock-modal').classList.add('active');
+        }
+        function settleLocalPause() {
+            const p=clockState.activePlayer,cfg=clockState.config,elapsed=Math.max(0,(Date.now()-clockState.startedAt)/1000);
+            let charge=cfg.mode==='bronstein'?Math.max(0,elapsed-cfg.delaySeconds):elapsed;
+            if(clockState.remainingSeconds[p]>0){const used=Math.min(clockState.remainingSeconds[p],charge);clockState.remainingSeconds[p]-=used;charge-=used;}
+            if(cfg.mode==='byoyomi'&&clockState.remainingSeconds[p]<=0){
+                let period=clockState.periodRemaining[p]-charge;
+                while(period<=0&&clockState.periodsRemaining[p]>1){clockState.periodsRemaining[p]--;period+=cfg.byoPeriodSeconds;}
+                if(period<=0){clockState.periodsRemaining[p]=0;clockState.periodRemaining[p]=0;clockState.expiredPlayer=p;}
+                else clockState.periodRemaining[p]=period;
+            }else if(clockState.remainingSeconds[p]<=0&&cfg.mode!=='untimed'){clockState.expiredPlayer=p;}
+            clockState.running=false;clockState.paused=true;clockState.startedAt=Date.now();renderChessClocks();
+            if(clockState.expiredPlayer!=null)handleClockExpiration(clockState.expiredPlayer);
+        }
+        function renderClockSettings() {
+            const mode=document.getElementById('clock-mode').value;
+            const rows=document.getElementById('clock-player-settings'); rows.innerHTML=Array.from({length:Math.max(2,getActivePlayers().length)},(_,i)=>{const p=getActivePlayers()[i]??i;return `<label>${escapeHTML(playerNames[p])} 初始时间（秒）<input class="glass-input" type="number" min="1" max="86400" data-player="${p}" value="${clockConfig.initialSeconds[p]||600}" style="width:100%; margin-top:4px"></label>`}).join('');
+            const extra=document.getElementById('clock-extra-settings');
+            extra.innerHTML=(mode==='fischer'?'<label>每步加秒<input id="clock-increment" class="glass-input" type="number" min="0" value="'+clockConfig.incrementSeconds+'" style="width:100%"></label>':'')+(mode==='bronstein'?'<label>每步延迟秒数<input id="clock-delay" class="glass-input" type="number" min="0" value="'+clockConfig.delaySeconds+'" style="width:100%"></label>':'')+(mode==='byoyomi'?'<label>读秒周期（秒）<input id="clock-period" class="glass-input" type="number" min="1" value="'+clockConfig.byoPeriodSeconds+'" style="width:100%"></label><label>读秒次数<input id="clock-periods" class="glass-input" type="number" min="1" max="20" value="'+clockConfig.byoPeriods+'" style="width:100%"></label>':'');
+            document.getElementById('clock-status').textContent=`当前：${clockState.paused?'已暂停':'运行中'} · 步数 ${clockState.moveCounts?.[0]||0} / ${clockState.moveCounts?.[1]||0}`;
+        }
+        function applyClockSettings() {
+            const inputs=[...document.querySelectorAll('#clock-player-settings input')]; const next={...clockConfig,mode:document.getElementById('clock-mode').value,initialSeconds:[...clockConfig.initialSeconds]};
+            inputs.forEach(input=>next.initialSeconds[Number(input.dataset.player)]=Math.max(1,Number(input.value)||600));
+            next.incrementSeconds=Number(document.getElementById('clock-increment')?.value??next.incrementSeconds)||0;next.delaySeconds=Number(document.getElementById('clock-delay')?.value??next.delaySeconds)||0;next.byoPeriodSeconds=Number(document.getElementById('clock-period')?.value??next.byoPeriodSeconds)||30;next.byoPeriods=Number(document.getElementById('clock-periods')?.value??next.byoPeriods)||3;
+            clockConfig=normalizedClockConfig(next);
+            if(currentRoomId) sendGamePacket('clockControl',{command:'configure',clockConfig});
+            else {clockState=makeClockState(clockConfig,currentPlayer,Date.now(),false);}
+            document.getElementById('clock-modal').classList.remove('active'); renderChessClocks(); if(currentRoomId&&isHost)syncRoomSettingsToCloud();
+        }
+        function toggleClock() {
+            const command=clockState.paused?'resume':'pause';
+            if(currentRoomId)sendGamePacket('clockControl',{command});else if(command==='pause')settleLocalPause();else{clockState.running=clockConfig.mode!=='untimed';clockState.paused=false;clockState.startedAt=Date.now();}
+            renderChessClocks(); renderClockSettings();
+        }
+        function resetClock() {if(currentRoomId)sendGamePacket('clockControl',{command:'reset'});else clockState=makeClockState(clockConfig,currentPlayer,Date.now(),false);renderChessClocks();renderClockSettings();}
+        function applyClockState(state) {if(!state||typeof state!=='object')return;clockState=state;clockConfig=normalizedClockConfig(state.config||clockConfig);renderChessClocks();if(state.expiredPlayer!=null)handleClockExpiration(state.expiredPlayer);}
 
         function updateTurnHeader() {
-            if (turnClockPlayer !== currentPlayer) resetTurnClock();
+            if (clockState.activePlayer !== currentPlayer && !currentRoomId) settleLocalClock(currentPlayer);
             document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
             document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 回合`;
             renderSidePlayers();
         }
 
         async function handleCellClick(r, c) {
-            if (!isInGame || isProcessingCascade || pendingOnlineMove || winnerIndex !== null) return;
+            if (!isInGame || isProcessingCascade || pendingOnlineMove || winnerIndex !== null || clockState.expiredPlayer !== null || (clockConfig.mode !== 'untimed' && clockState.paused)) return;
 
             const cell = board[r][c];
             const ownsAny = board.some(row => row.some(cell => cell.owner === currentPlayer));
@@ -1568,6 +1706,7 @@
             } while (eliminated[active[idx]]);
 
             currentPlayer = active[idx];
+            if (!currentRoomId) settleLocalClock(currentPlayer);
             updateTurnHeader();
             checkAndRunAITurn();
         }
@@ -1870,18 +2009,22 @@
                             }
                             break;
                         case 'hostConfig':
+                            if(packet.clockConfig){clockConfig=normalizedClockConfig(packet.clockConfig);}
                             setPlayerConfigFromPacket(packet);
                             if (!isHost) playerTypes[myPlayerIndex] = 'human';
                             renderPlayerList('online-player-list');
                             break;
                         case 'startGame':
+                            if(packet.clockConfig) clockConfig=normalizedClockConfig(packet.clockConfig);
                             setPlayerConfigFromPacket(packet);
                             if (packet.firstPlayerIndex !== undefined && !isHost) initBoard(Number(packet.firstPlayerIndex));
                             break;
                         case 'playerMove':
                             if (Number.isInteger(packet.row) && Number.isInteger(packet.col) && Number.isInteger(packet.playerIndex)) enqueueOnlinePacket(packet);
                             break;
+                        case 'clockState': applyClockState(packet.clockState); break;
                         case 'stateSnapshot':
+                            if(packet.clockState) applyClockState(packet.clockState);
                             if (Array.isArray(packet.compactBoardSnapshot) && (!isHost || hostRecoveryPending)) enqueueOnlinePacket(packet);
                             break;
                         case 'syncRequest':
@@ -1959,6 +2102,7 @@
                         if (!packet.localOptimisticMove) pendingOnlineMove = false;
                         await executeMove(packet.row, packet.col, packet.playerIndex);
                     } else if (packet.action === 'stateSnapshot') {
+                        if(packet.clockState) applyClockState(packet.clockState);
                         if (onlineSyncTimer) clearTimeout(onlineSyncTimer);
                         onlineSyncTimer = null;
                         const reportedSize = Number(packet.boardSize);
@@ -2010,7 +2154,8 @@
                 playerNames: [...playerNames],
                 playerTypes: wirePlayerTypes(),
                 colorsHex: playerColors.map(color => `${color}FF`),
-                emojis: [...playerEmojis]
+                emojis: [...playerEmojis],
+                clockConfig
             });
         }
 
@@ -2072,7 +2217,7 @@
             }
             const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
             syncRoomSettingsToCloud();
-            sendGamePacket('startGame', { firstPlayerIndex: startFirstPlayer });
+            sendGamePacket('startGame', { firstPlayerIndex: startFirstPlayer, clockConfig });
             initBoard(startFirstPlayer);
             syncFullSnapshotToCloud();
         }
@@ -2102,7 +2247,7 @@
             const active = getActivePlayers();
             if (currentRoomId && isHost) {
                 const firstPlayer = active[0];
-                sendGamePacket('startGame', { firstPlayerIndex: firstPlayer });
+                sendGamePacket('startGame', { firstPlayerIndex: firstPlayer, clockConfig });
                 initBoard(firstPlayer);
                 syncFullSnapshotToCloud();
             } else if (!currentRoomId) initBoard(active[0]);
