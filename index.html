@@ -796,6 +796,11 @@
                 return moves;
             }
 
+            isCornerCell(move) {
+                return (move.r === 0 || move.r === this.boardSize - 1) &&
+                    (move.c === 0 || move.c === this.boardSize - 1);
+            }
+
             selectOptimalOpeningMove(validMoves) {
                 const occupiedIndices = new Set();
                 this.cells.forEach((cell, idx) => {
@@ -868,6 +873,13 @@
                 if (!legal.length) return null;
                 const difficulty = Math.max(1,Math.min(4,Number(this.aiLevel)||1));
                 const ordered = legal.map(move=>({move,score:this.driveMovePriority(move,{cells:this.cells,hasEntered:this.hasEntered,eliminated:this.eliminated,turn:this.currentPlayer})})).sort((a,b)=>b.score-a.score);
+                const alivePlayers=this.activePlayers.filter(player=>!this.eliminated[player]);
+                // Keep Color War's legacy opening for multiplayer and avoid corners whenever
+                // another legal first-placement square exists. Later turns use Drive search below.
+                if (!this.hasEntered[this.currentPlayer] && alivePlayers.length > 2) {
+                    const nonCorners=legal.filter(move=>!this.isCornerCell(move));
+                    return this.selectOptimalOpeningMove(nonCorners.length ? nonCorners : legal);
+                }
                 // DOTS online personality: its non-easy opening pattern is hash-deterministic.
                 if (!this.hasEntered[this.currentPlayer] && difficulty !== 1) return this.driveOpeningMove(legal) || ordered[0].move;
                 // Easy: 25% unrestricted random, 45% random from top half, 30% best heuristic move.

@@ -124,3 +124,48 @@ test('Medium has a deliberate second-best branch; Easy follows the 25/45/30 mix'
         Math.random = originalRandom;
     }
 });
+
+test('multiplayer first placement uses legacy non-corner opening, then Drive MaxN search', () => {
+    const multiplayer = solver({ grid: board(5), active: [0, 1, 2], current: 0,
+        entered: [false, false, false], eliminated: [false, false, false], level: 4 });
+    const originalLegacyOpening = multiplayer.selectOptimalOpeningMove;
+    let usedLegacyOpening = false;
+    let usedDriveOpening = false;
+    multiplayer.selectOptimalOpeningMove = function (moves) {
+        usedLegacyOpening = true;
+        assert.ok(moves.length > 0);
+        assert.ok(moves.every(move => !this.isCornerCell(move)), 'legacy selector receives non-corner candidates when available');
+        return originalLegacyOpening.call(this, moves);
+    };
+    multiplayer.driveOpeningMove = () => { usedDriveOpening = true; return { r: 0, c: 0 }; };
+    const opening = multiplayer.calculateBestMove(null);
+    assert.equal(usedLegacyOpening, true);
+    assert.equal(usedDriveOpening, false);
+    assert.equal(multiplayer.isCornerCell(opening), false);
+
+    // Once the player has entered, the same >2-player game goes through the newer MaxN search.
+    const midgameBoard = board(5);
+    midgameBoard[2][2] = { owner: 0, count: 1 };
+    midgameBoard[0][1] = { owner: 1, count: 1 };
+    midgameBoard[1][0] = { owner: 2, count: 1 };
+    const midgame = solver({ grid: midgameBoard, active: [0, 1, 2], current: 0,
+        entered: [true, true, true], eliminated: [false, false, false], level: 4 });
+    let maxNSearchCalls = 0;
+    midgame.searchMaxN = function () {
+        maxNSearchCalls++;
+        return { scores: { 0: 10, 1: 0, 2: 0 }, complete: true };
+    };
+    const searchedMove = midgame.calculateBestMove(null);
+    assert.ok(searchedMove);
+    assert.ok(maxNSearchCalls > 0, 'multiplayer midgame uses the Drive-derived MaxN search');
+});
+
+test('two-player first placement keeps the Drive opening behavior', () => {
+    const instance = solver({ grid: board(5), active: [0, 1], entered: [false, false], level: 4 });
+    const expected = { r: 0, c: 1 };
+    let legacyCalled = false;
+    instance.selectOptimalOpeningMove = () => { legacyCalled = true; return { r: 2, c: 2 }; };
+    instance.driveOpeningMove = () => expected;
+    assert.deepEqual(instance.calculateBestMove(null), expected);
+    assert.equal(legacyCalled, false);
+});
