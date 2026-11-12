@@ -239,3 +239,60 @@ test('two-player first placement keeps the Drive opening behavior', () => {
     assert.deepEqual(instance.calculateBestMove(null), expected);
     assert.equal(legacyCalled, false);
 });
+
+
+
+test('three-player search stays MaxN even when one seat is eliminated', () => {
+    const grid = board(5);
+    grid[2][2] = { owner: 0, count: 1 };
+    grid[0][1] = { owner: 1, count: 1 };
+    const instance = solver({ grid, active: [0, 1, 2], current: 0,
+        entered: [true, true, true], eliminated: [false, false, true], level: 4 });
+    let maxNCalls = 0;
+    instance.searchMaxN = () => { maxNCalls++; return { scores: { 0: 5, 1: 0, 2: -5 }, complete: true }; };
+    instance.searchRootPVS = () => { throw new Error('configured multiplayer must not use two-player root PVS'); };
+    instance.calculateBestMove(null);
+    assert.ok(maxNCalls > 0);
+});
+
+test('two-player root uses PVS scout then full re-search for an in-window improvement', () => {
+    const instance = solver();
+    const windows = [];
+    instance.searchNegamax = (_child, _depth, alpha, beta, _ctx, _ply) => {
+        windows.push([alpha,beta]);
+        return { value: -7, complete: true };
+    };
+    const result = instance.searchRootPVS({}, 4, 5, 10, {}, 1, false);
+    assert.deepEqual(windows, [[-6,-5],[-10,-5]]);
+    assert.equal(result.value, -7);
+});
+
+test('root PVS first child gets the full window and later fail-soft scout can avoid re-search', () => {
+    const instance = solver();
+    const windows = [];
+    instance.searchNegamax = (_child, _depth, alpha, beta) => {
+        windows.push([alpha,beta]);
+        return { value: -12, complete: true };
+    };
+    instance.searchRootPVS({}, 3, 5, 10, {}, 1, true);
+    assert.deepEqual(windows, [[-10,-5]]);
+    windows.length = 0;
+    instance.searchRootPVS({}, 3, 5, 10, {}, 1, false);
+    assert.deepEqual(windows, [[-6,-5]]);
+});
+
+test('soft-stop requires three identical root moves and score gap at most eight', () => {
+    const instance = solver();
+    assert.equal(instance.driveStableSoftStop(['a','a','a'], [10,15,18]), true);
+    assert.equal(instance.driveStableSoftStop(['a','b','a'], [10,15,18]), false);
+    assert.equal(instance.driveStableSoftStop(['a','a','a'], [10,15,19]), false);
+    assert.equal(instance.driveStableSoftStop(['a','a'], [10,15]), false);
+});
+
+
+test('aspiration failures widen asymmetrically and cap at the Drive threshold', () => {
+    const instance = solver();
+    assert.deepEqual(instance.driveAspirationWindow(40, 100, true), { alpha: -60, beta: 41 });
+    assert.deepEqual(instance.driveAspirationWindow(40, 100, false), { alpha: 39, beta: 140 });
+    assert.equal(instance.driveAspirationWindow(40, 8000, true), null);
+});

@@ -909,20 +909,23 @@
                 };
                 const config=profiles[difficulty], root={cells:this.cells.map(c=>({...c})),hasEntered:[...this.hasEntered],eliminated:[...this.eliminated],turn:this.currentPlayer};
                 const ctx={deadline:Date.now()+config.timeMs,maxNodes:this.activePlayers.length===2?Infinity:config.maxNodes,nodes:0,aborted:false,table:new Map(),killers:Array.from({length:50},()=>[null,null]),history:new Map(),config,signal};
-                let bestMove=ordered[0].move, previous=0, stable=0;
+                let bestMove=ordered[0].move, previous=0;
+                const bestMoveHistory=[], scoreHistory=[];
                 const players=this.activePlayers.filter(p=>!this.eliminated[p]);
+                const twoPlayerSearch=this.activePlayers.length===2;
                 for(let depth=1;depth<=config.maxDepth;depth++) {
                     let windowAlpha=depth>=4?previous-50:-Infinity, windowBeta=depth>=4?previous+50:Infinity, alpha=windowAlpha, beta=windowBeta, delta=50, iterationBest=bestMove, iterationScore=-Infinity;
                     const runRoot=()=>{
                         let valueBest=-Infinity, moveBest=bestMove;
                         const orderedRootMoves=this.orderMoves(root,ctx,0,bestMove);
                         const rootMoves=this.activePlayers.length===2?orderedRootMoves:orderedRootMoves.slice(0,config.beam);
-                        for(const {move} of rootMoves) {
+                        for(let rootIndex=0;rootIndex<rootMoves.length;rootIndex++) {
+                            const {move}=rootMoves[rootIndex];
                             if(this.expired(ctx)) return null;
                             const child=this.cloneSearchState(root); this.simulateSearchMove(child,move.r*this.boardSize+move.c);
                             let value;
-                            if(players.length===2) {
-                                const r=this.searchNegamax(child,depth-1,-beta,-alpha,ctx,1);
+                            if(twoPlayerSearch) {
+                                const r=this.searchRootPVS(child,depth-1,alpha,beta,ctx,1,rootIndex===0);
                                 if(!r.complete)return null;
                                 value=-r.value;
                             } else {
@@ -937,22 +940,49 @@
                     };
                     let result=runRoot();
                     while(result && (result.value<=windowAlpha || result.value>=windowBeta) && depth>=4 && !this.expired(ctx)) {
+                        const failedLow=result.value<=windowAlpha;
                         delta*=2;
-                        if(delta>4000){windowAlpha=-Infinity;windowBeta=Infinity;} else {windowAlpha=result.value-delta;windowBeta=result.value+delta;}
+                        if(twoPlayerSearch) {
+                            const widened=this.driveAspirationWindow(result.value,delta,failedLow);
+                            if(widened){windowAlpha=widened.alpha;windowBeta=widened.beta;}
+                            else {windowAlpha=-Infinity;windowBeta=Infinity;}
+                        } else if(delta>4000) { windowAlpha=-Infinity;windowBeta=Infinity; }
+                        else { windowAlpha=result.value-delta;windowBeta=result.value+delta; }
                         alpha=windowAlpha;beta=windowBeta;
                         result=runRoot();
                         if(windowAlpha===-Infinity&&windowBeta===Infinity) break;
                     }
                     if(!result||this.expired(ctx)) break;
                     iterationBest=result.move;iterationScore=result.value;
-                    if(iterationBest.r===bestMove.r&&iterationBest.c===bestMove.c)stable++;else stable=0;
                     bestMove=iterationBest;previous=iterationScore;
+                    bestMoveHistory.push(`${iterationBest.r},${iterationBest.c}`);
+                    scoreHistory.push(iterationScore);
                     if(iterationScore>999000||iterationScore< -999000)break;
-                    if(Date.now()>=ctx.deadline-(config.timeMs-config.softTimeMs)&&stable>=2)break;
+                    const softDeadline=ctx.deadline-(config.timeMs-config.softTimeMs);
+                    const minDeadline=ctx.deadline-config.timeMs+Math.min(60,config.softTimeMs);
+                    if(twoPlayerSearch && depth>=6 && Date.now()>=softDeadline && Date.now()>=minDeadline && this.driveStableSoftStop(bestMoveHistory,scoreHistory))break;
                 }
                 return bestMove;
             }
 
+            driveAspirationWindow(score,delta,failedLow) {
+                if(delta>4000)return null;
+                return failedLow
+                    ? {alpha:score-delta,beta:score+1}
+                    : {alpha:score-1,beta:score+delta};
+            }
+            searchRootPVS(child,depth,alpha,beta,ctx,ply,firstMove) {
+                if(firstMove)return this.searchNegamax(child,depth,-beta,-alpha,ctx,ply);
+                let result=this.searchNegamax(child,depth,-alpha-1,-alpha,ctx,ply);
+                if(result.complete && -result.value>alpha && -result.value<beta)
+                    result=this.searchNegamax(child,depth,-beta,-alpha,ctx,ply);
+                return result;
+            }
+            driveStableSoftStop(moveHistory,scoreHistory) {
+                if(moveHistory.length<3||scoreHistory.length<3)return false;
+                const recent=moveHistory.slice(-3);
+                return recent.every(move=>move===recent[0]) && Math.abs(scoreHistory[scoreHistory.length-1]-scoreHistory[scoreHistory.length-3])<=8;
+            }
             cloneSearchState(state) { return {cells:state.cells.map(c=>({...c})),hasEntered:[...state.hasEntered],eliminated:[...state.eliminated],turn:state.turn}; }
             searchKey(state) { return `${state.turn}|${state.hasEntered.map(Number).join('')}|${state.eliminated.map(Number).join('')}|${state.cells.map(c=>c.owner===null?'n0':`${c.owner}:${c.count}`).join(',')}`; }
             expired(ctx) { if(ctx.signal?.aborted||Date.now()>=ctx.deadline||ctx.nodes>=ctx.maxNodes){ctx.aborted=true;return true;} return false; }
