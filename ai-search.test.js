@@ -7,14 +7,14 @@ const start = html.indexOf('        class AISolver {');
 const end = html.indexOf('\n        window.addEventListener', start);
 assert.notEqual(start, -1, 'AISolver class exists in the page');
 assert.notEqual(end, -1, 'AISolver class has a closing marker');
-const AISolver = new Function(`${html.slice(start, end)}; return AISolver;`)();
+const AISolver = new Function('MAX_PLAYERS', `${html.slice(start, end)}; return AISolver;`)(8);
 
 function board(size = 5) {
     return Array.from({ length: size }, () =>
         Array.from({ length: size }, () => ({ owner: null, count: 0 })));
 }
-function solver({ grid = board(), active = [0, 1], current = 0, entered = [true, true], eliminated = [false, false], level = 1 } = {}) {
-    return new AISolver(grid.length, active, current, 'Nightmare', level, grid, entered, eliminated);
+function solver({ grid = board(), active = [0, 1], current = 0, entered = [true, true], eliminated = [false, false], level = 1, roomCode = '', moveCounts = null } = {}) {
+    return new AISolver(grid.length, active, current, 'Nightmare', level, grid, entered, eliminated, roomCode, moveCounts);
 }
 
 test('a player first placement adds three orbs', () => {
@@ -83,11 +83,60 @@ test('Drive opening selector has 13 deterministic geometries and uses a legal sq
 });
 
 test('manual Drive ordinary move ordering retains tuned center/charge terms', () => {
-    const instance = solver({ grid: board(5) });
+    const instance = solver({ grid: board(5), entered: [false, true] });
     const center = instance.driveMovePriority({ r: 2, c: 2 }, {
-        cells: instance.cells, hasEntered: [true, true], eliminated: [false, false], turn: 0
+        cells: instance.cells, hasEntered: [false, true], eliminated: [false, false], turn: 0
     });
-    assert.equal(center, 21.5);
+    assert.equal(center, 27, 'a first placement adds three, so the empty-cell ordering score uses charge 3');
+});
+
+
+test("Drive two-player opening sequence resumes at this player's move count", () => {
+    const roomCode = 'TEST-ROOM';
+    const instance = solver({ grid: board(6), entered: [false, false], level: 4, roomCode, moveCounts: [0, 0] });
+    const pattern = AISolver.driveOpeningPatterns(6)[AISolver.fnv1a(roomCode) % 13];
+    const allCells = Array.from({ length: 6 }, (_, r) => Array.from({ length: 6 }, (_, c) => ({ r, c }))).flat();
+    assert.deepEqual(instance.driveOpeningMove(allCells), { r: pattern[0][1], c: pattern[0][0] });
+    instance.moveCounts[0] = 1;
+    assert.deepEqual(instance.driveOpeningMove(allCells), { r: pattern[1][1], c: pattern[1][0] });
+    instance.moveCounts[0] = 11;
+    assert.deepEqual(instance.driveOpeningMove(allCells), { r: pattern[11][1], c: pattern[11][0] });
+});
+
+test('Drive move-order chain terms require linked opposing critical cells and use their charges', () => {
+    const grid = board(5);
+    grid[2][2] = { owner: 0, count: 3 };
+    grid[2][3] = { owner: 1, count: 3 };
+    grid[4][4] = { owner: 0, count: 1 };
+    const instance = solver({ grid, entered: [true, true], current: 0, level: 4 });
+    const move = { r: 4, c: 4 };
+    const state = { cells: instance.cells, hasEntered: instance.hasEntered, eliminated: instance.eliminated, turn: 0 };
+    assert.equal(instance.driveMovePriority(move, state), -319.5,
+        '280 + 12×3 is penalized only because an own critical cell touches an enemy critical cell');
+});
+
+test('multiplayer legacy move priority still includes own critical-cell charge', () => {
+    const grid = board(5);
+    grid[2][2] = { owner: 0, count: 3 };
+    const instance = solver({ grid, active: [0, 1, 2], entered: [true, true, true], current: 0, level: 4 });
+    const state = { cells: instance.cells, hasEntered: instance.hasEntered, eliminated: instance.eliminated, turn: 0 };
+    assert.equal(instance.driveMovePriority({ r: 2, c: 1 }, state), -316.25);
+});
+
+test('two-player null-move pruning uses Drive depth and material gates', () => {
+    assert.match(html, /depth>=3&&beta-alpha===1&&state\.cells\.filter\(cell=>cell\.owner===state\.turn\)\.length>=3/);
+    assert.match(html, /reduction=depth>=6\?3:2/);
+});
+
+test('two-player static score uses Drive turn-dependent best-capture multiplier without doubling zero-sum scores', () => {
+    const grid = board(5);
+    grid[2][2] = { owner: 0, count: 3 };
+    grid[0][0] = { owner: 1, count: 1 };
+    const instance = solver({ grid, entered: [true, true], current: 0, level: 4 });
+    const state = { cells: instance.cells, hasEntered: instance.hasEntered, eliminated: instance.eliminated, turn: 0 };
+    const vector = instance.driveEvaluationVector(state);
+    assert.equal(instance.driveEvaluationScalar(state, 0), vector[0]);
+    assert.notEqual(instance.driveEvaluationScalar(state, 0), vector[0] - vector[1]);
 });
 
 test('Medium has a deliberate second-best branch; Easy follows the 25/45/30 mix', () => {
@@ -158,6 +207,27 @@ test('multiplayer first placement uses legacy non-corner opening, then Drive Max
     const searchedMove = midgame.calculateBestMove(null);
     assert.ok(searchedMove);
     assert.ok(maxNSearchCalls > 0, 'multiplayer midgame uses the Drive-derived MaxN search');
+});
+
+test('configured multiplayer keeps the legacy opening after live seats fall to two', () => {
+    const multiplayer = solver({ grid: board(5), active: [0, 1, 2], current: 0,
+        entered: [false, true, false], eliminated: [false, false, true], level: 4 });
+    let usedLegacy = false;
+    multiplayer.selectOptimalOpeningMove = moves => { usedLegacy = true; return moves[0]; };
+    multiplayer.driveOpeningMove = () => { throw new Error('multiplayer must not enter the two-player book'); };
+    multiplayer.calculateBestMove(null);
+    assert.equal(usedLegacy, true);
+});
+
+test('multiplayer scalar keeps legacy strongest-opponent comparison', () => {
+    const grid = board(5);
+    grid[2][2] = { owner: 0, count: 2 };
+    grid[0][0] = { owner: 1, count: 1 };
+    grid[4][4] = { owner: 2, count: 3 };
+    const instance = solver({ grid, active: [0, 1, 2], entered: [true, true, true], current: 0, level: 4 });
+    const state = { cells: instance.cells, hasEntered: instance.hasEntered, eliminated: instance.eliminated, turn: 0 };
+    const scores = instance.driveEvaluationVector(state);
+    assert.equal(instance.driveEvaluationScalar(state, 0), scores[0] - Math.max(scores[1], scores[2]));
 });
 
 test('two-player first placement keeps the Drive opening behavior', () => {

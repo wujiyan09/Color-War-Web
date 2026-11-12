@@ -627,6 +627,7 @@
         let board = [];
         let currentPlayer = 0;
         let hasEntered = Array(MAX_PLAYERS).fill(false);
+        let moveCounts = Array(MAX_PLAYERS).fill(0);
         let eliminated = Array(MAX_PLAYERS).fill(false);
         let emphasizedCells = new Set();
         let isProcessingCascade = false;
@@ -700,13 +701,14 @@
         });
 
         class AISolver {
-            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, roomCode = '') {
+            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, roomCode = '', moveCounts = null) {
                 this.boardSize = boardSize;
                 this.activePlayers = activePlayers;
                 this.currentPlayer = currentPlayer;
                 this.playerType = playerType;
                 this.aiLevel = aiLevel;
                 this.roomCode = roomCode;
+                this.moveCounts = Array.isArray(moveCounts) ? [...moveCounts] : Array(MAX_PLAYERS).fill(0);
                 this.hasEntered = [...hasEntered];
                 this.eliminated = [...eliminated];
                 this.cells = [];
@@ -719,9 +721,9 @@
                 this.neighborsMap = this.buildNeighborsLookup(boardSize);
             }
 
-            // Exact 13 geometry families and FNV-1a selection from Drive's Clock.pretty.js.
-            // Color War maps the chosen sequence to the player's initial empty placement only;
-            // its +3 first-placement rule remains in simulateSearchMove().
+            // Exact 13 geometry families and FNV-1a selection from Drive's Clock bundle.
+            // In two-player games the plan continues by this player's move count during the
+            // opening window; Color War retains its own +3 first-placement rule.
             static fnv1a(text) {
                 let hash = 2166136261;
                 for (let i = 0; i < text.length; i++) {
@@ -762,10 +764,14 @@
             driveOpeningMove(validMoves) {
                 const patterns = AISolver.driveOpeningPatterns(this.boardSize);
                 if (!patterns) return null;
-                const seed = this.roomCode || `color-war-${this.boardSize}-${this.currentPlayer}`;
+                const seed = this.roomCode || `color-war-${this.boardSize}-${this.activePlayers.join('-')}`;
                 const pattern = patterns[AISolver.fnv1a(seed) % patterns.length];
                 const legal = new Set(validMoves.map(m => `${m.c},${m.r}`));
-                for (const [x,y] of pattern) if (legal.has(`${x},${y}`)) return {r:y,c:x};
+                const start = Math.max(0, Number(this.moveCounts[this.currentPlayer]) || 0);
+                for (let i = start; i < pattern.length; i++) {
+                    const [x,y] = pattern[i];
+                    if (legal.has(`${x},${y}`)) return {r:y,c:x};
+                }
                 return null;
             }
 
@@ -876,12 +882,16 @@
                 const alivePlayers=this.activePlayers.filter(player=>!this.eliminated[player]);
                 // Keep Color War's legacy opening for multiplayer and avoid corners whenever
                 // another legal first-placement square exists. Later turns use Drive search below.
-                if (!this.hasEntered[this.currentPlayer] && alivePlayers.length > 2) {
+                if (!this.hasEntered[this.currentPlayer] && this.activePlayers.length > 2) {
                     const nonCorners=legal.filter(move=>!this.isCornerCell(move));
                     return this.selectOptimalOpeningMove(nonCorners.length ? nonCorners : legal);
                 }
                 // DOTS online personality: its non-easy opening pattern is hash-deterministic.
-                if (!this.hasEntered[this.currentPlayer] && difficulty !== 1) return this.driveOpeningMove(legal) || ordered[0].move;
+                const totalMoves=(this.moveCounts||[]).reduce((sum,count)=>sum+(Number(count)||0),0);
+                if (this.activePlayers.length===2 && alivePlayers.length===2 && difficulty!==1 && totalMoves<30 && (Number(this.moveCounts[this.currentPlayer])||0)<12) {
+                    const bookMove=this.driveOpeningMove(legal);
+                    if(bookMove)return bookMove;
+                }
                 // Easy: 25% unrestricted random, 45% random from top half, 30% best heuristic move.
                 if (difficulty === 1) {
                     const roll=Math.random();
@@ -898,14 +908,15 @@
                     4:{timeMs:5000,softTimeMs:1200,maxDepth:32,beam:16,maxNodes:24000}
                 };
                 const config=profiles[difficulty], root={cells:this.cells.map(c=>({...c})),hasEntered:[...this.hasEntered],eliminated:[...this.eliminated],turn:this.currentPlayer};
-                const ctx={deadline:Date.now()+config.timeMs,maxNodes:config.maxNodes,nodes:0,aborted:false,table:new Map(),killers:Array.from({length:50},()=>[null,null]),history:new Map(),config,signal};
+                const ctx={deadline:Date.now()+config.timeMs,maxNodes:this.activePlayers.length===2?Infinity:config.maxNodes,nodes:0,aborted:false,table:new Map(),killers:Array.from({length:50},()=>[null,null]),history:new Map(),config,signal};
                 let bestMove=ordered[0].move, previous=0, stable=0;
                 const players=this.activePlayers.filter(p=>!this.eliminated[p]);
                 for(let depth=1;depth<=config.maxDepth;depth++) {
                     let windowAlpha=depth>=4?previous-50:-Infinity, windowBeta=depth>=4?previous+50:Infinity, alpha=windowAlpha, beta=windowBeta, delta=50, iterationBest=bestMove, iterationScore=-Infinity;
                     const runRoot=()=>{
                         let valueBest=-Infinity, moveBest=bestMove;
-                        const rootMoves=this.orderMoves(root,ctx,0,bestMove).slice(0,config.beam);
+                        const orderedRootMoves=this.orderMoves(root,ctx,0,bestMove);
+                        const rootMoves=this.activePlayers.length===2?orderedRootMoves:orderedRootMoves.slice(0,config.beam);
                         for(const {move} of rootMoves) {
                             if(this.expired(ctx)) return null;
                             const child=this.cloneSearchState(root); this.simulateSearchMove(child,move.r*this.boardSize+move.c);
@@ -966,9 +977,18 @@
                 ctx.nodes++;
                 const alive=this.activePlayers.filter(p=>!state.eliminated[p]),started=this.activePlayers.every(p=>state.hasEntered[p]||state.eliminated[p]);
                 if(started&&alive.length<=1)return {value:alive[0]===state.turn?1e6+depth:-1e6-depth,complete:true};
-                if(depth<=0||ply>=44)return {value:this.driveEvaluationScalar(state,state.turn),complete:true};
+                if(depth<=0||ply>=(this.activePlayers.length===2?48:44))return {value:this.driveEvaluationScalar(state,state.turn),complete:true};
                 const key=this.searchKey(state),entry=ctx.table.get(key),originalAlpha=alpha,originalBeta=beta;
                 if(entry&&entry.depth>=depth){if(entry.flag==='exact')return {value:entry.value,complete:true};if(entry.flag==='lower'&&entry.value>=beta)return {value:entry.value,complete:true};if(entry.flag==='upper'&&entry.value<=alpha)return {value:entry.value,complete:true};}
+                const livePlayers=this.activePlayers.filter(player=>!state.eliminated[player]);
+                if(this.activePlayers.length===2&&livePlayers.length===2&&depth>=3&&beta-alpha===1&&state.cells.filter(cell=>cell.owner===state.turn).length>=3){
+                    const nullState=this.cloneSearchState(state),turnIndex=livePlayers.indexOf(state.turn),reduction=depth>=6?3:2;
+                    nullState.turn=livePlayers[(turnIndex+1)%livePlayers.length];
+                    const probe=this.searchNegamax(nullState,depth-1-reduction,-beta,-beta+1,ctx,ply+1);
+                    if(!probe.complete)return probe;
+                    const nullValue=-probe.value;
+                    if(nullValue>=beta)return {value:nullValue,complete:true};
+                }
                 const moves=this.orderMoves(state,ctx,ply,entry?.bestMove);
                 if(!moves.length)return {value:this.driveEvaluationScalar(state,state.turn),complete:true};
                 let best=-Infinity,bestMove=null;
@@ -1069,9 +1089,18 @@
 
             driveMovePriority(move,state) {
                 const idx=move.r*this.boardSize+move.c, me=state.turn, before=state.cells;
-                const cell=before[idx], nextCharge=cell.count+1, willExplode=nextCharge>=4, neighbors=this.neighborsMap[idx];
-                let ownCritical=0, enemyCritical=0, enemyMaxCharge=0, enemyTwo=0, enemyCount=0, ownAdj=0, emptyAdj=0, ownCriticalCharge=0;
+                const cell=before[idx], neighbors=this.neighborsMap[idx];
+                const firstPlacement = !state.hasEntered[me];
+                const nextCharge=cell.count+(firstPlacement?3:1), willExplode=nextCharge>=4;
+                let ownCritical=0, ownCriticalCharge=0, enemyCritical=0, enemyMaxCharge=0, enemyTwo=0, enemyCount=0, ownAdj=0, emptyAdj=0;
                 for(const n of neighbors){const c=before[n];if(c.owner===me){ownAdj++;if(c.count>=3){ownCritical++;ownCriticalCharge+=c.count;}}else if(c.owner===null)emptyAdj++;else{enemyCount++;enemyMaxCharge=Math.max(enemyMaxCharge,c.count);if(c.count>=3)enemyCritical++;if(c.count===2)enemyTwo++;}}
+                let criticalLinks=0, linkedEnemyCriticalCharge=0;
+                for(let i=0;i<before.length;i++){
+                    if(before[i].owner!==me||before[i].count<3)continue;
+                    for(const n of this.neighborsMap[i]){const c=before[n];if(c.owner!==me&&c.owner!==null&&c.count>=3){criticalLinks++;linkedEnemyCriticalCharge+=c.count;}}
+                }
+                const hasCriticalLink=criticalLinks>0;
+                const twoPlayerPosition=this.activePlayers.length===2;
                 let score=0;
                 if(willExplode){
                     const after=this.cloneSearchState(state);this.simulateSearchMove(after,idx);
@@ -1080,16 +1109,18 @@
                     for(const p of this.activePlayers)if(p!==me)score+=((pre[p]||0)-(post[p]||0))*26;
                     if(this.activePlayers.some(p=>p!==me&&this.hasEntered[p]&&!after.cells.some(c=>c.owner===p)))score+=500000;
                     score+=enemyCount*30+enemyCritical*90+emptyAdj*0.4;
-                    if(ownCritical)score+=280+14*ownCriticalCharge;
+                    if(twoPlayerPosition&&hasCriticalLink)score+=280+12*linkedEnemyCriticalCharge;
+                    else if(!twoPlayerPosition&&ownCritical>0)score+=280+14*ownCriticalCharge;
                 } else {
                     if(enemyCritical){score-=95+24*nextCharge+18*enemyMaxCharge;if(nextCharge===3)score+=250+95*ownCritical;}
                     if(nextCharge===3&&enemyTwo)score-=105*enemyTwo;
                     if(nextCharge===3&&enemyCount)score-=30*enemyCount;
                     if(nextCharge===3&&!enemyCount)score+=22+4*ownCritical;
-                    if(ownCritical)score-=290+12*ownCriticalCharge;
+                    if(twoPlayerPosition&&hasCriticalLink)score-=290+12*linkedEnemyCriticalCharge;
+                    else if(!twoPlayerPosition&&ownCritical>0)score-=290+12*ownCriticalCharge;
                     score+=nextCharge*0.5+(4-nextCharge)*2.5+ownAdj+emptyAdj*0.25-enemyCount*2;
                     const total=before.filter(c=>c.owner!==null).length;
-                    if(total<=8){const center=(this.boardSize-1)/2;score+=Math.max(0,this.boardSize-Math.abs(move.r-center)-Math.abs(move.c-center))*2.5;}
+                    if(total<=8){const edge=this.boardSize-1, towardCoordinate=this.activePlayers.indexOf(me)===0?move.r+move.c:2*edge-move.r-move.c;score+=Math.max(0,Math.floor(this.boardSize/2)-towardCoordinate)*2.5;}
                     if(total>=30&&nextCharge===3)score-=8;
                 }
                 return score;
@@ -1111,14 +1142,15 @@
                     const enemy=players.filter(p=>p!==player&&!state.eliminated[p]),enemyCharge=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p).reduce((a,c)=>a+c.count,0))),enemyCritical=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p&&c.count>=3).length)),enemyOne=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p&&c.count===2).length)),enemyPotential=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p).reduce((a,c)=>a+Math.max(0,(4-c.count)*1.5),0))),enemyComp=Math.max(0,...enemy.map(p=>maxComponent(p)));
                     const [best,second]=captureStats(player);let enemyBest=0,enemySecond=0;for(const p of enemy){const [b,s]=captureStats(p);if(b>enemyBest){enemySecond=enemyBest;enemyBest=b;}else enemySecond=Math.max(enemySecond,s);}
                     let score=(charge-enemyCharge)*4+(critical-enemyCritical)*18+(oneAway-enemyOne)*6+(potential-enemyPotential)+ (maxComponent(player)-enemyComp)*3;
-                    score+=state.turn===player?best-12*enemyBest:best*12-enemyBest*18;
+                    score+=state.turn===player?(players.length===2?best*18:best)-12*enemyBest:best*12-enemyBest*18;
                     score+=(second-enemySecond)*4;score+=state.turn===player?5:-5;
                     scores[player]=score;
                 }
                 return scores;
             }
             driveEvaluationScalar(state,player) {
-                const scores=this.driveEvaluationVector(state), foes=this.activePlayers.filter(p=>p!==player&&!state.eliminated[p]);
+                const scores=this.driveEvaluationVector(state),foes=this.activePlayers.filter(p=>p!==player&&!state.eliminated[p]);
+                if(this.activePlayers.length===2)return scores[player]??-999999;
                 const opponent=foes.length?Math.max(...foes.map(p=>scores[p]??-999999)):0;
                 return (scores[player]??-999999)-opponent;
             }
@@ -1395,6 +1427,7 @@
 
             board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 })));
             hasEntered = Array(MAX_PLAYERS).fill(false);
+            moveCounts = Array(MAX_PLAYERS).fill(0);
             eliminated = Array(MAX_PLAYERS).fill(false);
             emphasizedCells.clear();
             currentPlayer = firstPlayer;
@@ -1688,12 +1721,14 @@
             const preMoveSnapshot = {
                 board: board.map(r => r.map(c => ({ ...c }))),
                 hasEntered: [...hasEntered],
+                moveCounts: [...moveCounts],
                 eliminated: [...eliminated]
             };
 
             const rollback = () => {
                 board = preMoveSnapshot.board;
                 hasEntered = preMoveSnapshot.hasEntered;
+                moveCounts = preMoveSnapshot.moveCounts;
                 eliminated = preMoveSnapshot.eliminated;
                 emphasizedCells.clear();
                 const container = document.getElementById('board-container');
@@ -1706,6 +1741,7 @@
 
             const isFirst = !hasEntered[player];
             hasEntered[player] = true;
+            moveCounts[player] = (Number(moveCounts[player]) || 0) + 1;
             const addCount = isFirst ? 3 : 1;
             board[row][col].owner = player;
             board[row][col].count += addCount;
@@ -1841,7 +1877,7 @@
                 aiTimerId = setTimeout(async () => {
                     try {
                         if (signal.aborted || !isInGame) return;
-                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, currentRoomId || '');
+                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, currentRoomId || '', moveCounts);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
                             if (currentRoomId) {
@@ -2222,6 +2258,8 @@
                         }
                         board = nextBoard;
                         if (Array.isArray(packet.hasEnteredSnapshot)) hasEntered = [...packet.hasEnteredSnapshot];
+                        if (Array.isArray(packet.moveCountsSnapshot)) moveCounts = [...packet.moveCountsSnapshot];
+                        else moveCounts = hasEntered.map(value => value ? 1 : 0);
                         if (Array.isArray(packet.eliminatedSnapshot)) eliminated = [...packet.eliminatedSnapshot];
                         if (Number.isInteger(packet.currentTurnIndex)) currentPlayer = packet.currentTurnIndex;
                         pendingOnlineMove = false;
@@ -2333,6 +2371,7 @@
                 compactBoardSnapshot,
                 currentTurnIndex: currentPlayer,
                 hasEnteredSnapshot: [...hasEntered],
+                moveCountsSnapshot: [...moveCounts],
                 eliminatedSnapshot: [...eliminated]
             });
         }
