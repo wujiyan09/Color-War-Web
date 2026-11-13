@@ -82,6 +82,35 @@ test('Drive opening selector has 13 deterministic geometries and uses a legal sq
     assert.ok(legal.some(candidate => candidate.r === move.r && candidate.c === move.c));
 });
 
+test('5x5 two-player opening answers the first placement with a diagonal corner', () => {
+    const grid = board(5);
+    grid[0][0] = { owner: 1, count: 3 };
+    const instance = solver({ grid, active: [0, 1], entered: [false, true], current: 0,
+        level: 4, roomCode: 'DIAGONAL-5' });
+    const move = instance.calculateBestMove(null);
+    assert.deepEqual(move, { r: 4, c: 4 });
+    assert.ok(instance.isCornerCell(move));
+    assert.equal(Math.abs(move.r) + Math.abs(move.c), 8, 'the reply is the opposite diagonal corner');
+});
+
+test('5x5 Easy still answers the first placement with a diagonal corner', () => {
+    const grid = board(5);
+    grid[0][0] = { owner: 1, count: 3 };
+    const instance = solver({ grid, active: [0, 1], entered: [false, true], current: 0,
+        level: 1, roomCode: 'DIAGONAL-5' });
+    assert.deepEqual(instance.calculateBestMove(null), { r: 4, c: 4 });
+});
+
+test('5x5 two-player opening chooses a deterministic corner when it moves first', () => {
+    const instance = solver({ grid: board(5), active: [0, 1], entered: [false, false],
+        level: 4, roomCode: 'DIAGONAL-5' });
+    const first = instance.calculateBestMove(null);
+    const second = solver({ grid: board(5), active: [0, 1], entered: [false, false],
+        level: 4, roomCode: 'DIAGONAL-5' }).calculateBestMove(null);
+    assert.deepEqual(first, second);
+    assert.ok(instance.isCornerCell(first));
+});
+
 test('manual Drive ordinary move ordering retains tuned center/charge terms', () => {
     const instance = solver({ grid: board(5), entered: [false, true] });
     const center = instance.driveMovePriority({ r: 2, c: 2 }, {
@@ -144,7 +173,7 @@ test('Medium has a deliberate second-best branch; Easy follows the 25/45/30 mix'
     grid[4][4] = { owner: 0, count: 1 };
     grid[4][3] = { owner: 0, count: 1 };
     grid[0][0] = { owner: 1, count: 1 };
-    const medium = solver({ grid, entered: [true, true], level: 2 });
+    const medium = solver({ grid, entered: [true, true], level: 2, moveCounts: [1, 1] });
     const ranked = medium.getPlayableCells(0, medium.cells)
         .map(move => ({ move, score: medium.driveMovePriority(move, {
             cells: medium.cells, hasEntered: medium.hasEntered, eliminated: medium.eliminated, turn: 0
@@ -155,7 +184,7 @@ test('Medium has a deliberate second-best branch; Easy follows the 25/45/30 mix'
         const secondBest = medium.calculateBestMove(null);
         assert.deepEqual(secondBest, ranked[1].move);
 
-        const easy = solver({ grid, entered: [true, true], level: 1 });
+        const easy = solver({ grid, entered: [true, true], level: 1, moveCounts: [1, 1] });
         let seq = [0.1, 0];
         Math.random = () => seq.shift() ?? 0;
         const randomLegal = easy.calculateBestMove(null);

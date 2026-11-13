@@ -761,7 +761,28 @@
                 return [opening,corner('tl'),corner('tr'),corner('bl'),corner('br'),diagonal(false),diagonal(true),side('top'),side('bottom'),side('left'),side('right'),center,corners];
             }
 
+            fiveByFiveDiagonalOpeningMove(validMoves) {
+                if (this.boardSize !== 5 || (Number(this.moveCounts[this.currentPlayer]) || 0) !== 0 || !validMoves.length) return null;
+                const opponents = this.cells.flatMap((cell, index) =>
+                    cell.owner !== null && cell.owner !== this.currentPlayer
+                        ? [{ r: Math.floor(index / this.boardSize), c: index % this.boardSize }]
+                        : []);
+                const tieOffset = AISolver.fnv1a(this.roomCode || `color-war-${this.boardSize}-${this.activePlayers.join('-')}`) % 25;
+                const manhattan = (a, b) => Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+                const isCorner = move => this.isCornerCell(move);
+                return [...validMoves].sort((a, b) => {
+                    const distanceA = opponents.length ? Math.min(...opponents.map(cell => manhattan(a, cell))) : this.boardSize;
+                    const distanceB = opponents.length ? Math.min(...opponents.map(cell => manhattan(b, cell))) : this.boardSize;
+                    if (distanceA !== distanceB) return distanceB - distanceA;
+                    if (isCorner(a) !== isCorner(b)) return isCorner(a) ? -1 : 1;
+                    const rankA = (a.r * this.boardSize + a.c + tieOffset) % 25;
+                    const rankB = (b.r * this.boardSize + b.c + tieOffset) % 25;
+                    return rankA - rankB;
+                })[0] || null;
+            }
+
             driveOpeningMove(validMoves) {
+                if (this.boardSize === 5) return this.fiveByFiveDiagonalOpeningMove(validMoves);
                 const patterns = AISolver.driveOpeningPatterns(this.boardSize);
                 if (!patterns) return null;
                 const seed = this.roomCode || `color-war-${this.boardSize}-${this.activePlayers.join('-')}`;
@@ -888,7 +909,7 @@
                 }
                 // DOTS online personality: its non-easy opening pattern is hash-deterministic.
                 const totalMoves=(this.moveCounts||[]).reduce((sum,count)=>sum+(Number(count)||0),0);
-                if (this.activePlayers.length===2 && alivePlayers.length===2 && difficulty!==1 && totalMoves<30 && (Number(this.moveCounts[this.currentPlayer])||0)<12) {
+                if (this.activePlayers.length===2 && alivePlayers.length===2 && (difficulty!==1 || (this.boardSize===5 && (Number(this.moveCounts[this.currentPlayer])||0)===0)) && totalMoves<30 && (Number(this.moveCounts[this.currentPlayer])||0)<12) {
                     const bookMove=this.driveOpeningMove(legal);
                     if(bookMove)return bookMove;
                 }
