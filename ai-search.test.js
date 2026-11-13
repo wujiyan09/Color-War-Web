@@ -325,3 +325,7 @@ test('aspiration failures widen asymmetrically and cap at the Drive threshold', 
     assert.deepEqual(instance.driveAspirationWindow(40, 100, false), { alpha: 39, beta: 140 });
     assert.equal(instance.driveAspirationWindow(40, 8000, true), null);
 });
+
+test('Hard search budget matches the documented DOTS six-second profile', () => {
+    assert.match(html, /4:\{timeMs:6000,softTimeMs:1200,maxDepth:32,beam:16,maxNodes:24000\}/);
+});

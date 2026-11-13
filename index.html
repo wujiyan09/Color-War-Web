@@ -926,7 +926,7 @@
                 const profiles={
                     2:{timeMs:250,softTimeMs:250,maxDepth:3,beam:10,maxNodes:3500},
                     3:{timeMs:1200,softTimeMs:600,maxDepth:8,beam:12,maxNodes:7000},
-                    4:{timeMs:5000,softTimeMs:1200,maxDepth:32,beam:16,maxNodes:24000}
+                    4:{timeMs:6000,softTimeMs:1200,maxDepth:32,beam:16,maxNodes:24000}
                 };
                 const config=profiles[difficulty], root={cells:this.cells.map(c=>({...c})),hasEntered:[...this.hasEntered],eliminated:[...this.eliminated],turn:this.currentPlayer};
                 const ctx={deadline:Date.now()+config.timeMs,maxNodes:this.activePlayers.length===2?Infinity:config.maxNodes,nodes:0,aborted:false,table:new Map(),killers:Array.from({length:50},()=>[null,null]),history:new Map(),config,signal};
