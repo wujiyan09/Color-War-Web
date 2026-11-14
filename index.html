@@ -1055,9 +1055,8 @@
             playerTypes = [...duelPlayerTypes, ...Array(MAX_PLAYERS - duelPlayerTypes.length).fill('disabled')];
             const active = getActivePlayers();
             isDuelGame = true;
-            isRandomFirst = document.getElementById('random-first-toggle').checked;
-            if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
-            else initBoard(active[0]);
+            isRandomFirst = false;
+            initBoard(active[0]); // Red always starts local two-player games.
         }
 
         function renderPlayerList(targetContainerId = 'local-player-list') {
@@ -1242,6 +1241,14 @@
             eliminated = Array(MAX_PLAYERS).fill(false);
             emphasizedCells.clear();
             currentPlayer = firstPlayer;
+            if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) {
+                const [redPlayer, bluePlayer] = getActivePlayers();
+                board[0][0] = { owner: redPlayer, count: 1 };
+                board[boardSize - 1][boardSize - 1] = { owner: bluePlayer, count: 1 };
+                hasEntered[redPlayer] = true;
+                hasEntered[bluePlayer] = true;
+                currentPlayer = redPlayer;
+            }
             isProcessingCascade = false;
             winnerIndex = null;
             localDuelMovesPlayed = 0;
@@ -1765,13 +1772,14 @@
             const container = document.getElementById('control-player-rows');
             container.innerHTML = '';
 
+            const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && getActivePlayers().length === 2;
             getActivePlayers().forEach(p => {
                 const row = document.createElement('div');
                 row.style.display = 'flex'; row.style.justifyContent = 'space-between';
                 row.style.alignItems = 'center'; row.style.marginBottom = '10px';
                 row.innerHTML = `
                     <span>${escapeHTML(playerNames[p])}</span>
-                    ${currentRoomId
+                    ${currentRoomId || isLocalTwoPlayerDuel
                         ? `<span>${WIRE_PLAYER_TYPES[playerTypes[p]] || playerTypes[p]}</span>`
                         : `<select id="ctrl-p-${p}">
                             <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
@@ -1781,7 +1789,7 @@
                 `;
                 container.appendChild(row);
 
-                if (!currentRoomId) {
+                if (!currentRoomId && !isLocalTwoPlayerDuel) {
                     document.getElementById(`ctrl-p-${p}`).onchange = (e) => {
                         playerTypes[p] = e.target.value;
                         checkAndRunAITurn();
