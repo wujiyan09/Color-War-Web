@@ -685,6 +685,7 @@
 
         let isInGame = false;
         let isDuelGame = false;
+        let localDuelMovesPlayed = 0;
 
         let currentRoomId = null;
         let myPlayerIndex = 0;
@@ -748,7 +749,7 @@
         });
 
         class AISolver {
-            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, isLocalDuel = false) {
+            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, isLocalDuel = false, movesPlayed = 0) {
                 this.boardSize = boardSize;
                 this.activePlayers = activePlayers;
                 this.currentPlayer = currentPlayer;
@@ -757,6 +758,7 @@
                 this.hasEntered = [...hasEntered];
                 this.eliminated = [...eliminated];
                 this.isLocalDuel = isLocalDuel;
+                this.movesPlayed = movesPlayed;
                 this.cells = [];
 
                 for (let r = 0; r < boardSize; r++) {
@@ -873,7 +875,7 @@
                     );
                     const driveMove = chooseDriveDuelMove({
                         board: grid, activePlayers: this.activePlayers, currentPlayer: this.currentPlayer,
-                        hasEntered: this.hasEntered, difficulty: this.aiLevel, signal
+                        hasEntered: this.hasEntered, difficulty: this.aiLevel, movesPlayed: this.movesPlayed, signal
                     });
                     return driveMove ? { r: driveMove.r, c: driveMove.c } : null;
                 }
@@ -1242,6 +1244,7 @@
             currentPlayer = firstPlayer;
             isProcessingCascade = false;
             winnerIndex = null;
+            localDuelMovesPlayed = 0;
 
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
@@ -1660,6 +1663,7 @@
             updateEliminationStatus();
             updateBoardCellsDOM();
             isProcessingCascade = false;
+            if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) localDuelMovesPlayed++;
 
             if (checkGameOver()) {
                 Haptics.heavy();
@@ -1731,7 +1735,9 @@
                 aiTimerId = setTimeout(async () => {
                     try {
                         if (signal.aborted || !isInGame) return;
-                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, isDuelGame && !currentRoomId);
+                        const activePlayers = getActivePlayers();
+                        const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && activePlayers.length === 2;
+                        const solver = new AISolver(boardSize, activePlayers, currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, isLocalTwoPlayerDuel, localDuelMovesPlayed);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
                             if (currentRoomId) {

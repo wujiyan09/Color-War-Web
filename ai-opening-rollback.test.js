@@ -17,8 +17,8 @@ function grid(size = 5, occupied = null) {
   })));
 }
 
-function solver({ active = [0, 1], current = 0, entered = [false, false], eliminated = [false, false], cells = grid(), playerType = "mathNightmare", level = 1, isLocalDuel = false } = {}) {
-  return new AISolver(cells.length, active, current, playerType, level, cells, entered, eliminated, isLocalDuel);
+function solver({ active = [0, 1], current = 0, entered = [false, false], eliminated = [false, false], cells = grid(), playerType = "mathNightmare", level = 1, isLocalDuel = false, movesPlayed = 0 } = {}) {
+  return new AISolver(cells.length, active, current, playerType, level, cells, entered, eliminated, isLocalDuel, movesPlayed);
 }
 
 test("all four difficulty levels retain the old path for non-duel local games", () => {
@@ -43,17 +43,18 @@ test("local duel route supplies current game state and selected difficulty to Dr
   const fakeDriveChooser = (args) => { observed.push(args); return { r: 1, c: 3 }; };
   const DriveAISolver = new Function("MAX_PLAYERS", "chooseDriveDuelMove", `${html.slice(start, end)}; return AISolver;`)(8, fakeDriveChooser);
   for (const level of [1, 2, 3, 4]) {
-    const game = new DriveAISolver(5, [0, 1], 1, "enhancedNightmare", level, grid(5, { r: 1, c: 3, owner: 1, count: 2 }), [true, true], [false, false], true);
+    const game = new DriveAISolver(5, [0, 1], 1, "enhancedNightmare", level, grid(5, { r: 1, c: 3, owner: 1, count: 2 }), [true, true], [false, false], true, 31);
     assert.deepEqual(game.calculateBestMove(), { r: 1, c: 3 });
   }
   assert.deepEqual(observed.map(x => x.difficulty), [1, 2, 3, 4]);
   assert.deepEqual(observed[0].activePlayers, [0, 1]);
   assert.equal(observed[0].currentPlayer, 1);
   assert.equal(observed[0].hasEntered[1], true);
+  assert.deepEqual(observed.map(x => x.movesPlayed), [31, 31, 31, 31]);
 });
 
-test("Drive AI is gated to explicit local-duel mode, not merely two active seats", () => {
-  assert.match(html, /isDuelGame && !currentRoomId/);
+test("Drive AI is gated to explicit local two-player duel mode, not multiplayer or online", () => {
+  assert.match(html, /isDuelGame && !currentRoomId && activePlayers\.length === 2/);
   assert.match(html, /isDuelGame = true/);
   assert.match(html, /isDuelGame = false/);
   assert.match(html, /if \(this\.isLocalDuel\)/);

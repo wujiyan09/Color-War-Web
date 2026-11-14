@@ -11,6 +11,31 @@ export const DRIVE_DIFFICULTY = Object.freeze({
   4: Object.freeze({ name: "hard", timeMs: 6000, maxDepth: 32, randomize: false }),
 });
 
+// The Drive local-game scheduler supplies independent phase caps. When both it
+// and Color War's selected difficulty constrain the same search, honor the
+// stricter wall-clock/depth limit while retaining Drive's soft-stop settings.
+export const DRIVE_LOCAL_PHASES = Object.freeze({
+  opening: Object.freeze({ movesBefore: 30, timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8 }),
+  later: Object.freeze({ movesBefore: 30, timeMs: 5000, softTimeMs: 600, minTimeMs: 80, maxDepth: 32 }),
+});
+
+export function effectiveSearchConfig(difficulty, movesPlayed = 0) {
+  const selected = DRIVE_DIFFICULTY[difficulty] || DRIVE_DIFFICULTY[2];
+  const phase = movesPlayed < DRIVE_LOCAL_PHASES.opening.movesBefore
+    ? DRIVE_LOCAL_PHASES.opening : DRIVE_LOCAL_PHASES.later;
+  const timeMs = Math.min(selected.timeMs, phase.timeMs);
+  const softTimeMs = Math.min(phase.softTimeMs, timeMs);
+  return {
+    name: selected.name,
+    phase: phase === DRIVE_LOCAL_PHASES.opening ? "opening" : "later",
+    timeMs,
+    softTimeMs,
+    minTimeMs: Math.min(phase.minTimeMs, softTimeMs),
+    maxDepth: Math.min(selected.maxDepth, phase.maxDepth),
+    randomize: selected.randomize,
+  };
+}
+
 function splitmix64(x) {
   x = (x + 0x9e3779b97f4a7c15n) & MASK64;
   x = ((x ^ (x >> 30n)) * 0xbf58476d1ce4e5b9n) & MASK64;
@@ -213,8 +238,8 @@ export function quietHeuristic(cells, move, side, entered, size) {
     let score = (afterCount[side] - beforeCount[side]) * 18 + (beforeCount[enemy] - afterCount[enemy]) * 26;
     if (afterCount[enemy] === 0 && beforeCount[enemy] > 0) score += 500000;
     score += enemyCount * 30 + enemy3 * 90 + empty * 0.4;
-    const ready = exposedThreatTotals(cells, side, size).count > 0;
-    if (ready) score += 280 + enemyCharge * 12;
+    const readyThreat = exposedThreatTotals(cells, side, size);
+    if (readyThreat.count > 0) score += 280 + readyThreat.charge * 12;
     return score;
   }
   let score = 0;
@@ -243,7 +268,7 @@ function makeContext(deadline) {
 
 function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size) {
   context.nodes++;
-  if ((context.nodes & 4095) === 0 && Date.now() >= context.deadline) context.stopped = true;
+  if ((context.nodes & 255) === 0 && Date.now() >= context.deadline) context.stopped = true;
   if (context.stopped || ply >= MAX_PLY) return { score: evaluate(cells, side, enteredMask), move: -1 };
   const terminal = terminalScore(cells, side, enteredMask);
   if (terminal !== null) return { score: terminal, move: -1 };
@@ -285,7 +310,7 @@ function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size
   return { score: best, move: bestMove };
 }
 
-export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, signal = null }) {
+export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null }) {
   const size = board.length;
   if (size < 2 || size > 12 || board.some(row => row.length !== size)) return null;
   if (activePlayers.length !== 2) return null;
@@ -303,12 +328,14 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
   }
   const moves = legalMoves(cells, side, entered, size);
   if (!moves.length) return null;
-  const config = DRIVE_DIFFICULTY[difficulty] || DRIVE_DIFFICULTY[2];
-  const deadline = Date.now() + config.timeMs;
+  const config = effectiveSearchConfig(difficulty, movesPlayed);
+  const startedAt = Date.now();
+  const deadline = startedAt + config.timeMs;
   const context = makeContext(deadline);
   const moveContext = { ttMove: -1, killers: context.killers, history: context.history, entered };
   moves.sort((a, b) => driveMoveScore(cells, b, side, size, 0, moveContext) - driveMoveScore(cells, a, side, size, 0, moveContext));
   let bestMove = moves[0], bestScore = 0, completedDepth = 0;
+  const completedMoves = [], completedScores = [];
   if (config.randomize && config.maxDepth <= 1) {
     const candidates = moves.slice(0, Math.min(3, moves.length));
     const picked = Math.random() < 0.3 ? candidates[Math.floor(Math.random() * candidates.length)] : candidates[0];
@@ -319,7 +346,13 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
     const result = search(cells, side, enteredMask, depth, -INF, INF, 0, context, size);
     if (context.stopped || signal?.aborted || result.move < 0) break;
     bestMove = result.move; bestScore = result.score; completedDepth = depth;
+    completedMoves.push(bestMove); completedScores.push(bestScore);
     if (Math.abs(bestScore) >= TERMINAL - 1000) break;
+    if (depth >= 6 && Date.now() - startedAt >= config.softTimeMs && Date.now() - startedAt >= config.minTimeMs && completedMoves.length >= 3) {
+      const recentMoves = completedMoves.slice(-3);
+      const scoreDelta = Math.abs(bestScore - completedScores[completedScores.length - 3]);
+      if (recentMoves.every(move => move === recentMoves[0]) && scoreDelta <= 8) break;
+    }
   }
   return { r: Math.floor(bestMove / size), c: bestMove % size, depth: completedDepth || 1, score: bestScore };
 }
