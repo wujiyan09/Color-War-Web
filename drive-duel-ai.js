@@ -268,7 +268,7 @@ function makeContext(deadline) {
 
 function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size) {
   context.nodes++;
-  if ((context.nodes & 255) === 0 && Date.now() >= context.deadline) context.stopped = true;
+  if ((context.nodes & 4095) === 0 && Date.now() >= context.deadline) context.stopped = true;
   if (context.stopped || ply >= MAX_PLY) return { score: evaluate(cells, side, enteredMask), move: -1 };
   const terminal = terminalScore(cells, side, enteredMask);
   if (terminal !== null) return { score: terminal, move: -1 };
