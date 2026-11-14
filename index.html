@@ -129,6 +129,41 @@
             margin-bottom: 10px;
         }
 
+        .duel-player-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .duel-player-card {
+            min-height: 150px;
+            padding: 18px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.24);
+            border-radius: 24px;
+            color: white;
+            background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.055));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 12px 30px rgba(0,0,0,0.22);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            cursor: pointer;
+            transition: transform .2s ease, background .2s ease, border-color .2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .duel-player-card:hover { transform: translateY(-2px); }
+        .duel-player-card:active { transform: scale(.97); }
+        .duel-player-card[aria-pressed="true"] { border-color: rgba(0,242,254,.62); }
+        .duel-player-card .duel-icon { font-size: 2rem; }
+        .duel-player-card .duel-title { font-weight: 800; font-size: 1rem; }
+        .duel-player-card .duel-role { color: rgba(255,255,255,.76); font-size: .78rem; }
+        @media (max-width: 380px) { .duel-player-card { min-height: 126px; } }
+
         .setting-row {
             display: flex;
             justify-content: space-between;
@@ -458,12 +493,25 @@
             <div class="game-title">COLOR WAR</div>
             
             <div class="tab-switcher" style="margin: 0 auto 12px auto;">
-                <div id="tab-local" class="tab-btn active">单机模式</div>
-                <div id="tab-online" class="tab-btn">云端联机</div>
+                <div id="tab-duel" class="tab-btn active">双人模式</div>
+                <div id="tab-multiplayer" class="tab-btn">多人模式</div>
+                <div id="tab-online" class="tab-btn">联机模式</div>
             </div>
 
-            <!-- 单机模式面板 -->
-            <div id="panel-local" style="width: 100%;">
+            <!-- 双人模式：棋盘尺寸与两名玩家的真人/BOT卡片 -->
+            <div id="panel-duel" style="width: 100%;">
+                <div class="setting-card glass-panel">
+                    <div class="setting-row">
+                        <span>网格尺寸: <b id="duel-board-size-label">8 × 8</b></span>
+                    </div>
+                    <input type="range" id="duel-board-size-slider" min="5" max="12" value="8">
+                </div>
+                <div class="duel-player-cards" id="duel-player-cards"></div>
+                <button id="btn-start-duel" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
+            </div>
+
+            <!-- 多人模式面板（保留原单机多人设置） -->
+            <div id="panel-multiplayer" style="width: 100%; display: none;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
                         <span>网格尺寸: <b id="board-size-label">8 × 8</b></span>
@@ -863,13 +911,20 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedBackground();
             renderPlayerList('local-player-list');
+            renderDuelPlayerCards();
 
-            document.getElementById('tab-local').onclick = () => switchModeTab('local');
+            document.getElementById('tab-duel').onclick = () => switchModeTab('duel');
+            document.getElementById('tab-multiplayer').onclick = () => switchModeTab('multiplayer');
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
             
+            document.getElementById('duel-board-size-slider').oninput = (e) => {
+                boardSize = parseInt(e.target.value);
+                syncBoardSizeControls();
+            };
+
             document.getElementById('board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
-                document.getElementById('board-size-label').innerText = `${boardSize} × ${boardSize}`;
+                syncBoardSizeControls();
             };
 
             document.getElementById('ai-level-slider').oninput = (e) => {
@@ -880,7 +935,7 @@
 
             document.getElementById('online-board-size-slider').oninput = (e) => {
                 boardSize = parseInt(e.target.value);
-                document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
+                syncBoardSizeControls();
                 if (currentRoomId && isHost) syncRoomSettingsToCloud();
             };
 
@@ -894,6 +949,7 @@
             document.getElementById('bg-file-input').onchange = handleBackgroundUpload;
             document.getElementById('btn-bg-reset').onclick = resetBackgroundToDefault;
 
+            document.getElementById('btn-start-duel').onclick = startDuelGame;
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
             document.getElementById('btn-add-online-ai').onclick = addOnlineAI;
@@ -940,10 +996,54 @@
         }
 
         function switchModeTab(mode) {
-            document.getElementById('tab-local').classList.toggle('active', mode === 'local');
+            document.getElementById('tab-duel').classList.toggle('active', mode === 'duel');
+            document.getElementById('tab-multiplayer').classList.toggle('active', mode === 'multiplayer');
             document.getElementById('tab-online').classList.toggle('active', mode === 'online');
-            document.getElementById('panel-local').style.display = mode === 'local' ? 'block' : 'none';
+            document.getElementById('panel-duel').style.display = mode === 'duel' ? 'block' : 'none';
+            document.getElementById('panel-multiplayer').style.display = mode === 'multiplayer' ? 'block' : 'none';
             document.getElementById('panel-online').style.display = mode === 'online' ? 'block' : 'none';
+            syncBoardSizeControls();
+        }
+
+        function syncBoardSizeControls() {
+            const label = `${boardSize} × ${boardSize}`;
+            ['duel', '', 'online'].forEach(prefix => {
+                const slider = document.getElementById(`${prefix ? prefix + '-' : ''}board-size-slider`);
+                const sizeLabel = document.getElementById(`${prefix ? prefix + '-' : ''}board-size-label`);
+                if (slider) slider.value = boardSize;
+                if (sizeLabel) sizeLabel.innerText = label;
+            });
+        }
+
+        let duelPlayerTypes = ['human', 'human'];
+
+        function renderDuelPlayerCards() {
+            const container = document.getElementById('duel-player-cards');
+            if (!container) return;
+            container.innerHTML = duelPlayerTypes.map((type, index) => {
+                const isBot = type !== 'human';
+                const tint = index === 0 ? '#ff667c' : '#63d9ff';
+                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'BOT' : '真人'}，点击切换">
+                    <span class="duel-icon" style="color:${tint}">${isBot ? '🤖' : '👤'}</span>
+                    <span class="duel-title">玩家 ${index + 1}</span>
+                    <span class="duel-role">${isBot ? 'BOT · 点击切换真人' : '真人 · 点击切换 BOT'}</span>
+                </button>`;
+            }).join('');
+            container.querySelectorAll('.duel-player-card').forEach(card => {
+                card.onclick = () => {
+                    const index = Number(card.dataset.playerIndex);
+                    duelPlayerTypes[index] = duelPlayerTypes[index] === 'human' ? 'mathNightmare' : 'human';
+                    renderDuelPlayerCards();
+                };
+            });
+        }
+
+        function startDuelGame() {
+            playerTypes = [...duelPlayerTypes, ...Array(MAX_PLAYERS - duelPlayerTypes.length).fill('disabled')];
+            const active = getActivePlayers();
+            isRandomFirst = document.getElementById('random-first-toggle').checked;
+            if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
+            else initBoard(active[0]);
         }
 
         function renderPlayerList(targetContainerId = 'local-player-list') {
@@ -1658,8 +1758,7 @@
         function setPlayerConfigFromPacket(packet) {
             if (packet.boardSize) {
                 boardSize = Math.max(5, Math.min(12, Number(packet.boardSize)));
-                document.getElementById('online-board-size-slider').value = boardSize;
-                document.getElementById('online-board-size-label').innerText = `${boardSize} × ${boardSize}`;
+                syncBoardSizeControls();
             }
             if (packet.aiLevelRaw || packet.aiLevel) {
                 aiLevel = Number(packet.aiLevelRaw || packet.aiLevel);
@@ -1932,16 +2031,13 @@
                         onlineSyncTimer = null;
                         const reportedSize = Number(packet.boardSize);
                         const nextSize = Number.isInteger(reportedSize) && reportedSize >= 5 && reportedSize <= 12 ? reportedSize : boardSize;
-                        const sizeSlider = document.getElementById('online-board-size-slider');
-                        const sizeLabel = document.getElementById('online-board-size-label');
-                        if (sizeSlider) sizeSlider.value = nextSize;
-                        if (sizeLabel) sizeLabel.innerText = `${nextSize} × ${nextSize}`;
                         const nextBoard = Array(nextSize).fill(null).map(() => Array(nextSize).fill(null).map(() => ({ owner: null, count: 0 })));
                         packet.compactBoardSnapshot.forEach(cell => {
                             const r = Number(cell.r), c = Number(cell.c);
                             if (r >= 0 && r < nextSize && c >= 0 && c < nextSize) nextBoard[r][c] = { owner: Number(cell.owner) < 0 ? null : Number(cell.owner), count: Number(cell.count) };
                         });
                         boardSize = nextSize;
+                        syncBoardSizeControls();
                         if (isHost && hostRecoveryPending && !isInGame) {
                             isInGame = true;
                             updateOnlineAIButton();
