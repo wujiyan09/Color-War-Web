@@ -627,7 +627,6 @@
         let board = [];
         let currentPlayer = 0;
         let hasEntered = Array(MAX_PLAYERS).fill(false);
-        let moveCounts = Array(MAX_PLAYERS).fill(0);
         let eliminated = Array(MAX_PLAYERS).fill(false);
         let emphasizedCells = new Set();
         let isProcessingCascade = false;
@@ -701,14 +700,12 @@
         });
 
         class AISolver {
-            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, roomCode = '', moveCounts = null) {
+            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
                 this.boardSize = boardSize;
                 this.activePlayers = activePlayers;
                 this.currentPlayer = currentPlayer;
                 this.playerType = playerType;
                 this.aiLevel = aiLevel;
-                this.roomCode = roomCode;
-                this.moveCounts = Array.isArray(moveCounts) ? [...moveCounts] : Array(MAX_PLAYERS).fill(0);
                 this.hasEntered = [...hasEntered];
                 this.eliminated = [...eliminated];
                 this.cells = [];
@@ -719,81 +716,6 @@
                     }
                 }
                 this.neighborsMap = this.buildNeighborsLookup(boardSize);
-            }
-
-            // Exact 13 geometry families and FNV-1a selection from Drive's Clock bundle.
-            // In two-player games the plan continues by this player's move count during the
-            // opening window; Color War retains its own +3 first-placement rule.
-            static fnv1a(text) {
-                let hash = 2166136261;
-                for (let i = 0; i < text.length; i++) {
-                    hash ^= text.charCodeAt(i);
-                    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
-                }
-                return hash >>> 0;
-            }
-
-            static driveOpeningPatterns(size) {
-                if (![6, 9, 12].includes(size)) return null;
-                const edge = size - 1;
-                const opening = [[0,0],[edge,edge],[edge,0],[0,edge],[1,0],[edge-1,edge],[edge,1],[0,edge-1],[1,1],[edge-1,edge-1],[edge-1,1],[1,edge-1]];
-                const corner = (name) => {
-                    const x0 = name.endsWith('r') ? edge : 0, y0 = name.startsWith('b') ? edge : 0;
-                    const dx = name.endsWith('r') ? -1 : 1, dy = name.startsWith('b') ? -1 : 1;
-                    return [[0,0],[1,0],[0,1],[1,1],[0,0],[1,1],[2,0],[0,2],[2,1],[1,2],[2,2],[1,0]].map(([x,y]) => [x0+x*dx,y0+y*dy]);
-                };
-                const diagonal = anti => {
-                    const line = Array.from({length:size},(_,i)=>[i,anti?edge-i:i]), half=[];
-                    for(let i=0;i<Math.ceil(size/2);i++){half.push(line[i]);if(edge-i!==i)half.push(line[edge-i]);}
-                    return [...half,...half].slice(0,12);
-                };
-                const side = name => {
-                    const line=[];
-                    for(let i=0;i<size;i++) line.push(name==='top'?[i,0]:name==='bottom'?[i,edge]:name==='left'?[0,i]:[edge,i]);
-                    const out=[line[0],line[edge]];
-                    for(let i=1;i<Math.floor(size/2);i++)out.push(line[i],line[edge-i]);
-                    if(size%2===1)out.push(line[Math.floor(size/2)]);
-                    return [...out,...out].slice(0,12);
-                };
-                const mid=Math.floor(size/2)-1, mid2=mid+1;
-                const center=[[mid,mid],[mid2,mid2],[mid,mid2],[mid2,mid],[mid,mid],[mid2,mid2],[mid-1,mid],[mid2+1,mid2],[mid,mid-1],[mid2,mid2+1],[mid2+1,mid],[mid-1,mid2],[mid2,mid],[mid,mid2]];
-                const corners=[[0,0],[edge,edge],[0,0],[edge,edge],[0,0],[edge,edge],[1,0],[edge-1,edge],[0,1],[edge,edge-1],[1,1],[edge-1,edge-1]];
-                return [opening,corner('tl'),corner('tr'),corner('bl'),corner('br'),diagonal(false),diagonal(true),side('top'),side('bottom'),side('left'),side('right'),center,corners];
-            }
-
-            fiveByFiveDiagonalOpeningMove(validMoves) {
-                if (this.boardSize !== 5 || (Number(this.moveCounts[this.currentPlayer]) || 0) !== 0 || !validMoves.length) return null;
-                const opponents = this.cells.flatMap((cell, index) =>
-                    cell.owner !== null && cell.owner !== this.currentPlayer
-                        ? [{ r: Math.floor(index / this.boardSize), c: index % this.boardSize }]
-                        : []);
-                const tieOffset = AISolver.fnv1a(this.roomCode || `color-war-${this.boardSize}-${this.activePlayers.join('-')}`) % 25;
-                const manhattan = (a, b) => Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
-                const isCorner = move => this.isCornerCell(move);
-                return [...validMoves].sort((a, b) => {
-                    const distanceA = opponents.length ? Math.min(...opponents.map(cell => manhattan(a, cell))) : this.boardSize;
-                    const distanceB = opponents.length ? Math.min(...opponents.map(cell => manhattan(b, cell))) : this.boardSize;
-                    if (distanceA !== distanceB) return distanceB - distanceA;
-                    if (isCorner(a) !== isCorner(b)) return isCorner(a) ? -1 : 1;
-                    const rankA = (a.r * this.boardSize + a.c + tieOffset) % 25;
-                    const rankB = (b.r * this.boardSize + b.c + tieOffset) % 25;
-                    return rankA - rankB;
-                })[0] || null;
-            }
-
-            driveOpeningMove(validMoves) {
-                if (this.boardSize === 5) return this.fiveByFiveDiagonalOpeningMove(validMoves);
-                const patterns = AISolver.driveOpeningPatterns(this.boardSize);
-                if (!patterns) return null;
-                const seed = this.roomCode || `color-war-${this.boardSize}-${this.activePlayers.join('-')}`;
-                const pattern = patterns[AISolver.fnv1a(seed) % patterns.length];
-                const legal = new Set(validMoves.map(m => `${m.c},${m.r}`));
-                const start = Math.max(0, Number(this.moveCounts[this.currentPlayer]) || 0);
-                for (let i = start; i < pattern.length; i++) {
-                    const [x,y] = pattern[i];
-                    if (legal.has(`${x},${y}`)) return {r:y,c:x};
-                }
-                return null;
             }
 
             buildNeighborsLookup(size) {
@@ -821,11 +743,6 @@
                     }
                 }
                 return moves;
-            }
-
-            isCornerCell(move) {
-                return (move.r === 0 || move.r === this.boardSize - 1) &&
-                    (move.c === 0 || move.c === this.boardSize - 1);
             }
 
             selectOptimalOpeningMove(validMoves) {
@@ -895,323 +812,52 @@
                 return score;
             }
 
+            isCornerCell(move) {
+                return (move.r === 0 || move.r === this.boardSize - 1) &&
+                    (move.c === 0 || move.c === this.boardSize - 1);
+            }
+
             calculateBestMove(signal) {
-                const legal = this.getPlayableCells(this.currentPlayer, this.cells);
-                if (!legal.length) return null;
-                const difficulty = Math.max(1,Math.min(4,Number(this.aiLevel)||1));
-                const ordered = legal.map(move=>({move,score:this.driveMovePriority(move,{cells:this.cells,hasEntered:this.hasEntered,eliminated:this.eliminated,turn:this.currentPlayer})})).sort((a,b)=>b.score-a.score);
-                const alivePlayers=this.activePlayers.filter(player=>!this.eliminated[player]);
-                // Keep Color War's legacy opening for multiplayer and avoid corners whenever
-                // another legal first-placement square exists. Later turns use Drive search below.
-                if (!this.hasEntered[this.currentPlayer] && this.activePlayers.length > 2) {
-                    const nonCorners=legal.filter(move=>!this.isCornerCell(move));
-                    return this.selectOptimalOpeningMove(nonCorners.length ? nonCorners : legal);
-                }
-                // DOTS online personality: its non-easy opening pattern is hash-deterministic.
-                const totalMoves=(this.moveCounts||[]).reduce((sum,count)=>sum+(Number(count)||0),0);
-                if (this.activePlayers.length===2 && alivePlayers.length===2 && (difficulty!==1 || (this.boardSize===5 && (Number(this.moveCounts[this.currentPlayer])||0)===0)) && totalMoves<30 && (Number(this.moveCounts[this.currentPlayer])||0)<12) {
-                    const bookMove=this.driveOpeningMove(legal);
-                    if(bookMove)return bookMove;
-                }
-                // Easy: 25% unrestricted random, 45% random from top half, 30% best heuristic move.
-                if (difficulty === 1) {
-                    const roll=Math.random();
-                    if (roll<0.25) return legal[Math.floor(Math.random()*legal.length)];
-                    if (roll<0.70) { const top=ordered.slice(0,Math.max(1,Math.ceil(ordered.length/2))); return top[Math.floor(Math.random()*top.length)].move; }
-                    return ordered[0].move;
-                }
-                // Medium's documented 25% deliberate second-best move; no such move on singleton lists.
-                if (difficulty === 2 && ordered.length>1 && Math.random()<0.25) return ordered[1].move;
+                const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
+                if (validMoves.length === 0) return null;
 
-                const profiles={
-                    2:{timeMs:250,softTimeMs:250,maxDepth:3,beam:10,maxNodes:3500},
-                    3:{timeMs:1200,softTimeMs:600,maxDepth:8,beam:12,maxNodes:7000},
-                    4:{timeMs:6000,softTimeMs:1200,maxDepth:32,beam:16,maxNodes:24000}
-                };
-                const config=profiles[difficulty], root={cells:this.cells.map(c=>({...c})),hasEntered:[...this.hasEntered],eliminated:[...this.eliminated],turn:this.currentPlayer};
-                const ctx={deadline:Date.now()+config.timeMs,maxNodes:this.activePlayers.length===2?Infinity:config.maxNodes,nodes:0,aborted:false,table:new Map(),killers:Array.from({length:50},()=>[null,null]),history:new Map(),config,signal};
-                let bestMove=ordered[0].move, previous=0;
-                const bestMoveHistory=[], scoreHistory=[];
-                const players=this.activePlayers.filter(p=>!this.eliminated[p]);
-                const twoPlayerSearch=this.activePlayers.length===2;
-                for(let depth=1;depth<=config.maxDepth;depth++) {
-                    let windowAlpha=depth>=4?previous-50:-Infinity, windowBeta=depth>=4?previous+50:Infinity, alpha=windowAlpha, beta=windowBeta, delta=50, iterationBest=bestMove, iterationScore=-Infinity;
-                    const runRoot=()=>{
-                        let valueBest=-Infinity, moveBest=bestMove;
-                        const orderedRootMoves=this.orderMoves(root,ctx,0,bestMove);
-                        const rootMoves=this.activePlayers.length===2?orderedRootMoves:orderedRootMoves.slice(0,config.beam);
-                        for(let rootIndex=0;rootIndex<rootMoves.length;rootIndex++) {
-                            const {move}=rootMoves[rootIndex];
-                            if(this.expired(ctx)) return null;
-                            const child=this.cloneSearchState(root); this.simulateSearchMove(child,move.r*this.boardSize+move.c);
-                            let value;
-                            if(twoPlayerSearch) {
-                                const r=this.searchRootPVS(child,depth-1,alpha,beta,ctx,1,rootIndex===0);
-                                if(!r.complete)return null;
-                                value=-r.value;
-                            } else {
-                                const r=this.searchMaxN(child,depth-1,config,ctx.deadline,signal,ctx.table,()=>{ctx.nodes++;return !this.expired(ctx);},ctx);
-                                if(!r.complete)return null;
-                                value=r.scores[this.currentPlayer]??-1e6;
-                            }
-                            if(value>valueBest){valueBest=value;moveBest=move;}
-                            alpha=Math.max(alpha,value);
-                        }
-                        return {move:moveBest,value:valueBest};
-                    };
-                    let result=runRoot();
-                    while(result && (result.value<=windowAlpha || result.value>=windowBeta) && depth>=4 && !this.expired(ctx)) {
-                        const failedLow=result.value<=windowAlpha;
-                        delta*=2;
-                        if(twoPlayerSearch) {
-                            const widened=this.driveAspirationWindow(result.value,delta,failedLow);
-                            if(widened){windowAlpha=widened.alpha;windowBeta=widened.beta;}
-                            else {windowAlpha=-Infinity;windowBeta=Infinity;}
-                        } else if(delta>4000) { windowAlpha=-Infinity;windowBeta=Infinity; }
-                        else { windowAlpha=result.value-delta;windowBeta=result.value+delta; }
-                        alpha=windowAlpha;beta=windowBeta;
-                        result=runRoot();
-                        if(windowAlpha===-Infinity&&windowBeta===Infinity) break;
-                    }
-                    if(!result||this.expired(ctx)) break;
-                    iterationBest=result.move;iterationScore=result.value;
-                    bestMove=iterationBest;previous=iterationScore;
-                    bestMoveHistory.push(`${iterationBest.r},${iterationBest.c}`);
-                    scoreHistory.push(iterationScore);
-                    if(iterationScore>999000||iterationScore< -999000)break;
-                    const softDeadline=ctx.deadline-(config.timeMs-config.softTimeMs);
-                    const minDeadline=ctx.deadline-config.timeMs+Math.min(60,config.softTimeMs);
-                    if(twoPlayerSearch && depth>=6 && Date.now()>=softDeadline && Date.now()>=minDeadline && this.driveStableSoftStop(bestMoveHistory,scoreHistory))break;
-                }
-                return bestMove;
-            }
-
-            driveAspirationWindow(score,delta,failedLow) {
-                if(delta>4000)return null;
-                return failedLow
-                    ? {alpha:score-delta,beta:score+1}
-                    : {alpha:score-1,beta:score+delta};
-            }
-            searchRootPVS(child,depth,alpha,beta,ctx,ply,firstMove) {
-                if(firstMove)return this.searchNegamax(child,depth,-beta,-alpha,ctx,ply);
-                let result=this.searchNegamax(child,depth,-alpha-1,-alpha,ctx,ply);
-                if(result.complete && -result.value>alpha && -result.value<beta)
-                    result=this.searchNegamax(child,depth,-beta,-alpha,ctx,ply);
-                return result;
-            }
-            driveStableSoftStop(moveHistory,scoreHistory) {
-                if(moveHistory.length<3||scoreHistory.length<3)return false;
-                const recent=moveHistory.slice(-3);
-                return recent.every(move=>move===recent[0]) && Math.abs(scoreHistory[scoreHistory.length-1]-scoreHistory[scoreHistory.length-3])<=8;
-            }
-            cloneSearchState(state) { return {cells:state.cells.map(c=>({...c})),hasEntered:[...state.hasEntered],eliminated:[...state.eliminated],turn:state.turn}; }
-            searchKey(state) { return `${state.turn}|${state.hasEntered.map(Number).join('')}|${state.eliminated.map(Number).join('')}|${state.cells.map(c=>c.owner===null?'n0':`${c.owner}:${c.count}`).join(',')}`; }
-            expired(ctx) { if(ctx.signal?.aborted||Date.now()>=ctx.deadline||ctx.nodes>=ctx.maxNodes){ctx.aborted=true;return true;} return false; }
-            isTactical(move,state) { return (state.cells[move.r*this.boardSize+move.c].count+1)>=4; }
-            orderMoves(state,ctx,ply,ttMove=null) {
-                const moves=this.getPlayableCells(state.turn,state.cells).map(move=>{
-                    const key=`${state.turn}:${move.r*this.boardSize+move.c}`,killer=ctx.killers[ply]||[];
-                    let score=this.driveMovePriority(move,state);
-                    if(ttMove&&move.r===ttMove.r&&move.c===ttMove.c)score+=1e9;
-                    if(this.isTactical(move,state))score+=1e6;
-                    else if(killer.some(k=>k&&k.r===move.r&&k.c===move.c))score+=5e5;
-                    else score+=ctx.history.get(key)||0;
-                    score+=(Math.random()-0.5)*0.01;
-                    return {move,score};
-                });
-                // Insertion sort mirrors the extracted engine's move-ordering implementation.
-                for(let i=1;i<moves.length;i++){const x=moves[i];let j=i-1;while(j>=0&&moves[j].score<x.score){moves[j+1]=moves[j];j--;}moves[j+1]=x;}
-                return moves;
-            }
-            searchNegamax(state,depth,alpha,beta,ctx,ply) {
-                if(this.expired(ctx))return {value:this.driveEvaluationScalar(state,state.turn),complete:false};
-                ctx.nodes++;
-                const alive=this.activePlayers.filter(p=>!state.eliminated[p]),started=this.activePlayers.every(p=>state.hasEntered[p]||state.eliminated[p]);
-                if(started&&alive.length<=1)return {value:alive[0]===state.turn?1e6+depth:-1e6-depth,complete:true};
-                if(depth<=0||ply>=(this.activePlayers.length===2?48:44))return {value:this.driveEvaluationScalar(state,state.turn),complete:true};
-                const key=this.searchKey(state),entry=ctx.table.get(key),originalAlpha=alpha,originalBeta=beta;
-                if(entry&&entry.depth>=depth){if(entry.flag==='exact')return {value:entry.value,complete:true};if(entry.flag==='lower'&&entry.value>=beta)return {value:entry.value,complete:true};if(entry.flag==='upper'&&entry.value<=alpha)return {value:entry.value,complete:true};}
-                const livePlayers=this.activePlayers.filter(player=>!state.eliminated[player]);
-                if(this.activePlayers.length===2&&livePlayers.length===2&&depth>=3&&beta-alpha===1&&state.cells.filter(cell=>cell.owner===state.turn).length>=3){
-                    const nullState=this.cloneSearchState(state),turnIndex=livePlayers.indexOf(state.turn),reduction=depth>=6?3:2;
-                    nullState.turn=livePlayers[(turnIndex+1)%livePlayers.length];
-                    const probe=this.searchNegamax(nullState,depth-1-reduction,-beta,-beta+1,ctx,ply+1);
-                    if(!probe.complete)return probe;
-                    const nullValue=-probe.value;
-                    if(nullValue>=beta)return {value:nullValue,complete:true};
-                }
-                const moves=this.orderMoves(state,ctx,ply,entry?.bestMove);
-                if(!moves.length)return {value:this.driveEvaluationScalar(state,state.turn),complete:true};
-                let best=-Infinity,bestMove=null;
-                for(let i=0;i<moves.length;i++){
-                    const move=moves[i].move,tactical=this.isTactical(move,state),child=this.cloneSearchState(state);
-                    this.simulateSearchMove(child,move.r*this.boardSize+move.c);
-                    const extension=tactical&&depth<=3?1:0;
-                    const reduction=!tactical&&depth>=3&&i>=3?(i>=6?2:1):0;
-                    let r;
-                    if(i===0){r=this.searchNegamax(child,depth-1+extension,-beta,-alpha,ctx,ply+1);}
-                    else {
-                        r=this.searchNegamax(child,depth-1+extension-reduction,-alpha-1,-alpha,ctx,ply+1);
-                        if(r.complete&&-r.value>alpha&&(reduction>0||-r.value<beta))r=this.searchNegamax(child,depth-1+extension,-beta,-alpha,ctx,ply+1);
-                    }
-                    if(!r.complete)return {value:best===-Infinity?this.driveEvaluationScalar(state,state.turn):best,complete:false};
-                    const value=-r.value;
-                    if(value>best){best=value;bestMove=move;}
-                    alpha=Math.max(alpha,value);
-                    if(alpha>=beta){if(!tactical){const k=ctx.killers[ply];if(k[0]?.r!==move.r||k[0]?.c!==move.c){k[1]=k[0];k[0]=move;}const hk=`${state.turn}:${move.r*this.boardSize+move.c}`;ctx.history.set(hk,(ctx.history.get(hk)||0)+depth*depth);}break;}
-                }
-                const flag=best<=originalAlpha?'upper':best>=originalBeta?'lower':'exact';
-                ctx.table.set(key,{depth,value:best,flag,bestMove});
-                return {value:best,complete:true};
-            }
-
-            searchMaxN(state,depth,config,deadline,signal,table,consumeNode,ctx=null) {
-                const alive=this.activePlayers.filter(p=>!state.eliminated[p]),started=this.activePlayers.every(p=>state.hasEntered[p]||state.eliminated[p]);
-                if(started&&alive.length<=1){const scores={};for(const p of this.activePlayers)scores[p]=alive[0]===p?1e6:-1e6;return {scores,complete:true};}
-                if(depth<=0)return {scores:this.driveEvaluationVector(state),complete:true};
-                const key='M'+this.searchKey(state),cached=table.get(key);
-                if(cached?.depth>=depth&&cached.flag==='exact')return {scores:cached.scores,complete:true};
-                if(!consumeNode())return {scores:this.driveEvaluationVector(state),complete:false};
-                let moves=this.getPlayableCells(state.turn,state.cells).map(move=>({move,score:this.driveMovePriority(move,state)})).sort((a,b)=>b.score-a.score);
-                if(cached?.bestMove)moves.sort((a,b)=>Number(b.move.r===cached.bestMove.r&&b.move.c===cached.bestMove.c)-Number(a.move.r===cached.bestMove.r&&a.move.c===cached.bestMove.c));
-                moves=moves.slice(0,config.beam); if(!moves.length)return {scores:this.driveEvaluationVector(state),complete:true};
-                let bestScores=null,bestValue=-Infinity,bestMove=null;
-                for(let i=0;i<moves.length;i++){
-                    if(signal?.aborted||Date.now()>=deadline)return {scores:this.driveEvaluationVector(state),complete:false};
-                    const move=moves[i].move,child=this.cloneSearchState(state);this.simulateSearchMove(child,move.r*this.boardSize+move.c);
-                    const tactical=this.isTactical(move,state),reduce=!tactical&&depth>=3&&i>=3?(i>=6?2:1):0;
-                    let result=this.searchMaxN(child,depth-1+((tactical&&depth<=3)?1:0)-reduce,config,deadline,signal,table,consumeNode,ctx);
-                    if(!result.complete)return result;
-                    let value=result.scores[state.turn]??-1e6;
-                    if(reduce&&value>bestValue){result=this.searchMaxN(child,depth-1,config,deadline,signal,table,consumeNode,ctx);if(!result.complete)return result;value=result.scores[state.turn]??-1e6;}
-                    if(value>bestValue){bestValue=value;bestScores=result.scores;bestMove=move;}
-                }
-                const scores=bestScores||this.driveEvaluationVector(state);table.set(key,{depth,scores,bestMove,flag:'exact'});return {scores,complete:true};
-            }
-
-            simulateSearchMove(state, index) {
-                const player = state.turn;
-                if (index < 0 || index >= state.cells.length || player < 0 || player >= state.hasEntered.length) return;
-                const firstMove = !state.hasEntered[player];
-                state.hasEntered[player] = true;
-                const cell = state.cells[index];
-                cell.owner = player;
-                cell.count += firstMove ? 3 : 1;
-
-                let wave = cell.count >= 4 ? [index] : [];
-                let safety = 0;
-                while (wave.length && safety++ < 4096) {
-                    const exploding = [...new Set(wave)].filter(i => state.cells[i].count >= 4);
-                    if (!exploding.length) break;
-                    const transfers = [];
-                    for (const from of exploding) {
-                        const source = state.cells[from];
-                        source.count -= 4;
-                        if (source.count === 0) source.owner = null;
-                        for (const neighbor of this.neighborsMap[from]) transfers.push(neighbor);
-                    }
-                    const changed = new Set();
-                    for (const to of transfers) {
-                        state.cells[to].owner = player;
-                        state.cells[to].count += 1;
-                        changed.add(to);
-                    }
-                    wave = [...changed].filter(i => state.cells[i].count >= 4);
+                const alivePlayers = this.activePlayers.filter(player => !this.eliminated[player]);
+                if (!this.hasEntered[this.currentPlayer] && alivePlayers.length > 2) {
+                    const nonCorners = validMoves.filter(move => !this.isCornerCell(move));
+                    return this.selectOptimalOpeningMove(nonCorners.length ? nonCorners : validMoves);
                 }
 
-                for (const other of this.activePlayers) {
-                    if (state.hasEntered[other] && !state.eliminated[other] &&
-                        !state.cells.some(cell => cell.owner === other)) state.eliminated[other] = true;
+                if (!this.hasEntered[this.currentPlayer]) {
+                    return this.selectOptimalOpeningMove(validMoves);
                 }
-                const alive = this.activePlayers.filter(other => !state.eliminated[other]);
-                const currentIndex = this.activePlayers.indexOf(player);
-                for (let offset = 1; offset <= this.activePlayers.length; offset++) {
-                    const next = this.activePlayers[(currentIndex + offset) % this.activePlayers.length];
-                    if (!state.eliminated[next]) {
-                        state.turn = next;
-                        break;
-                    }
+
+                if (this.playerType === 'enhancedNightmare') {
+                    const strike = this.findCriticalThreatMove(validMoves);
+                    if (strike) return strike;
                 }
-                if (alive.length <= 1) state.turn = alive[0] ?? player;
+
+                validMoves.sort((a, b) => this.evaluateMovePriority(b) - this.evaluateMovePriority(a));
+                return validMoves[0];
             }
 
-            evaluateSearchState(state) { return this.driveEvaluationVector(state); }
-            searchMovePriority(move, player, cells) { return this.driveMovePriority(move,{cells,hasEntered:this.hasEntered,eliminated:this.eliminated,turn:player}); }
-
-            driveMovePriority(move,state) {
-                const idx=move.r*this.boardSize+move.c, me=state.turn, before=state.cells;
-                const cell=before[idx], neighbors=this.neighborsMap[idx];
-                const firstPlacement = !state.hasEntered[me];
-                const nextCharge=cell.count+(firstPlacement?3:1), willExplode=nextCharge>=4;
-                let ownCritical=0, ownCriticalCharge=0, enemyCritical=0, enemyMaxCharge=0, enemyTwo=0, enemyCount=0, ownAdj=0, emptyAdj=0;
-                for(const n of neighbors){const c=before[n];if(c.owner===me){ownAdj++;if(c.count>=3){ownCritical++;ownCriticalCharge+=c.count;}}else if(c.owner===null)emptyAdj++;else{enemyCount++;enemyMaxCharge=Math.max(enemyMaxCharge,c.count);if(c.count>=3)enemyCritical++;if(c.count===2)enemyTwo++;}}
-                let criticalLinks=0, linkedEnemyCriticalCharge=0;
-                for(let i=0;i<before.length;i++){
-                    if(before[i].owner!==me||before[i].count<3)continue;
-                    for(const n of this.neighborsMap[i]){const c=before[n];if(c.owner!==me&&c.owner!==null&&c.count>=3){criticalLinks++;linkedEnemyCriticalCharge+=c.count;}}
-                }
-                const hasCriticalLink=criticalLinks>0;
-                const twoPlayerPosition=this.activePlayers.length===2;
-                let score=0;
-                if(willExplode){
-                    const after=this.cloneSearchState(state);this.simulateSearchMove(after,idx);
-                    const pre={},post={};for(const c of before)if(c.owner!==null)pre[c.owner]=(pre[c.owner]||0)+1;for(const c of after.cells)if(c.owner!==null)post[c.owner]=(post[c.owner]||0)+1;
-                    score+=((post[me]||0)-(pre[me]||0))*18;
-                    for(const p of this.activePlayers)if(p!==me)score+=((pre[p]||0)-(post[p]||0))*26;
-                    if(this.activePlayers.some(p=>p!==me&&this.hasEntered[p]&&!after.cells.some(c=>c.owner===p)))score+=500000;
-                    score+=enemyCount*30+enemyCritical*90+emptyAdj*0.4;
-                    if(twoPlayerPosition&&hasCriticalLink)score+=280+12*linkedEnemyCriticalCharge;
-                    else if(!twoPlayerPosition&&ownCritical>0)score+=280+14*ownCriticalCharge;
-                } else {
-                    if(enemyCritical){score-=95+24*nextCharge+18*enemyMaxCharge;if(nextCharge===3)score+=250+95*ownCritical;}
-                    if(nextCharge===3&&enemyTwo)score-=105*enemyTwo;
-                    if(nextCharge===3&&enemyCount)score-=30*enemyCount;
-                    if(nextCharge===3&&!enemyCount)score+=22+4*ownCritical;
-                    if(twoPlayerPosition&&hasCriticalLink)score-=290+12*linkedEnemyCriticalCharge;
-                    else if(!twoPlayerPosition&&ownCritical>0)score-=290+12*ownCriticalCharge;
-                    score+=nextCharge*0.5+(4-nextCharge)*2.5+ownAdj+emptyAdj*0.25-enemyCount*2;
-                    const total=before.filter(c=>c.owner!==null).length;
-                    if(total<=8){const edge=this.boardSize-1, towardCoordinate=this.activePlayers.indexOf(me)===0?move.r+move.c:2*edge-move.r-move.c;score+=Math.max(0,Math.floor(this.boardSize/2)-towardCoordinate)*2.5;}
-                    if(total>=30&&nextCharge===3)score-=8;
-                }
-                return score;
-            }
-
-            driveEvaluationVector(state) {
-                const players=this.activePlayers, scores={};
-                const countColors={};for(const p of players)countColors[p]=0;for(const c of state.cells)if(c.owner!==null)countColors[c.owner]=(countColors[c.owner]||0)+1;
-                const captureStats=(player)=>{
-                    const values=[];
-                    for(let i=0;i<state.cells.length;i++){const c=state.cells[i];if(c.owner!==player||c.count<3)continue;const child=this.cloneSearchState(state);child.turn=player;this.simulateSearchMove(child,i);let ownAfter=0,oppBefore=0,oppAfter=0;for(const x of state.cells){if(x.owner===player){}else if(x.owner!==null)oppBefore++;}for(const x of child.cells){if(x.owner===player)ownAfter++;else if(x.owner!==null)oppAfter++;}let value=(ownAfter-(countColors[player]||0))+(oppBefore-oppAfter)*1.4;if(players.some(p=>p!==player&&state.hasEntered[p]&&!child.cells.some(x=>x.owner===p)))value=1e6;values.push(value);}
-                    values.sort((a,b)=>b-a);return [values[0]||0,values[1]||0];
-                };
-                const maxComponent=(player)=>{const seen=new Set();let best=0;for(let i=0;i<state.cells.length;i++){if(seen.has(i)||state.cells[i].owner!==player)continue;let size=0,q=[i];seen.add(i);while(q.length){const x=q.pop();size++;for(const n of this.neighborsMap[x])if(!seen.has(n)&&state.cells[n].owner===player){seen.add(n);q.push(n);}}best=Math.max(best,size);}return best;};
-                for(const player of players){
-                    if(state.eliminated[player]){scores[player]=-999999;continue;}
-                    let charge=0,critical=0,oneAway=0,potential=0;
-                    for(const c of state.cells)if(c.owner===player){charge+=c.count;if(c.count>=3)critical++;else if(c.count===2)oneAway++;potential+=Math.max(0,(4-c.count)*1.5);}
-                    const enemy=players.filter(p=>p!==player&&!state.eliminated[p]),enemyCharge=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p).reduce((a,c)=>a+c.count,0))),enemyCritical=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p&&c.count>=3).length)),enemyOne=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p&&c.count===2).length)),enemyPotential=Math.max(0,...enemy.map(p=>state.cells.filter(c=>c.owner===p).reduce((a,c)=>a+Math.max(0,(4-c.count)*1.5),0))),enemyComp=Math.max(0,...enemy.map(p=>maxComponent(p)));
-                    const [best,second]=captureStats(player);let enemyBest=0,enemySecond=0;for(const p of enemy){const [b,s]=captureStats(p);if(b>enemyBest){enemySecond=enemyBest;enemyBest=b;}else enemySecond=Math.max(enemySecond,s);}
-                    let score=(charge-enemyCharge)*4+(critical-enemyCritical)*18+(oneAway-enemyOne)*6+(potential-enemyPotential)+ (maxComponent(player)-enemyComp)*3;
-                    score+=state.turn===player?(players.length===2?best*18:best)-12*enemyBest:best*12-enemyBest*18;
-                    score+=(second-enemySecond)*4;score+=state.turn===player?5:-5;
-                    scores[player]=score;
-                }
-                return scores;
-            }
-            driveEvaluationScalar(state,player) {
-                const scores=this.driveEvaluationVector(state),foes=this.activePlayers.filter(p=>p!==player&&!state.eliminated[p]);
-                if(this.activePlayers.length===2)return scores[player]??-999999;
-                const opponent=foes.length?Math.max(...foes.map(p=>scores[p]??-999999)):0;
-                return (scores[player]??-999999)-opponent;
-            }
             findCriticalThreatMove(validMoves) {
-                let best=null,value=-Infinity;
-                for(const move of validMoves){const score=this.driveMovePriority(move,{cells:this.cells,hasEntered:this.hasEntered,eliminated:this.eliminated,turn:this.currentPlayer});if(score>value){value=score;best=move;}}
-                return best;
+                for (let m of validMoves) {
+                    const idx = m.r * this.boardSize + m.c;
+                    for (let n of this.neighborsMap[idx]) {
+                        if (this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer && this.cells[n].count === 3) return m;
+                    }
+                }
+                return null;
             }
-            evaluateMovePriority(move) { return this.driveMovePriority(move,{cells:this.cells,hasEntered:this.hasEntered,eliminated:this.eliminated,turn:this.currentPlayer}); }
 
+            evaluateMovePriority(move) {
+                const idx = move.r * this.boardSize + move.c;
+                let prio = 0;
+                this.neighborsMap[idx].forEach(n => {
+                    if (this.cells[n].owner !== null && this.cells[n].owner !== this.currentPlayer && this.cells[n].count === 3) prio += 3000;
+                });
+                return prio + this.cells[idx].count * 100;
+            }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -1478,7 +1124,6 @@
 
             board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(null).map(() => ({ owner: null, count: 0 })));
             hasEntered = Array(MAX_PLAYERS).fill(false);
-            moveCounts = Array(MAX_PLAYERS).fill(0);
             eliminated = Array(MAX_PLAYERS).fill(false);
             emphasizedCells.clear();
             currentPlayer = firstPlayer;
@@ -1772,14 +1417,12 @@
             const preMoveSnapshot = {
                 board: board.map(r => r.map(c => ({ ...c }))),
                 hasEntered: [...hasEntered],
-                moveCounts: [...moveCounts],
                 eliminated: [...eliminated]
             };
 
             const rollback = () => {
                 board = preMoveSnapshot.board;
                 hasEntered = preMoveSnapshot.hasEntered;
-                moveCounts = preMoveSnapshot.moveCounts;
                 eliminated = preMoveSnapshot.eliminated;
                 emphasizedCells.clear();
                 const container = document.getElementById('board-container');
@@ -1792,7 +1435,6 @@
 
             const isFirst = !hasEntered[player];
             hasEntered[player] = true;
-            moveCounts[player] = (Number(moveCounts[player]) || 0) + 1;
             const addCount = isFirst ? 3 : 1;
             board[row][col].owner = player;
             board[row][col].count += addCount;
@@ -1928,7 +1570,7 @@
                 aiTimerId = setTimeout(async () => {
                     try {
                         if (signal.aborted || !isInGame) return;
-                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, currentRoomId || '', moveCounts);
+                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
                             if (currentRoomId) {
@@ -2309,8 +1951,6 @@
                         }
                         board = nextBoard;
                         if (Array.isArray(packet.hasEnteredSnapshot)) hasEntered = [...packet.hasEnteredSnapshot];
-                        if (Array.isArray(packet.moveCountsSnapshot)) moveCounts = [...packet.moveCountsSnapshot];
-                        else moveCounts = hasEntered.map(value => value ? 1 : 0);
                         if (Array.isArray(packet.eliminatedSnapshot)) eliminated = [...packet.eliminatedSnapshot];
                         if (Number.isInteger(packet.currentTurnIndex)) currentPlayer = packet.currentTurnIndex;
                         pendingOnlineMove = false;
@@ -2422,7 +2062,6 @@
                 compactBoardSnapshot,
                 currentTurnIndex: currentPlayer,
                 hasEnteredSnapshot: [...hasEntered],
-                moveCountsSnapshot: [...moveCounts],
                 eliminatedSnapshot: [...eliminated]
             });
         }
