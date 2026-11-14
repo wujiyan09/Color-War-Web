@@ -647,6 +647,8 @@
     </div>
 
     <script type="module">
+        import { chooseDriveDuelMove } from "./drive-duel-ai.js";
+
         const DEFAULT_WEBSOCKET_SERVER_URL = 'https://colorwar-server.wujiyan2009.workers.dev';
 
         const MAX_PLAYERS = 8;
@@ -682,6 +684,7 @@
         let snapshotSeq = 0;
 
         let isInGame = false;
+        let isDuelGame = false;
 
         let currentRoomId = null;
         let myPlayerIndex = 0;
@@ -745,7 +748,7 @@
         });
 
         class AISolver {
-            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated) {
+            constructor(boardSize, activePlayers, currentPlayer, playerType, aiLevel, boardGrid, hasEntered, eliminated, isLocalDuel = false) {
                 this.boardSize = boardSize;
                 this.activePlayers = activePlayers;
                 this.currentPlayer = currentPlayer;
@@ -753,6 +756,7 @@
                 this.aiLevel = aiLevel;
                 this.hasEntered = [...hasEntered];
                 this.eliminated = [...eliminated];
+                this.isLocalDuel = isLocalDuel;
                 this.cells = [];
 
                 for (let r = 0; r < boardSize; r++) {
@@ -863,6 +867,16 @@
             }
 
             calculateBestMove(signal) {
+                if (this.isLocalDuel) {
+                    const grid = Array.from({ length: this.boardSize }, (_, r) =>
+                        this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
+                    );
+                    const driveMove = chooseDriveDuelMove({
+                        board: grid, activePlayers: this.activePlayers, currentPlayer: this.currentPlayer,
+                        hasEntered: this.hasEntered, difficulty: this.aiLevel, signal
+                    });
+                    return driveMove ? { r: driveMove.r, c: driveMove.c } : null;
+                }
                 const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
                 if (validMoves.length === 0) return null;
 
@@ -1038,6 +1052,7 @@
         function startDuelGame() {
             playerTypes = [...duelPlayerTypes, ...Array(MAX_PLAYERS - duelPlayerTypes.length).fill('disabled')];
             const active = getActivePlayers();
+            isDuelGame = true;
             isRandomFirst = document.getElementById('random-first-toggle').checked;
             if (isRandomFirst) runRandomWheel(active, (selected) => initBoard(selected));
             else initBoard(active[0]);
@@ -1137,6 +1152,7 @@
         }
 
         function startLocalGame() {
+            isDuelGame = false;
             const active = getActivePlayers();
             if (active.length < 2) { alert("至少需要 2 名玩家！"); return; }
             isRandomFirst = document.getElementById('random-first-toggle').checked;
@@ -1715,7 +1731,7 @@
                 aiTimerId = setTimeout(async () => {
                     try {
                         if (signal.aborted || !isInGame) return;
-                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated);
+                        const solver = new AISolver(boardSize, getActivePlayers(), currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, isDuelGame && !currentRoomId);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
                             if (currentRoomId) {
