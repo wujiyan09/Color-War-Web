@@ -16,13 +16,17 @@ function grid(size = 5, occupied = null) {
   })));
 }
 
-function solver({ active = [0, 1], current = 0, entered = [false, false], eliminated = [false, false], cells = grid() } = {}) {
-  return new AISolver(cells.length, active, current, "mathNightmare", 1, cells, entered, eliminated);
+function solver({ active = [0, 1], current = 0, entered = [false, false], eliminated = [false, false], cells = grid(), playerType = "mathNightmare", level = 1 } = {}) {
+  return new AISolver(cells.length, active, current, playerType, level, cells, entered, eliminated);
 }
 
-test("pre-Drive two-player opening keeps the legacy opening selector", () => {
-  const ai = solver();
-  assert.deepEqual(ai.calculateBestMove(), { r: 2, c: 2 });
+test("all four difficulty levels and both AI variants use the legacy two-player opening", () => {
+  for (const playerType of ["mathNightmare", "enhancedNightmare"]) {
+    for (const level of [1, 2, 3, 4]) {
+      const ai = solver({ playerType, level });
+      assert.deepEqual(ai.calculateBestMove(), { r: 2, c: 2 }, `${playerType}, level ${level}`);
+    }
+  }
   assert.equal(html.includes("driveOpeningMove"), false);
   assert.equal(html.includes("driveMovePriority"), false);
 });
