@@ -81,18 +81,21 @@ test("online AI is host-added in the lobby and the server keeps occupied seats l
   assert.match(ai, /syncRoomSettingsToCloud\(\)/);
 });
 
-test("online cascade restores the pre-request visual impact and flight", () => {
-  const flying = section("function createFlyingOrbAnimation(", "function createCascadeImpactAnimation(");
-  assert.match(flying, /Math\.max\(14, fromRect\.width \* 0\.56\)/);
-  assert.match(flying, /duration: 500, easing: 'cubic-bezier\(0\.2, 0\.75, 0\.25, 1\)'/);
-  assert.match(flying, /scale\(1\.18\)/);
-  assert.match(html, /\.cell\.emphasized\s*\{[^}]*box-shadow: 0 0 14px var\(--accent-cyan\)/s);
-  assert.match(html, /\.cascade-burst\s*\{/);
-  assert.match(html, /function createCascadeImpactAnimation\(/);
+test("online cascade matches the restrained iOS piece animation", () => {
+  const flying = section("function createFlyingOrbAnimation(", "async function executeMove(");
+  assert.match(flying, /Math\.max\(8, fromRect\.width \* 0\.40\)/);
+  assert.match(flying, /borderWidth = `\$\{Math\.max\(0\.5, size \* 0\.04\)\}px`/);
+  assert.match(flying, /flying-orb-dot/);
+  assert.doesNotMatch(flying, /scale\(1\.18\)|opacity: 0|duration: 500/);
+  assert.match(html, /transition: left 160ms ease-out, top 160ms ease-out/);
+  assert.match(html, /\.cell\.emphasized \.piece \{ transform: scale\(1\.09\); \}/);
+  assert.doesNotMatch(html, /\.cascade-burst\s*\{|function createCascadeBurstAnimation|function createCascadeImpactAnimation/);
   const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
-  assert.match(move, /createCascadeBurstAnimation\(/);
-  assert.match(move, /await sleep\(500\)/);
-  assert.match(move, /createCascadeImpactAnimation\(/);
+  assert.match(move, /await sleep\(210\)/);
+  assert.match(move, /await sleep\(85\)/);
+  assert.match(move, /await sleep\(30\);\s*startFlights\.forEach\(startFlight => startFlight\(\)\);\s*await sleep\(165\)/);
+  assert.match(move, /await sleep\(120\)/);
+  assert.doesNotMatch(move, /sleep\(500\)|createCascadeBurstAnimation|createCascadeImpactAnimation/);
   assert.match(move, /if \(currentRoomId && isHost\) syncFullSnapshotToCloud\(\)/);
 });
 

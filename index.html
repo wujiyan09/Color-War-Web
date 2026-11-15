@@ -267,16 +267,6 @@
             pointer-events: none;
         }
 
-        .cascade-burst {
-            position: absolute;
-            z-index: 1001;
-            border: 3px solid rgba(255, 255, 255, 0.96);
-            border-radius: 50%;
-            box-sizing: border-box;
-            pointer-events: none;
-            will-change: transform, opacity;
-        }
-
         .side-players {
             display: flex;
             flex-direction: column;
@@ -291,7 +281,7 @@
             align-items: center;
             font-size: 0.65rem;
             font-weight: 700;
-            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
             opacity: 1;
         }
 
@@ -346,10 +336,7 @@
             z-index: 2;
         }
 
-        .cell.emphasized {
-            box-shadow: 0 0 14px var(--accent-cyan);
-            border-color: var(--accent-cyan);
-        }
+        .cell.emphasized .piece { transform: scale(1.09); }
 
         /* 棋子渲染 CSS */
         .piece {
@@ -359,7 +346,7 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 3px 10px rgba(0,0,0,0.5);
-            transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
             box-sizing: border-box;
             overflow: visible;
         }
@@ -402,19 +389,28 @@
             position: absolute;
             border-radius: 50%;
             border: 1.5px solid #ffffff;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 4px 12px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 1000;
             box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: left 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                        top 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                        transform 0.24s ease-out,
-                        opacity 0.24s ease-out;
-            transform: scale(0.75);
-            opacity: 1;
+            transition: left 160ms ease-out, top 160ms ease-out;
+        }
+
+        .flying-orb-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border-radius: 50%;
+            background: #ffffff;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .flying-orb-dot.emoji-dot {
+            border: 1px solid rgba(0, 0, 0, 0.65);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
         }
 
         .overlay {
@@ -1462,58 +1458,11 @@
             }
         }
 
-        function createCascadeBurstAnimation(row, col, pColor) {
-            const container = document.getElementById('board-container');
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            if (!container || !cell) return;
-
-            let animationLayer = document.getElementById('board-animation-layer');
-            if (!animationLayer) {
-                animationLayer = document.createElement('div');
-                animationLayer.id = 'board-animation-layer';
-                animationLayer.className = 'board-animation-layer';
-                container.appendChild(animationLayer);
-            }
-
-            const cellRect = cell.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const size = Math.max(24, cellRect.width * 0.78);
-            const burst = document.createElement('div');
-            burst.className = 'cascade-burst';
-            burst.style.width = `${size}px`;
-            burst.style.height = `${size}px`;
-            burst.style.left = `${cellRect.left - containerRect.left + (cellRect.width - size) / 2}px`;
-            burst.style.top = `${cellRect.top - containerRect.top + (cellRect.height - size) / 2}px`;
-            burst.style.borderColor = hexToRgbA(pColor, 0.98);
-            burst.style.background = `radial-gradient(circle, ${hexToRgbA(pColor, 0.58)} 0%, ${hexToRgbA(pColor, 0.08)} 55%, transparent 76%)`;
-            burst.style.boxShadow = `0 0 22px ${hexToRgbA(pColor, 0.95)}, inset 0 0 12px ${hexToRgbA(pColor, 0.72)}`;
-            animationLayer.appendChild(burst);
-
-            if (typeof burst.animate === 'function') {
-                const animation = burst.animate([
-                    { transform: 'scale(0.28)', opacity: 0.98 },
-                    { transform: 'scale(1.15)', opacity: 0.88, offset: 0.48 },
-                    { transform: 'scale(2.05)', opacity: 0 }
-                ], { duration: 500, easing: 'cubic-bezier(0.16, 0.72, 0.25, 1)' });
-                animation.onfinish = () => burst.remove();
-            } else {
-                burst.style.transform = 'scale(0.28)';
-                burst.style.opacity = '0.98';
-                void burst.offsetWidth;
-                burst.style.transition = 'transform 500ms ease-out, opacity 500ms ease-out';
-                requestAnimationFrame(() => {
-                    burst.style.transform = 'scale(2.05)';
-                    burst.style.opacity = '0';
-                });
-                setTimeout(() => burst.remove(), 540);
-            }
-        }
-
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
             const toEl = document.getElementById(`cell-${toR}-${toC}`);
-            if (!fromEl || !toEl || !container) return;
+            if (!fromEl || !toEl || !container) return null;
 
             let animationLayer = document.getElementById('board-animation-layer');
             if (!animationLayer) {
@@ -1526,61 +1475,47 @@
             const fromRect = fromEl.getBoundingClientRect();
             const toRect = toEl.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-            const size = Math.max(14, fromRect.width * 0.56);
+            const size = Math.max(8, fromRect.width * 0.40);
             const fromLeft = fromRect.left - containerRect.left + (fromRect.width - size) / 2;
             const fromTop = fromRect.top - containerRect.top + (fromRect.height - size) / 2;
             const toLeft = toRect.left - containerRect.left + (toRect.width - size) / 2;
             const toTop = toRect.top - containerRect.top + (toRect.height - size) / 2;
-            const dx = toLeft - fromLeft;
-            const dy = toTop - fromTop;
-            const isEmoji = Boolean(pEmoji && pEmoji.trim() !== "");
+            const isEmoji = Boolean(pEmoji && pEmoji.trim() !== '');
 
             const orb = document.createElement('div');
             orb.className = 'flying-orb';
             orb.style.width = `${size}px`;
             orb.style.height = `${size}px`;
+            orb.style.borderWidth = `${Math.max(0.5, size * 0.04)}px`;
             orb.style.left = `${fromLeft}px`;
             orb.style.top = `${fromTop}px`;
+            orb.style.background = isEmoji
+                ? hexToRgbA(pColor, 0.25)
+                : `linear-gradient(135deg, ${hexToRgbA(pColor, 0.95)}, ${hexToRgbA(pColor, 0.65)})`;
+
             if (isEmoji) {
-                orb.style.background = hexToRgbA(pColor, 0.25);
-                orb.innerHTML = `<span style="font-size:${size * 0.7}px; line-height:1;">${escapeHTML(pEmoji)}</span>`;
-            } else {
-                orb.style.background = `linear-gradient(135deg, ${pColor}, ${hexToRgbA(pColor, 0.65)})`;
+                const emoji = document.createElement('span');
+                emoji.style.fontSize = `${size * 0.70}px`;
+                emoji.style.lineHeight = '1';
+                emoji.style.zIndex = '1';
+                emoji.innerText = pEmoji;
+                orb.appendChild(emoji);
             }
+
+            const dot = document.createElement('span');
+            dot.className = `flying-orb-dot ${isEmoji ? 'emoji-dot' : ''}`;
+            const dotSize = size * 0.16;
+            dot.style.width = `${dotSize}px`;
+            dot.style.height = `${dotSize}px`;
+            orb.appendChild(dot);
             animationLayer.appendChild(orb);
+            // Ensure the source position is painted before the CSS 160ms ease-out flight.
+            void orb.offsetWidth;
 
-            // Use explicit keyframes: a newly inserted element can otherwise have its
-            // start/end CSS positions coalesced before the first paint on remote clients.
-            if (typeof orb.animate === 'function') {
-                const flight = orb.animate([
-                    { transform: 'translate3d(0, 0, 0) scale(0.68)', opacity: 1, offset: 0 },
-                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(1.18)`, opacity: 1, offset: 0.76 },
-                    { transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.82)`, opacity: 0, offset: 1 }
-                ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
-                flight.onfinish = () => orb.remove();
-            } else {
-                // Older WebKit fallback: force the source frame to be laid out before moving it.
-                void orb.offsetWidth;
-                orb.style.transition = 'left 500ms cubic-bezier(0.2, 0.75, 0.25, 1), top 500ms cubic-bezier(0.2, 0.75, 0.25, 1), transform 500ms ease, opacity 500ms ease';
-                requestAnimationFrame(() => {
-                    orb.style.left = `${toLeft}px`;
-                    orb.style.top = `${toTop}px`;
-                    orb.style.transform = 'scale(1.18)';
-                });
-                setTimeout(() => { orb.style.opacity = '0'; orb.style.transform = 'scale(0.82)'; }, 360);
-                setTimeout(() => orb.remove(), 530);
-            }
-        }
-
-        function createCascadeImpactAnimation(row, col, pColor) {
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            if (!cell || typeof cell.animate !== 'function') return;
-            const glow = hexToRgbA(pColor, 0.98);
-            cell.animate([
-                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
-                { transform: 'scale(1.2)', filter: 'brightness(2.1)', boxShadow: `0 0 28px ${glow}` },
-                { transform: 'scale(1)', filter: 'brightness(1)', boxShadow: '0 0 0 rgba(255,255,255,0)' }
-            ], { duration: 500, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' });
+            return () => {
+                orb.style.left = `${toLeft}px`;
+                orb.style.top = `${toTop}px`;
+            };
         }
 
         async function executeMove(row, col, player, signal = null) {
@@ -1627,7 +1562,6 @@
 
                 emphasizedCells = new Set(exploding.map(([r, c]) => r * boardSize + c));
                 updateBoardCellsDOM();
-                exploding.forEach(([r, c]) => createCascadeBurstAnimation(r, c, playerColors[player]));
                 await sleep(85);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
@@ -1638,9 +1572,9 @@
                         transfers.push({ fromR: r, fromC: c, toR: nr, toC: nc });
                     }
                 }));
-                transfers.forEach(({ fromR, fromC, toR, toC }) =>
+                const startFlights = transfers.map(({ fromR, fromC, toR, toC }) =>
                     createFlyingOrbAnimation(fromR, fromC, toR, toC, playerColors[player], playerEmojis[player])
-                );
+                ).filter(Boolean);
 
                 exploding.forEach(([r, c]) => {
                     board[r][c].count -= 4;
@@ -1648,7 +1582,9 @@
                 });
                 updateBoardCellsDOM();
 
-                await sleep(500);
+                await sleep(30);
+                startFlights.forEach(startFlight => startFlight());
+                await sleep(165);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
                 const changed = new Set();
@@ -1659,7 +1595,6 @@
                 });
                 emphasizedCells = changed;
                 updateBoardCellsDOM();
-                transfers.forEach(({ toR, toC }) => createCascadeImpactAnimation(toR, toC, playerColors[player]));
                 await sleep(120);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 
