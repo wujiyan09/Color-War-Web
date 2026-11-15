@@ -42,3 +42,11 @@ test("multiplayer random-first and difficulty controls remain available", () => 
   assert.match(html, /id="ai-level-slider"/);
   assert.match(html, /function startLocalGame\(\)[\s\S]*?runRandomWheel\(active, \(selected\) => initBoard\(selected\)\)/);
 });
+
+
+test("duel role-switch buttons trigger guarded vibration feedback", () => {
+  const haptics = between("const Haptics = {", "// Roster names/emojis");
+  assert.match(haptics, /light\(\) \{ if \(typeof navigator !== 'undefined' && typeof navigator\.vibrate === 'function'\) navigator\.vibrate\(12\); \}/);
+  const cards = between("function renderDuelPlayerCards()", "function startDuelGame()");
+  assert.match(cards, /card\.onclick = \(\) => \{[\s\S]*?Haptics\.light\(\);[\s\S]*?duelPlayerTypes\[index\] =/);
+});

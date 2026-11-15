@@ -707,8 +707,8 @@
         let hostRecoveryPending = false;
 
         const Haptics = {
-            light() { if (navigator.vibrate) navigator.vibrate(12); },
-            heavy() { if (navigator.vibrate) navigator.vibrate([30, 20, 50]); }
+            light() { if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(12); },
+            heavy() { if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate([30, 20, 50]); }
         };
 
         // Roster names/emojis come from other room participants; escape them before HTML templates.
@@ -1045,6 +1045,7 @@
             container.querySelectorAll('.duel-player-card').forEach(card => {
                 card.onclick = () => {
                     const index = Number(card.dataset.playerIndex);
+                    Haptics.light();
                     duelPlayerTypes[index] = duelPlayerTypes[index] === 'human' ? 'mathNightmare' : 'human';
                     renderDuelPlayerCards();
                 };
