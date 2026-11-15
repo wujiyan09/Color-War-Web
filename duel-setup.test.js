@@ -50,3 +50,16 @@ test("duel role-switch buttons trigger guarded vibration feedback", () => {
   const cards = between("function renderDuelPlayerCards()", "function startDuelGame()");
   assert.match(cards, /card\.onclick = \(\) => \{[\s\S]*?Haptics\.light\(\);[\s\S]*?duelPlayerTypes\[index\] =/);
 });
+
+test("duel board-size slider offers only 6, 9, and 12 while other modes remain unchanged", () => {
+  assert.match(html, /id="duel-board-size-slider" min="6" max="12" step="3" value="9"/);
+  assert.match(html, /const DUEL_BOARD_SIZES = \[6, 9, 12\]/);
+  assert.match(html, /function nearestDuelBoardSize\(size\)/);
+  const duelInput = between("document.getElementById('duel-board-size-slider').oninput", "document.getElementById('board-size-slider').oninput");
+  assert.match(duelInput, /nearestDuelBoardSize\(parseInt\(e\.target\.value, 10\)\)/);
+  assert.match(duelInput, /e\.target\.value = boardSize/);
+  const modeSwitch = between("function switchModeTab(mode)", "function syncBoardSizeControls()");
+  assert.match(modeSwitch, /if \(mode === 'duel'\) boardSize = nearestDuelBoardSize\(boardSize\)/);
+  assert.match(html, /id="board-size-slider" min="5" max="12" value="8"/);
+  assert.match(html, /id="online-board-size-slider" min="5" max="12" value="8"/);
+});

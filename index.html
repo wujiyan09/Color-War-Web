@@ -497,7 +497,7 @@
                     <div class="setting-row">
                         <span>网格尺寸: <b id="duel-board-size-label">8 × 8</b></span>
                     </div>
-                    <input type="range" id="duel-board-size-slider" min="5" max="12" value="8">
+                    <input type="range" id="duel-board-size-slider" min="6" max="12" step="3" value="9">
                 </div>
                 <div class="duel-player-cards" id="duel-player-cards"></div>
                 <button id="btn-start-duel" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
@@ -659,7 +659,15 @@
             4: "深度 6-8 层 | 全局链图+极限推理"
         };
 
+        const DUEL_BOARD_SIZES = [6, 9, 12];
         let boardSize = 8;
+
+        function nearestDuelBoardSize(size) {
+            return DUEL_BOARD_SIZES.reduce((nearest, candidate) =>
+                Math.abs(candidate - size) < Math.abs(nearest - size) ? candidate : nearest,
+                DUEL_BOARD_SIZES[0]
+            );
+        }
         let isRandomFirst = true;
         let aiLevel = 2;
         let playerNames = [...DEFAULT_NAMES];
@@ -927,7 +935,8 @@
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
             
             document.getElementById('duel-board-size-slider').oninput = (e) => {
-                boardSize = parseInt(e.target.value);
+                boardSize = nearestDuelBoardSize(parseInt(e.target.value, 10));
+                e.target.value = boardSize;
                 syncBoardSizeControls();
             };
 
@@ -979,6 +988,7 @@
             };
 
             renderEmojiGrid();
+            switchModeTab('duel');
         });
 
         function handleBackgroundUpload(e) {
@@ -1005,6 +1015,7 @@
         }
 
         function switchModeTab(mode) {
+            if (mode === 'duel') boardSize = nearestDuelBoardSize(boardSize);
             document.getElementById('tab-duel').classList.toggle('active', mode === 'duel');
             document.getElementById('tab-multiplayer').classList.toggle('active', mode === 'multiplayer');
             document.getElementById('tab-online').classList.toggle('active', mode === 'online');
