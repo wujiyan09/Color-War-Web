@@ -1458,6 +1458,11 @@
             }
         }
 
+        function removeFlyingOrbAnimations() {
+            const container = document.getElementById('board-container');
+            if (container) container.querySelectorAll('.flying-orb').forEach(orb => orb.remove());
+        }
+
         function createFlyingOrbAnimation(fromR, fromC, toR, toC, pColor, pEmoji) {
             const container = document.getElementById('board-container');
             const fromEl = document.getElementById(`cell-${fromR}-${fromC}`);
@@ -1533,8 +1538,7 @@
                 hasEntered = preMoveSnapshot.hasEntered;
                 eliminated = preMoveSnapshot.eliminated;
                 emphasizedCells.clear();
-                const container = document.getElementById('board-container');
-                if (container) container.querySelectorAll('.flying-orb').forEach(el => el.remove());
+                removeFlyingOrbAnimations();
                 updateBoardCellsDOM();
                 updateTurnHeader();
                 isProcessingCascade = false;
@@ -1595,6 +1599,9 @@
                 });
                 emphasizedCells = changed;
                 updateBoardCellsDOM();
+                // The destination pieces now contain the landed counts; remove flight overlays
+                // immediately so they cannot cover the new pieces' dots.
+                removeFlyingOrbAnimations();
                 await sleep(120);
                 if (signal?.aborted || !isInGame) { rollback(); return false; }
 

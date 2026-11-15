@@ -116,3 +116,29 @@ test("network loss keeps the current room and retries, while authoritative snaps
   const queue = section("async function drainOnlinePacketQueue()", "function syncRoomSettingsToCloud()");
   assert.match(queue, /已恢复并同步棋局/);
 });
+
+test("flying overlays are removed as soon as destination pieces settle", () => {
+  const helperSource = section("function removeFlyingOrbAnimations()", "function createFlyingOrbAnimation(");
+  const helper = new Function("document", `${helperSource}; return removeFlyingOrbAnimations;`);
+  let removed = 0;
+  const document = {
+    getElementById: id => {
+      assert.equal(id, "board-container");
+      return { querySelectorAll: selector => {
+        assert.equal(selector, ".flying-orb");
+        return [{ remove: () => removed++ }, { remove: () => removed++ }];
+      } };
+    }
+  };
+  helper(document)();
+  assert.equal(removed, 2, "every in-flight overlay is removed");
+
+  const move = section("async function executeMove(row, col, player", "function updateEliminationStatus()");
+  const landed = move.indexOf("emphasizedCells = changed;");
+  const boardRendered = move.indexOf("updateBoardCellsDOM();", landed);
+  const overlaysRemoved = move.indexOf("removeFlyingOrbAnimations();", boardRendered);
+  const postLandingPause = move.indexOf("await sleep(120);", overlaysRemoved);
+  assert.ok(landed >= 0 && boardRendered > landed && overlaysRemoved > boardRendered && postLandingPause > overlaysRemoved,
+    "flight overlays are cleared immediately after rendering the landed destination pieces");
+  assert.match(move, /rollback = \(\) => \{[\s\S]*?removeFlyingOrbAnimations\(\);/);
+});
