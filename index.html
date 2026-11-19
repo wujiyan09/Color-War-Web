@@ -1502,6 +1502,19 @@
                         const ownerEmoji = playerEmojis[cellData.owner];
                         const isEmojiPiece = Boolean(ownerEmoji && ownerEmoji.trim() !== "");
 
+                        paintPiece(cellEl, rawColor, ownerEmoji, cellData.count, pieceSize);
+                    } else if (piece) {
+                        piece.remove();
+                    }
+                }
+            }
+            renderSidePlayers();
+        }
+
+        // Shared piece renderer (iOS PieceView): used by the game board and the analyzer.
+        function paintPiece(cellEl, rawColor, ownerEmoji, count, pieceSize) {
+            const isEmojiPiece = Boolean(ownerEmoji && ownerEmoji.trim() !== "");
+            let piece = cellEl.querySelector('.piece');
                         if (!piece) {
                             piece = document.createElement('div');
                             cellEl.appendChild(piece);
@@ -1537,13 +1550,8 @@
                             dotContainer.className = 'dot-container';
                             piece.appendChild(dotContainer);
                         }
-                        syncDotsDOM(dotContainer, cellData.count, pieceSize, isEmojiPiece);
-                    } else if (piece) {
-                        piece.remove();
-                    }
-                }
-            }
-            renderSidePlayers();
+                        syncDotsDOM(dotContainer, count, pieceSize, isEmojiPiece);
+            return piece;
         }
 
         function syncDotsDOM(container, count, pieceSize, isEmoji) {
@@ -2619,10 +2627,13 @@
             let html = '';
             for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
                 const cell = AN.board[r][c], idx = r * n + c;
-                const piece = cell.count > 0 ? `<div class="an-piece" style="background:${cell.owner === 0 ? '#FF453A' : '#0A84FF'}">${'<i></i>'.repeat(Math.min(cell.count, 4))}</div>` : '';
-                html += `<div class="an-cell${idx === AN.hl ? ' hl' : ''}" data-r="${r}" data-c="${c}" style="width:${side}px; height:${side}px;">${piece}</div>`;
+                html += `<div class="an-cell${idx === AN.hl ? ' hl' : ''}" data-r="${r}" data-c="${c}" style="width:${side}px; height:${side}px;"></div>`;
             }
             boardEl.innerHTML = html;
+            boardEl.querySelectorAll('.an-cell').forEach(el => {
+                const cell = AN.board[Number(el.dataset.r)][Number(el.dataset.c)];
+                if (cell.count > 0 && cell.owner !== null) paintPiece(el, cell.owner === 0 ? DEFAULT_COLORS[0] : DEFAULT_COLORS[1], null, cell.count, side * 0.76);
+            });
             boardEl.querySelectorAll('.an-cell').forEach(el => el.onclick = () => anTap(Number(el.dataset.r), Number(el.dataset.c)));
             const locked = AN.started && !AN.paused;
             const rows = document.getElementById('an-brush-rows');
