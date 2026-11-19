@@ -43,9 +43,9 @@ test("each client animates chain-reaction transfers and host publishes only the 
 test("player roles are read-only in connected rooms and control panel", () => {
   const lobby = section("function renderPlayerList(", "function renderEmojiGrid()");
   assert.match(lobby, /const roleLocked = Boolean\(currentRoomId\)/);
-  assert.match(lobby, /roleLocked[\s\S]*?WIRE_PLAYER_TYPES\[playerTypes\[i\]\][\s\S]*?p-type-\$\{i\}/);
+  assert.match(lobby, /roleLocked[\s\S]*?DISPLAY_TYPE_NAMES\[playerTypes\[i\]\][\s\S]*?p-type-\$\{i\}/);
   const modal = section("function openControlPanelModal()", "const WIRE_PLAYER_TYPES =");
-  assert.match(modal, /currentRoomId \|\| isLocalTwoPlayerDuel[\s\S]*?WIRE_PLAYER_TYPES\[playerTypes\[p\]\][\s\S]*?if \(!currentRoomId && !isLocalTwoPlayerDuel\)/);
+  assert.match(modal, /currentRoomId \|\| isLocalTwoPlayerDuel[\s\S]*?DISPLAY_TYPE_NAMES\[playerTypes\[p\]\][\s\S]*?if \(!currentRoomId && !isLocalTwoPlayerDuel\)/);
 });
 
 
@@ -57,7 +57,7 @@ test("untrusted player names and emojis are escaped before HTML rendering", () =
   assert.equal(escapeHTML(`"><img src=x onerror=alert(1)>`), `&quot;&gt;&lt;img src=x onerror=alert(1)&gt;`);
   assert.match(html, /value="\$\{escapeHTML\(playerNames\[i\]\)\}"/);
   assert.match(html, /<span>\$\{escapeHTML\(playerNames\[pIdx\]\)\}<\/span>/);
-  assert.match(html, /<span>\$\{escapeHTML\(playerNames\[p\]\)\}<\/span>/);
+  assert.match(html, /<\/i>\$\{escapeHTML\(playerNames\[p\]\)\}<\/span>/);
   assert.match(html, /escapeHTML\(playerEmojis\[/);
 });
 
@@ -73,11 +73,11 @@ test("remote player colors accept only six-digit hex values with optional alpha"
 });
 
 test("online AI is host-added in the lobby and the server keeps occupied seats locked", () => {
-  assert.match(html, /id="btn-add-online-ai"[^>]*>＋ 增加 AI 人机/);
-  const ai = section("function addOnlineAI()", "function getActivePlayers()");
+  assert.match(html, /id="btn-add-online-ai"[^>]*>.*添加 Bot/);
+  const ai = section("function addOnlineAI(botType = 'mathNightmare')", "function getActivePlayers()");
   assert.match(ai, /!currentRoomId \|\| !isHost \|\| isInGame/);
   assert.match(ai, /playerTypes\.findIndex\(type => type === 'disabled'\)/);
-  assert.match(ai, /mathNightmare.*enhancedNightmare/);
+  assert.match(ai, /enhancedNightmare.*mathNightmare/);
   assert.match(ai, /syncRoomSettingsToCloud\(\)/);
 });
 

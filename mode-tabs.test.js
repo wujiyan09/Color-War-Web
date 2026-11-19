@@ -13,9 +13,12 @@ function between(startMarker, endMarker) {
 }
 
 test("mode tabs expose duel, multiplayer, and online panels", () => {
-  assert.match(html, /id="tab-duel"[^>]*>双人模式/);
-  assert.match(html, /id="tab-multiplayer"[^>]*>多人模式/);
-  assert.match(html, /id="tab-online"[^>]*>联机模式/);
+  assert.match(html, /data-tab="0"[^>]*>.*对弈/);
+  assert.match(html, /data-tab="1"[^>]*>.*派对/);
+  assert.match(html, /data-tab="2"[^>]*>.*分析器/);
+  assert.match(html, /id="tab-multiplayer"[^>]*>多人</);
+  assert.match(html, /id="tab-online"[^>]*>联机</);
+  assert.match(html, /id="panel-analyzer"/);
   for (const mode of ["duel", "multiplayer", "online"]) {
     assert.match(html, new RegExp(`switchModeTab\\('${mode}'\\)`));
     assert.match(html, new RegExp(`id="panel-${mode}"`));

@@ -123,6 +123,45 @@
             color: white;
         }
 
+        #view-menu:not(.active) ~ #bottom-tabbar { display:none; }
+        .menu-toolbar { width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+        .icon-btn { width:40px; height:40px; padding:0; border-radius:50%; font-size:1.05rem; }
+        .bg-menu { position:absolute; right:0; top:46px; display:none; flex-direction:column; gap:6px; padding:8px; z-index:50; min-width:170px; }
+        .bg-menu.open { display:flex; }
+        .bg-menu .glass-btn { justify-content:flex-start; font-size:0.85rem; }
+        .bg-menu .danger { color:#ff6b6b; }
+        #view-menu { padding-bottom: 86px; justify-content:flex-start; overflow-y:auto; }
+        #party-switcher { margin: 0 auto 8px auto; width: 100%; max-width: 440px; }
+        .bottom-tabbar { position:fixed; left:50%; bottom:max(12px, env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; gap:4px; padding:6px; border-radius:32px; z-index:100; }
+        .bottom-tabbar.hidden { display:none; }
+        .bottom-tab { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 20px; border-radius:26px; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.6); cursor:pointer; transition:background 0.25s, color 0.25s; }
+        .bottom-tab .ti { font-size:1.15rem; line-height:1; }
+        .bottom-tab.active { background:rgba(255,255,255,0.2); color:#fff; }
+        .seg { display:flex; background:rgba(0,0,0,0.4); border-radius:10px; padding:3px; border:1px solid rgba(255,255,255,0.1); }
+        .seg div { flex:1; text-align:center; padding:6px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; color:rgba(255,255,255,0.65); }
+        .seg div.active { background:rgba(255,255,255,0.25); color:#fff; }
+        #view-analyzer { max-width:100vw; justify-content:center; background:rgb(6,14,36); position:fixed; inset:0; z-index:200; }
+        .an-wrap { display:flex; gap:16px; align-items:center; justify-content:center; width:100%; height:100%; }
+        .an-wrap.vertical { flex-direction:column; gap:8px; }
+        #an-board { display:grid; gap:3px; padding:6px; }
+        .an-cell { border-radius:17%; background:rgba(255,255,255,0.05); border:0.7px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; transition: background 0.2s; }
+        .an-cell.hl { background:rgba(255,214,0,0.42); border:1.5px solid rgba(255,214,0,0.85); }
+        .an-piece { width:76%; height:76%; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8%; padding:16%; animation: anPop 0.2s cubic-bezier(.3,1.6,.6,1); }
+        .an-piece i { width:26%; height:26%; background:#fff; border-radius:50%; display:block; }
+        @keyframes anPop { from { transform:scale(0.6); } to { transform:scale(1); } }
+        .an-panel { display:flex; flex-direction:column; gap:10px; width:220px; }
+        .an-wrap.vertical .an-panel { width:min(calc(100vw - 24px), 600px); gap:6px; }
+        .an-brushes { padding:12px; }
+        .an-brush-row { display:flex; gap:5px; align-items:center; margin-top:6px; }
+        .an-brush { flex:1; min-height:38px; border-radius:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:0.7rem; font-weight:600; cursor:pointer; color:#fff; }
+        .an-brush .pips { display:flex; gap:2px; } .an-brush .pips b { width:6px; height:6px; border-radius:50%; display:block; }
+        .an-btn { width:100%; height:48px; }
+        .an-btn:disabled, .an-brush.disabled { opacity:0.5; pointer-events:none; }
+        .an-hbtns { display:flex; gap:8px; }
+        .ctrl-section { text-align:left; font-size:0.75rem; color:#aaa; margin:10px 0 6px; }
+        .archive-item { text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; gap:8px; align-items:center; }
+        .archive-item .ai-main { flex:1; cursor:pointer; }
+        .archive-item .ai-sub { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:0.7rem; color:#999; }
         .setting-card {
             width: 100%;
             padding: 12px 16px;
@@ -482,20 +521,28 @@
 
     <!-- 主菜单 -->
     <div id="view-menu" class="view active">
-        <div style="width:100%;">
-            <div class="game-title">COLOR WAR</div>
-            
-            <div class="tab-switcher" style="margin: 0 auto 12px auto;">
-                <div id="tab-duel" class="tab-btn active">双人模式</div>
-                <div id="tab-multiplayer" class="tab-btn">多人模式</div>
-                <div id="tab-online" class="tab-btn">联机模式</div>
+        <div style="width:100%; position:relative;">
+            <div class="menu-toolbar">
+                <button id="btn-open-archives" class="glass-btn icon-btn" aria-label="导入存档" title="导入存档">📥</button>
+                <button id="btn-bg-menu" class="glass-btn icon-btn" aria-label="背景" title="背景">🖼</button>
             </div>
+            <div id="bg-menu" class="bg-menu glass-panel">
+                <button id="btn-bg-upload" class="glass-btn">🖼 从相册选择背景</button>
+                <button id="btn-bg-reset" class="glass-btn danger">🗑 清除自定义背景</button>
+                <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+            </div>
+            <div id="party-switcher" class="seg" style="display:none;">
+                <div id="tab-multiplayer">多人</div>
+                <div id="tab-online">联机</div>
+            </div>
+            <div class="game-title">COLOR WAR</div>
+            <div id="tab-duel" style="display:none;"></div>
 
             <!-- 双人模式：棋盘尺寸与两名玩家的真人/BOT卡片 -->
             <div id="panel-duel" style="width: 100%;">
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
-                        <span>网格尺寸: <b id="duel-board-size-label">8 × 8</b></span>
+                        <span>棋盘大小：<b id="duel-board-size-label">9 × 9</b></span>
                     </div>
                     <input type="range" id="duel-board-size-slider" min="6" max="12" step="3" value="9">
                 </div>
@@ -507,7 +554,7 @@
                     <input type="range" id="duel-strength-slider" min="1" max="4" step="1" value="4">
                 </div>
                 <div class="duel-player-cards" id="duel-player-cards"></div>
-                <button id="btn-start-duel" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
+                <button id="btn-start-duel" class="glass-btn primary" style="width: 100%; font-size:1.1rem;">▶ 开始对决</button>
             </div>
 
             <!-- 多人模式面板（保留原单机多人设置） -->
@@ -524,7 +571,7 @@
                     </div>
                 </div>
 
-                <div class="setting-card glass-panel">
+                <div class="setting-card glass-panel" style="display:none;">
                     <div class="setting-row">
                         <span>🧠 AI 算力/深度:</span>
                         <span id="ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
@@ -535,13 +582,8 @@
 
                 <div class="player-list glass-panel" id="local-player-list"></div>
 
-                <div style="display:flex; gap:8px; margin-bottom: 12px;">
-                    <button id="btn-bg-upload" class="glass-btn" style="flex:1; font-size:0.8rem;">🖼 选择背景</button>
-                    <button id="btn-bg-reset" class="glass-btn" style="font-size:0.8rem;">🗑 恢复背景</button>
-                    <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
-                </div>
 
-                <button id="btn-start-local" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
+                <button id="btn-start-local" class="glass-btn primary" style="width: 100%; font-size:1.1rem;">▶ 开始对决 (3 人)</button>
             </div>
 
             <!-- 联机模式大厅面板 -->
@@ -549,7 +591,8 @@
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
                         <span>我的玩家昵称:</span>
-                        <input type="text" id="online-nickname" value="玩家1" style="width: 140px;">
+                        <input type="text" id="online-nickname" value="玩家1" placeholder="输入昵称" style="width: 120px;">
+                        <button id="btn-update-nickname" class="glass-btn" style="padding:6px 12px; font-size:0.8rem;">更新昵称</button>
                     </div>
                 </div>
 
@@ -564,6 +607,7 @@
 
                 <!-- 房间内大厅控制区 -->
                 <div id="online-room-hall" class="setting-card glass-panel" style="display: none; text-align: center;">
+                    <div id="online-hall-title" style="font-weight:800; text-align:left; margin-bottom:6px;">🏠 房主房间大厅</div>
                     <span style="font-size: 0.8rem; color: #aaa;">房间邀请码</span>
                     <div class="code-display" id="room-code-display">------</div>
                     <div id="online-connection-status" role="status" aria-live="polite" style="min-height:1.2em; margin:4px 0 8px; color:#9fdcff; font-size:0.78rem;">已连接</div>
@@ -575,35 +619,93 @@
                         </div>
                         <input type="range" id="online-board-size-slider" min="5" max="12" value="8">
                         
-                        <div class="setting-row" style="margin-top: 8px;">
+                        <div class="setting-row" style="margin-top: 8px; display:none;">
                             <span>🧠 AI 算力等级:</span>
                             <span id="online-ai-level-label" style="color: var(--accent-cyan); font-weight: bold;">2档 · 平衡</span>
                         </div>
-                        <input type="range" id="online-ai-level-slider" min="1" max="4" value="2">
+                        <input type="range" id="online-ai-level-slider" min="1" max="4" value="2" style="display:none;">
+                        <div class="setting-row" style="margin-top: 8px;">
+                            <label for="online-random-first-toggle">随机挑选先手</label>
+                            <input type="checkbox" id="online-random-first-toggle" checked style="width:18px; height:18px;">
+                        </div>
                     </div>
 
+                    <div id="online-guest-board" style="display:none; text-align:left; font-size:0.85rem; margin-top:8px;"></div>
                     <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">📋 房间席位配置</div>
                     <div class="player-list glass-panel" id="online-player-list" style="max-height: 160px;"></div>
-                    <button id="btn-add-online-ai" class="glass-btn" style="display:none; width:100%; margin-top:8px;">＋ 增加 AI 人机 (随机噩梦/加强版)</button>
+                    <div id="btn-add-online-ai" style="display:none; gap:8px; margin-top:8px; align-items:center;"><span style="font-weight:700; font-size:0.85rem;">⊕ 添加 Bot</span><button type="button" class="glass-btn" data-bot="mathNightmare" style="flex:1;">Bot 1</button><button type="button" class="glass-btn" data-bot="enhancedNightmare" style="flex:1;">Bot 2</button></div>
+                    <div id="online-guest-wait" style="display:none; margin-top:10px; color:#aaa; font-size:0.85rem;">等待房主启动对局...</div>
 
                     <div style="display: flex; gap: 10px; margin-top: 12px;">
                         <button id="btn-leave-room" class="glass-btn" style="flex: 1;">退出房间</button>
-                        <button id="host-start-online-btn" class="glass-btn primary" style="flex: 2; display: none;">全员开始对决 ▶</button>
+                        <button id="host-start-online-btn" class="glass-btn primary" style="flex: 2; display: none;">▶ 全员开始对决</button>
                     </div>
                 </div>
             </div>
+
+            <!-- 分析器入口（AnalyzerSetupView） -->
+            <div id="panel-analyzer" style="width: 100%; display: none;">
+                <div class="setting-card glass-panel">
+                    <div class="setting-row"><span>棋盘大小：<b id="an-size-label">6 × 6</b></span></div>
+                    <input type="range" id="an-size-slider" min="6" max="12" step="3" value="6">
+                </div>
+                <div class="setting-card glass-panel">
+                    <div style="font-weight:700; margin-bottom:8px;">我方棋子</div>
+                    <div class="seg" id="an-color-seg"><div data-c="0">红色</div><div data-c="1">蓝色</div></div>
+                </div>
+                <button id="btn-enter-analyzer" class="glass-btn primary" style="width:100%; font-size:1.1rem;">🔍 进入分析器</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部标签栏（对应 iOS TabView） -->
+    <nav id="bottom-tabbar" class="bottom-tabbar glass-panel">
+        <div class="bottom-tab active" data-tab="0"><span class="ti">◉</span>对弈</div>
+        <div class="bottom-tab" data-tab="1"><span class="ti">🎉</span>派对</div>
+        <div class="bottom-tab" data-tab="2"><span class="ti">🛠</span>分析器</div>
+    </nav>
+
+    <!-- 分析器 -->
+    <div id="view-analyzer" class="view">
+        <button id="btn-exit-analyzer" class="glass-btn" style="position:absolute; top:max(12px, env(safe-area-inset-top)); left:12px; z-index:5;">❮ 返回</button>
+        <div id="an-wrap" class="an-wrap">
+            <div id="an-board" class="glass-panel"></div>
+            <div class="an-panel">
+                <div class="an-brushes glass-panel" id="an-brushes">
+                    <div style="font-weight:800;">画笔</div>
+                    <div id="an-brush-rows"></div>
+                    <button id="an-eraser" class="glass-btn" style="width:100%; margin-top:8px;">🧽 橡皮擦</button>
+                </div>
+                <div class="an-hbtns" id="an-run-btns">
+                    <button id="an-start" class="glass-btn primary an-btn">▶ 开始分析</button>
+                    <button id="an-pause" class="glass-btn an-btn">⏸ 暂停分析</button>
+                </div>
+                <button id="an-side" class="glass-btn an-btn">⇄ 我方：红 · 切换</button>
+                <button id="an-undo" class="glass-btn an-btn">↶ 撤销上一步</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史存档 -->
+    <div id="archive-modal" class="overlay">
+        <div class="modal-box glass-panel" style="width: 400px; max-width: 92vw;">
+            <h3 style="margin-bottom: 10px;">恢复历史对局</h3>
+            <div id="archive-list" style="max-height: 50vh; overflow-y: auto; margin-bottom: 12px;"></div>
+            <button id="btn-close-archives" class="glass-btn" style="width:100%;">关闭</button>
         </div>
     </div>
 
     <!-- 对局界面 -->
     <div id="view-game" class="view">
         <div class="game-header">
-            <button id="btn-exit-game" class="glass-btn">❮ 菜单</button>
-            <div id="current-turn-badge" class="turn-badge glass-panel">
+            <button id="btn-exit-game" class="glass-btn">❮ 返回</button>
+            <div id="current-turn-badge" class="turn-badge glass-panel" style="font-variant-numeric: tabular-nums; font-size:0.8rem;">
                 <div id="turn-color-dot" style="width: 12px; height: 12px; border-radius: 50%;"></div>
-                <span id="turn-text">玩家1 回合</span>
+                <span id="match-clock">00:00</span><span style="opacity:0.55">·</span>
+                <span id="turn-text">红回合</span><span style="opacity:0.55">·</span>
+                <span id="move-count-text">0步</span>
             </div>
-            <button id="btn-control-panel" class="glass-btn">⚙ 控制</button>
+            <button id="btn-control-panel" class="glass-btn icon-btn" aria-label="设置">⚙</button>
         </div>
 
         <div class="board-container" id="board-container">
@@ -633,8 +735,18 @@
     <!-- 实时控制面板 Modal -->
     <div id="control-modal" class="overlay">
         <div class="modal-box glass-panel" style="width: 380px;">
-            <h3 style="margin-bottom: 15px;">⚙ 对局控制面板</h3>
-            <div id="control-player-rows" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; text-align: left;"></div>
+            <h3 style="margin-bottom: 12px;">对局控制面板</h3>
+            <div id="ctrl-nick-section" style="display:none;">
+                <div class="ctrl-section">我的联机昵称</div>
+                <div style="display:flex; gap:8px;"><input type="text" id="ctrl-nick-input" placeholder="输入昵称" style="flex:1;"><button id="ctrl-nick-update" class="glass-btn">更新</button></div>
+            </div>
+            <button id="btn-save-archive" class="glass-btn" style="width:100%; margin-top:10px; color:#00f2fe;">💾 保存当前棋局到本地</button>
+            <div id="save-toast" style="display:none; color:#30d158; font-size:0.75rem; margin-top:4px;">✅ 棋局已成功保存！</div>
+            <button id="btn-ctrl-restart" class="glass-btn" style="width:100%; margin-top:8px;">⟳ 重新开始本局</button>
+            <div id="ctrl-takeover-section">
+                <div class="ctrl-section">实时接管控制（AI / 人类代打）</div>
+                <div id="control-player-rows" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; text-align: left;"></div>
+            </div>
             <button id="btn-close-control" class="glass-btn primary" style="width:100%;">完成</button>
         </div>
     </div>
@@ -652,6 +764,8 @@
     <script type="module">
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
         import { chooseParanoidMove } from "./paranoid-ai.js";
+        import { Bot12Solver } from "./bot12-ai.js";
+        import { applyMove as botpickApplyMove, encode as bpEncode, owner as bpOwner, charge as bpCharge } from "./botpick-engine.js";
 
         const DEFAULT_WEBSOCKET_SERVER_URL = 'https://colorwar-server.wujiyan2009.workers.dev';
 
@@ -677,7 +791,7 @@
             );
         }
         let isRandomFirst = true;
-        let aiLevel = 2;
+        let aiLevel = (() => { const v = Number(localStorage.getItem('CW_Saved_AIDifficultyLevel')); return v >= 1 && v <= 4 ? v : 2; })();
         let playerNames = [...DEFAULT_NAMES];
         let playerColors = [...DEFAULT_COLORS];
         let playerEmojis = Array(MAX_PLAYERS).fill(null);
@@ -698,6 +812,7 @@
         let isInGame = false;
         let isDuelGame = false;
         let localDuelMovesPlayed = 0;
+        let matchStartedAt = Date.now();
         let localMovesPlayed = 0; // every move, used by party Bot 3 (iOS localDuelMoveCount)
         let gameSessionSeed = 'local';
         let duelBotStrength = (() => { const v = Number(localStorage.getItem('CW_Duel_BotStrength')); return v >= 1 && v <= DUEL_MAX_STRENGTH ? v : DUEL_MAX_STRENGTH; })();
@@ -925,11 +1040,18 @@
                     return this.selectOptimalOpeningMove(validMoves);
                 }
 
+                // Bot 1/2: full iOS AISolver port (aspiration alpha-beta / MaxN).
+                const grid12 = Array.from({ length: this.boardSize }, (_, r) =>
+                    this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize));
+                const solver12 = new Bot12Solver({ boardSize: this.boardSize, activePlayers: this.activePlayers,
+                    currentPlayer: this.currentPlayer, playerType: this.playerType, aiLevel: this.aiLevel,
+                    board: grid12, hasEntered: this.hasEntered, eliminated: this.eliminated, signal });
+                const m12 = solver12.calculateBestMove();
+                if (m12) return { r: m12.r, c: m12.c };
                 if (this.playerType === 'enhancedNightmare') {
                     const strike = this.findCriticalThreatMove(validMoves);
                     if (strike) return strike;
                 }
-
                 validMoves.sort((a, b) => this.evaluateMovePriority(b) - this.evaluateMovePriority(a));
                 return validMoves[0];
             }
@@ -1012,7 +1134,7 @@
             document.getElementById('btn-start-duel').onclick = startDuelGame;
             document.getElementById('btn-start-local').onclick = startLocalGame;
             document.getElementById('btn-create-room').onclick = createCloudRoom;
-            document.getElementById('btn-add-online-ai').onclick = addOnlineAI;
+            document.querySelectorAll('#btn-add-online-ai button').forEach(b => b.onclick = () => { Haptics.light(); addOnlineAI(b.dataset.bot); });
             document.getElementById('btn-join-room').onclick = joinCloudRoomByCode;
             document.getElementById('btn-leave-room').onclick = leaveCloudRoom;
             document.getElementById('host-start-online-btn').onclick = startOnlineGame;
@@ -1064,6 +1186,8 @@
             document.getElementById('panel-duel').style.display = mode === 'duel' ? 'block' : 'none';
             document.getElementById('panel-multiplayer').style.display = mode === 'multiplayer' ? 'block' : 'none';
             document.getElementById('panel-online').style.display = mode === 'online' ? 'block' : 'none';
+            document.getElementById('panel-analyzer').style.display = 'none';
+            if (mode !== 'duel') localStorage.setItem('CW_SelectedPartyMode', mode === 'online' ? '1' : '0');
             syncBoardSizeControls();
         }
 
@@ -1085,10 +1209,11 @@
             container.innerHTML = duelPlayerTypes.map((type, index) => {
                 const isBot = type !== 'human';
                 const tint = index === 0 ? '#ff667c' : '#63d9ff';
-                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'Bot 3' : '真人'}，点击切换">
-                    <span class="duel-icon" style="color:${tint}">${isBot ? '🤖' : '👤'}</span>
+                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'Bot 3' : '真人'}，重复点按切换">
+                    <span class="duel-icon" style="color:${tint}">${isBot ? '🖥' : '👤'}</span>
                     <span class="duel-title">玩家 ${index + 1}</span>
-                    <span class="duel-role">${isBot ? 'Bot 3 · 点击切换真人' : '真人 · 点击切换 Bot 3'}</span>
+                    <span class="duel-role">${isBot ? 'Bot 3' : '真人'}</span>
+                    <span class="duel-role" style="opacity:0.62; font-size:0.72rem;">重复点按切换</span>
                 </button>`;
             }).join('');
             container.querySelectorAll('.duel-player-card').forEach(card => {
@@ -1117,6 +1242,7 @@
             const roleLocked = Boolean(currentRoomId);
 
             for (let i = 0; i < MAX_PLAYERS; i++) {
+                if (roleLocked && playerTypes[i] === 'disabled') continue;
                 const row = document.createElement('div');
                 row.className = 'player-row';
                 row.innerHTML = `
@@ -1124,11 +1250,11 @@
                     <input type="color" value="${normalizePlayerColor(playerColors[i]) || DEFAULT_COLORS[i]}" id="${targetContainerId}-color-picker-${i}" style="width:22px; height:22px; border:none; background:none; cursor:pointer;" ${isReadOnly ? 'disabled' : ''}>
                     <input type="text" value="${escapeHTML(playerNames[i])}" id="${targetContainerId}-p-name-${i}" style="width: 80px; font-size: 0.8rem;" ${isReadOnly ? 'disabled' : ''}>
                     ${roleLocked
-                        ? `<span>${WIRE_PLAYER_TYPES[playerTypes[i]] || '未加入'}</span>`
+                        ? `<span>${DISPLAY_TYPE_NAMES[playerTypes[i]] || '未加入'}</span>`
                         : `<select id="${targetContainerId}-p-type-${i}" style="font-size: 0.75rem;">
                             <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
-                            <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
-                            <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                            <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>Bot 1</option>
+                            <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>Bot 2</option>
                             <option value="driveBot" ${playerTypes[i] === 'driveBot' ? 'selected' : ''}>Bot 3</option>
                             <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
                         </select>`}
@@ -1149,11 +1275,21 @@
                     if (!roleLocked) {
                         document.getElementById(`${targetContainerId}-p-type-${i}`).onchange = (e) => {
                             playerTypes[i] = e.target.value;
+                            updateLocalStartLabel();
                         };
                     }
                 }
             }
             updateOnlineAIButton();
+            updateLocalStartLabel();
+        }
+
+        function updateLocalStartLabel() {
+            const btn = document.getElementById('btn-start-local');
+            if (!btn) return;
+            const n = getActivePlayers().length;
+            btn.innerText = `▶ 开始对决 (${n} 人)`;
+            btn.style.opacity = n >= 2 ? 1 : 0.4;
         }
 
         function renderEmojiGrid() {
@@ -1180,17 +1316,25 @@
             const button = document.getElementById('btn-add-online-ai');
             if (!button) return;
             const canAdd = Boolean(currentRoomId && isHost && !isInGame);
-            button.style.display = canAdd ? 'block' : 'none';
-            button.disabled = !playerTypes.includes('disabled');
+            button.style.display = canAdd ? 'flex' : 'none';
+            const full = !playerTypes.includes('disabled');
+            button.querySelectorAll('button').forEach(b => b.disabled = full);
+            button.style.opacity = full ? 0.45 : 1;
+            const wait = document.getElementById('online-guest-wait');
+            if (wait) wait.style.display = currentRoomId && !isHost && !isInGame ? 'block' : 'none';
+            const title = document.getElementById('online-hall-title');
+            if (title) title.innerText = isHost ? '🏠 房主房间大厅' : '🔗 已连入房间大厅';
+            const gb = document.getElementById('online-guest-board');
+            if (gb) { gb.style.display = currentRoomId && !isHost ? 'block' : 'none'; gb.innerText = `房间棋盘：${boardSize} × ${boardSize}`; }
         }
 
-        function addOnlineAI() {
+        function addOnlineAI(botType = 'mathNightmare') {
             if (!currentRoomId || !isHost || isInGame) return;
             const seat = playerTypes.findIndex(type => type === 'disabled');
             if (seat < 0) return;
-            const type = Math.random() < 0.5 ? 'mathNightmare' : 'enhancedNightmare';
+            const type = botType === 'enhancedNightmare' ? 'enhancedNightmare' : 'mathNightmare';
             playerTypes[seat] = type;
-            playerNames[seat] = `${WIRE_PLAYER_TYPES[type]} ${seat + 1}`;
+            playerNames[seat] = `${DISPLAY_TYPE_NAMES[type]} ${seat + 1}`;
             renderPlayerList('online-player-list');
             syncRoomSettingsToCloud();
         }
@@ -1304,6 +1448,7 @@
             winnerIndex = null;
             localDuelMovesPlayed = 0;
             localMovesPlayed = 0;
+            matchStartedAt = Date.now();
             gameSessionSeed = 'local-' + (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
 
             document.getElementById('view-menu').classList.remove('active');
@@ -1479,7 +1624,10 @@
 
         function updateTurnHeader() {
             document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
-            document.getElementById('turn-text').innerText = `${playerNames[currentPlayer]} 回合`;
+            document.getElementById('turn-text').innerText = getActivePlayers().length === 2
+                ? `${currentPlayer === 0 ? '红' : '蓝'}回合`
+                : `${playerNames[currentPlayer] || '玩家'}回合`;
+            document.getElementById('move-count-text').innerText = `${localMovesPlayed}步`;
             renderSidePlayers();
         }
 
@@ -1773,18 +1921,23 @@
             container.innerHTML = '';
 
             const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && getActivePlayers().length === 2;
+            document.getElementById('ctrl-takeover-section').style.display = isLocalTwoPlayerDuel ? 'none' : 'block';
+            document.getElementById('ctrl-nick-section').style.display = currentRoomId ? 'block' : 'none';
+            document.getElementById('ctrl-nick-input').value = document.getElementById('online-nickname').value;
+            document.getElementById('save-toast').style.display = 'none';
+            document.getElementById('btn-ctrl-restart').style.display = currentRoomId && !isHost ? 'none' : '';
             getActivePlayers().forEach(p => {
                 const row = document.createElement('div');
                 row.style.display = 'flex'; row.style.justifyContent = 'space-between';
                 row.style.alignItems = 'center'; row.style.marginBottom = '10px';
                 row.innerHTML = `
-                    <span>${escapeHTML(playerNames[p])}</span>
+                    <span style="display:flex; align-items:center; gap:8px;"><i style="width:16px; height:16px; border-radius:50%; display:inline-block; background:${normalizePlayerColor(playerColors[p]) || DEFAULT_COLORS[p]}"></i>${escapeHTML(playerNames[p])}</span>
                     ${currentRoomId || isLocalTwoPlayerDuel
-                        ? `<span>${WIRE_PLAYER_TYPES[playerTypes[p]] || playerTypes[p]}</span>`
+                        ? `<span>${DISPLAY_TYPE_NAMES[playerTypes[p]] || playerTypes[p]}</span>`
                         : `<select id="ctrl-p-${p}">
                             <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
-                            <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
-                            <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                            <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>Bot 1</option>
+                            <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>Bot 2</option>
                             <option value="driveBot" ${playerTypes[p] === 'driveBot' ? 'selected' : ''}>Bot 3</option>
                         </select>`}
                 `;
@@ -1989,6 +2142,16 @@
                             break;
                         }
                         case 'roomRoster': updateRoster(packet); break;
+                        case 'renamePlayer': {
+                            const seat = Number(packet.playerIndex);
+                            const nick = String(packet.nickname || '').trim();
+                            if (Number.isInteger(seat) && seat >= 0 && seat < MAX_PLAYERS && nick) {
+                                playerNames[seat] = nick.slice(0, 32);
+                                if (isInGame) updateTurnHeader(); else renderPlayerList('online-player-list');
+                                if (isHost) syncRoomSettingsToCloud();
+                            }
+                            break;
+                        }
                         case 'roomError':
                             alert(packet.message || '无法加入房间。');
                             leaveCloudRoom();
@@ -2211,6 +2374,7 @@
             if (active.some(index => playerTypes[index] === 'network' && !playerNames[index])) {
                 alert('网络玩家尚未加入，或请把该席位改为 AI。'); return;
             }
+            isRandomFirst = document.getElementById('online-random-first-toggle').checked;
             const startFirstPlayer = isRandomFirst ? active[Math.floor(Math.random() * active.length)] : active[0];
             syncRoomSettingsToCloud();
             sendGamePacket('startGame', { firstPlayerIndex: startFirstPlayer });
@@ -2269,6 +2433,272 @@
                 leaveCloudRoom();
             }
         }
+
+        // ===== iOS parity layer (TabView / archives / analyzer / control sheet) =====
+        const DISPLAY_TYPE_NAMES = { human: "真人", mathNightmare: "Bot 1", enhancedNightmare: "Bot 2", driveBot: "Bot 3", network: "网络玩家", disabled: "未加入" };
+        let selectedTab = 0;
+
+        function selectRootTab(tab) {
+            selectedTab = tab;
+            document.querySelectorAll('.bottom-tab').forEach(el => el.classList.toggle('active', Number(el.dataset.tab) === tab));
+            document.getElementById('party-switcher').style.display = tab === 1 ? 'flex' : 'none';
+            if (tab === 0) switchModeTab('duel');
+            else if (tab === 1) switchModeTab(currentRoomId || localStorage.getItem('CW_SelectedPartyMode') === '1' ? 'online' : 'multiplayer');
+            else {
+                ['panel-duel', 'panel-multiplayer', 'panel-online'].forEach(id => document.getElementById(id).style.display = 'none');
+                document.getElementById('panel-analyzer').style.display = 'block';
+            }
+        }
+
+        // ---- Archives (CW_Saved_Game_Archives) ----
+        function loadAllArchives() {
+            try { const list = JSON.parse(localStorage.getItem('CW_Saved_Game_Archives') || '[]'); return Array.isArray(list) ? list : []; }
+            catch { return []; }
+        }
+        function saveAllArchives(list) { localStorage.setItem('CW_Saved_Game_Archives', JSON.stringify(list)); }
+        function saveCurrentGameArchive() {
+            const list = loadAllArchives();
+            list.unshift({
+                id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), date: Date.now(), boardSize, currentPlayer,
+                playerNames: [...playerNames], playerTypes: [...playerTypes], colorsHex: [...playerColors], emojis: [...playerEmojis],
+                board: board.map(row => row.map(c => ({ owner: c.owner, count: c.count }))),
+                hasEntered: [...hasEntered], eliminated: [...eliminated], localDuelMoveCount: localMovesPlayed, isDuel: isDuelGame
+            });
+            saveAllArchives(list);
+        }
+        function archiveSummary(a) {
+            const d = new Date(a.date), z = n => String(n).padStart(2, '0');
+            const active = a.playerTypes.filter(t => t !== 'disabled').length;
+            return `${a.boardSize}×${a.boardSize} 网格 | ${active}人对局 | ${d.getFullYear()}/${z(d.getMonth() + 1)}/${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+        }
+        function renderArchiveList() {
+            const box = document.getElementById('archive-list');
+            const list = loadAllArchives();
+            if (!list.length) { box.innerHTML = '<div style="color:#888; padding:16px;">暂无保存的历史棋局存档</div>'; return; }
+            box.innerHTML = list.map((a, i) => `<div class="archive-item"><div class="ai-main" data-i="${i}"><b>${escapeHTML(archiveSummary(a))}</b><div class="ai-sub">${
+                a.playerTypes.map((t, p) => t === 'disabled' ? '' : `<span><i style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${normalizePlayerColor(a.colorsHex[p]) || '#fff'}"></i> ${escapeHTML(a.emojis[p] || '')}${escapeHTML(a.playerNames[p] || '玩家')}</span>`).join('')
+            }</div></div><button class="glass-btn" data-del="${i}" style="color:#ff6b6b; padding:6px 10px;" aria-label="删除">🗑</button></div>`).join('');
+            box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const l = loadAllArchives(); l.splice(Number(b.dataset.del), 1); saveAllArchives(l); renderArchiveList(); });
+            box.querySelectorAll('.ai-main').forEach(el => el.onclick = () => handleArchiveSelection(loadAllArchives()[Number(el.dataset.i)]));
+        }
+        function handleArchiveSelection(a) {
+            if (!a) return;
+            const activeCount = a.playerTypes.filter(t => t !== 'disabled').length;
+            if (selectedTab === 2 && ![6, 9, 12].includes(a.boardSize)) { alert('无法导入此存档\n分析器只支持导入 6×6、9×9 或 12×12 棋盘。'); return; }
+            if ((selectedTab === 0 || selectedTab === 2) && activeCount > 2) {
+                alert('无法导入此存档\n' + (selectedTab === 0 ? '这是多人棋局，请切换到「派对」模式后再导入。' : '分析器暂不支持多人棋局存档，请选择双人存档。'));
+                return;
+            }
+            document.getElementById('archive-modal').classList.remove('active');
+            if (selectedTab === 2) { openAnalyzer(a); return; }
+            if (currentRoomId) return;
+            restoreArchive(a, selectedTab === 0);
+        }
+        function restoreArchive(a, duel) {
+            isDuelGame = duel;
+            boardSize = a.boardSize; currentPlayer = a.currentPlayer;
+            playerNames = [...a.playerNames]; playerTypes = a.playerTypes.map(t => t === 'network' ? 'human' : t);
+            playerColors = [...a.colorsHex]; playerEmojis = [...a.emojis];
+            if (duel) duelPlayerTypes = getActivePlayers().slice(0, 2).map(p => playerTypes[p] === 'human' ? 'human' : 'driveBot');
+            if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
+            if (aiTimerId) { clearTimeout(aiTimerId); aiTimerId = null; }
+            board = a.board.map(row => row.map(c => ({ owner: c.owner ?? null, count: c.count })));
+            hasEntered = [...a.hasEntered]; eliminated = [...a.eliminated];
+            localMovesPlayed = a.localDuelMoveCount || 0; localDuelMovesPlayed = duel ? localMovesPlayed : 0;
+            emphasizedCells.clear(); isProcessingCascade = false; winnerIndex = null; isInGame = true;
+            gameSessionSeed = 'local-' + (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
+            matchStartedAt = Date.now();
+            document.getElementById('view-menu').classList.remove('active');
+            document.getElementById('view-game').classList.add('active');
+            setTimeout(() => { buildGridDOMOnce(); updateBoardCellsDOM(); updateTurnHeader(); checkAndRunAITurn(); }, 50);
+        }
+
+        // ---- Analyzer (AnalyzerPlayView) ----
+        const AN = { size: Number(localStorage.getItem('CW_Analyzer_BoardSize')) || 6, selfColor: Number(localStorage.getItem('CW_Analyzer_SelfColor')) || 0,
+            board: [], brush: { owner: 0, count: 1 }, started: false, paused: false, thinking: false, waiting: false, moveCount: 0, hl: null, undo: [], worker: null, token: 0 };
+        if (![6, 9, 12].includes(AN.size)) AN.size = 6;
+        if (AN.selfColor !== 1) AN.selfColor = 0;
+        function anSyncSetup() {
+            document.getElementById('an-size-slider').value = AN.size;
+            document.getElementById('an-size-label').innerText = `${AN.size} × ${AN.size}`;
+            document.querySelectorAll('#an-color-seg div').forEach(d => d.classList.toggle('active', Number(d.dataset.c) === AN.selfColor));
+            const seg = document.getElementById('an-color-seg');
+            seg.querySelectorAll('div.active').forEach(d => d.style.background = AN.selfColor === 0 ? 'rgba(255,69,58,0.55)' : 'rgba(10,132,255,0.55)');
+            seg.querySelectorAll('div:not(.active)').forEach(d => d.style.background = '');
+        }
+        function anMakeBoard(size, archive) {
+            const b = Array.from({ length: size }, () => Array.from({ length: size }, () => ({ owner: null, count: 0 })));
+            if (!archive) { b[0][0] = { owner: 0, count: 1 }; b[size - 1][size - 1] = { owner: 1, count: 1 }; return b; }
+            for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+                const src = archive.board[r]?.[c];
+                if (!src || src.owner === null || src.owner === undefined || src.count <= 0) continue;
+                b[r][c] = { owner: src.owner === archive.currentPlayer ? AN.selfColor : 1 - AN.selfColor, count: src.count };
+            }
+            return b;
+        }
+        function openAnalyzer(archive = null) {
+            const size = archive && [6, 9, 12].includes(archive.boardSize) ? archive.boardSize : AN.size;
+            Object.assign(AN, { board: anMakeBoard(size, archive), boardSizeNow: size, brush: { owner: 0, count: 1 }, started: false, paused: false,
+                thinking: false, waiting: false, moveCount: archive?.localDuelMoveCount || 0, hl: null, undo: [] });
+            document.getElementById('view-menu').classList.remove('active');
+            document.getElementById('view-analyzer').classList.add('active');
+            anRenderAll();
+        }
+        function closeAnalyzer() {
+            anCancel();
+            document.getElementById('view-analyzer').classList.remove('active');
+            document.getElementById('view-menu').classList.add('active');
+        }
+        function anCancel() { AN.token++; if (AN.worker) { AN.worker.terminate(); AN.worker = null; } }
+        function anPushUndo() { AN.undo.push({ board: AN.board.map(r => r.map(c => ({ ...c }))), moveCount: AN.moveCount, waiting: AN.waiting, hl: AN.hl }); }
+        function anCells() { const n = AN.boardSizeNow; const out = new Array(n * n); for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const x = AN.board[r][c]; out[r * n + c] = x.owner === null ? 0 : bpEncode(x.owner, x.count); } return out; }
+        function anApply(r, c, side) {
+            const n = AN.boardSizeNow;
+            const first = Math.floor((AN.moveCount + 1) / 2), second = Math.floor(AN.moveCount / 2);
+            const t = botpickApplyMove({ cells: anCells(), size: n, side, movesRed: AN.selfColor === 0 ? first : second, movesBlue: AN.selfColor === 1 ? first : second, move: r * n + c });
+            if (!t) return false;
+            AN.board = Array.from({ length: n }, (_, rr) => Array.from({ length: n }, (_, cc) => { const code = t.cells[rr * n + cc]; return { owner: code === 0 ? null : bpOwner(code), count: bpCharge(code) }; }));
+            return true;
+        }
+        function anTap(r, c) {
+            if (!AN.started || AN.paused) {
+                anPushUndo();
+                AN.board[r][c] = AN.brush === 'eraser' ? { owner: null, count: 0 } : { owner: AN.brush.owner, count: AN.brush.count };
+                Haptics.light(); anRenderAll(); return;
+            }
+            if (AN.paused || AN.thinking || !AN.waiting || AN.board[r][c].owner !== 1 - AN.selfColor) return;
+            Haptics.light(); anPushUndo(); AN.hl = null;
+            if (!anApply(r, c, 1 - AN.selfColor)) { AN.undo.pop(); return; }
+            AN.waiting = false; AN.moveCount++; anRenderAll(); anRunSelf();
+        }
+        function anRunSelf() {
+            if (!AN.started || AN.paused || AN.thinking) return;
+            AN.thinking = true; anRenderAll();
+            const token = ++AN.token;
+            const n = AN.boardSizeNow;
+            const finish = move => {
+                if (token !== AN.token) return;
+                if (AN.worker) { AN.worker.terminate(); AN.worker = null; }
+                if (AN.paused || move === null || move === undefined) { AN.thinking = false; AN.waiting = false; anRenderAll(); return; }
+                const r = Math.floor(move / n), c = move % n;
+                anPushUndo();
+                if (!anApply(r, c, AN.selfColor)) { AN.undo.pop(); AN.thinking = false; AN.waiting = false; anRenderAll(); return; }
+                AN.hl = move; AN.moveCount++; AN.waiting = true; AN.thinking = false; anRenderAll();
+            };
+            try {
+                AN.worker = new Worker(new URL('./analyzer-worker.js', import.meta.url), { type: 'module' });
+                AN.worker.onmessage = e => finish(e.data.move);
+                AN.worker.onerror = () => finish(null);
+                AN.worker.postMessage({ cells: anCells(), size: n, side: AN.selfColor, timeMs: 5000 });
+            } catch { finish(null); }
+        }
+        function anStart() {
+            if (!AN.started) { AN.started = true; AN.paused = false; AN.brush = { owner: 0, count: 1 }; anRunSelf(); }
+            else if (AN.paused) { AN.paused = false; if (!AN.waiting) anRunSelf(); }
+            anRenderAll();
+        }
+        function anPause() { if (!AN.started) return; AN.paused = true; anCancel(); AN.thinking = false; anRenderAll(); }
+        function anUndo() {
+            const prev = AN.undo.pop(); if (!prev) return;
+            anCancel(); Object.assign(AN, { board: prev.board, moveCount: prev.moveCount, waiting: prev.waiting, hl: prev.hl, thinking: false, paused: true });
+            anRenderAll();
+        }
+        function anToggleSide() {
+            if (AN.thinking || (AN.started && !AN.paused)) return;
+            AN.selfColor = 1 - AN.selfColor; localStorage.setItem('CW_Analyzer_SelfColor', AN.selfColor); anSyncSetup(); anRenderAll();
+        }
+        function anRenderAll() {
+            const n = AN.boardSizeNow, W = window.innerWidth, H = window.innerHeight;
+            const horizontal = W >= 900 && H >= 620;
+            const wrap = document.getElementById('an-wrap');
+            wrap.classList.toggle('vertical', !horizontal);
+            const maxSide = horizontal ? Math.max(96, Math.min(680, Math.min(W - 280, H - 24))) : Math.max(96, Math.min(W - 24, H - 374));
+            const side = Math.max(10, (maxSide - 12 - 3 * (n - 1)) / n);
+            const boardEl = document.getElementById('an-board');
+            boardEl.style.gridTemplateColumns = `repeat(${n}, ${side}px)`;
+            let html = '';
+            for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+                const cell = AN.board[r][c], idx = r * n + c;
+                const piece = cell.count > 0 ? `<div class="an-piece" style="background:${cell.owner === 0 ? '#FF453A' : '#0A84FF'}">${'<i></i>'.repeat(Math.min(cell.count, 4))}</div>` : '';
+                html += `<div class="an-cell${idx === AN.hl ? ' hl' : ''}" data-r="${r}" data-c="${c}" style="width:${side}px; height:${side}px;">${piece}</div>`;
+            }
+            boardEl.innerHTML = html;
+            boardEl.querySelectorAll('.an-cell').forEach(el => el.onclick = () => anTap(Number(el.dataset.r), Number(el.dataset.c)));
+            const locked = AN.started && !AN.paused;
+            const rows = document.getElementById('an-brush-rows');
+            rows.innerHTML = [0, 1].map(o => `<div class="an-brush-row"><i style="width:10px; height:10px; border-radius:50%; background:${o === 0 ? '#FF453A' : '#0A84FF'}; display:block;"></i><b style="width:22px; font-size:0.75rem;">${o === 0 ? '红' : '蓝'}</b>${[1, 2, 3].map(k => {
+                const sel = AN.brush !== 'eraser' && AN.brush.owner === o && AN.brush.count === k;
+                return `<div class="an-brush${locked ? ' disabled' : ''}" data-o="${o}" data-k="${k}" style="${sel ? `background:${o === 0 ? 'rgba(255,69,58,0.25)' : 'rgba(10,132,255,0.25)'};` : ''}"><span class="pips">${`<b style="background:${o === 0 ? '#FF453A' : '#0A84FF'}"></b>`.repeat(k)}</span>${k}点</div>`;
+            }).join('')}</div>`).join('');
+            rows.querySelectorAll('.an-brush').forEach(b => b.onclick = () => { AN.brush = { owner: Number(b.dataset.o), count: Number(b.dataset.k) }; Haptics.light(); anRenderAll(); });
+            document.getElementById('an-brushes').style.opacity = locked ? 0.52 : 1;
+            const er = document.getElementById('an-eraser');
+            er.disabled = locked; er.style.background = AN.brush === 'eraser' ? 'rgba(142,142,147,0.35)' : '';
+            const compact = !horizontal;
+            const start = document.getElementById('an-start');
+            start.innerText = AN.thinking ? '⏳ 计算中…' : (AN.started && AN.paused ? (compact ? '▶ 继续' : '▶ 继续分析') : (compact ? '▶ 开始' : '▶ 开始分析'));
+            start.disabled = AN.thinking || (AN.started && !AN.paused);
+            const pause = document.getElementById('an-pause');
+            pause.innerText = compact ? '⏸ 暂停' : '⏸ 暂停分析';
+            pause.disabled = !AN.started || AN.paused;
+            document.getElementById('an-run-btns').style.flexDirection = compact ? 'row' : 'column';
+            const sideBtn = document.getElementById('an-side');
+            sideBtn.innerText = `⇄ 我方：${AN.selfColor === 0 ? '红' : '蓝'} · 切换`;
+            sideBtn.disabled = AN.thinking || (AN.started && !AN.paused);
+            const undo = document.getElementById('an-undo');
+            undo.disabled = !AN.undo.length || AN.thinking;
+            [start, pause, sideBtn, undo].forEach(b => b.style.height = compact ? '56px' : '48px');
+        }
+
+        function updateMatchClock() {
+            if (!isInGame) return;
+            const sec = Math.max(0, Math.floor((Date.now() - matchStartedAt) / 1000));
+            document.getElementById('match-clock').innerText = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+        }
+
+        function renameMyPlayer(raw) {
+            const name = String(raw || '').trim().slice(0, 32);
+            if (!name) return;
+            document.getElementById('online-nickname').value = name;
+            document.getElementById('ctrl-nick-input').value = name;
+            if (currentRoomId) {
+                playerNames[myPlayerIndex] = name;
+                sendGamePacket('renamePlayer', { playerIndex: myPlayerIndex, nickname: name });
+                if (isHost) syncRoomSettingsToCloud();
+                if (isInGame) updateTurnHeader(); else renderPlayerList('online-player-list');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.bottom-tab').forEach(el => el.onclick = () => { Haptics.light(); selectRootTab(Number(el.dataset.tab)); });
+            document.getElementById('tab-multiplayer').onclick = () => switchModeTab('multiplayer');
+            document.getElementById('tab-online').onclick = () => switchModeTab('online');
+            document.getElementById('btn-bg-menu').onclick = (e) => { e.stopPropagation(); document.getElementById('btn-bg-reset').style.display = localStorage.getItem('CW_CustomBg') ? '' : 'none'; document.getElementById('bg-menu').classList.toggle('open'); };
+            document.addEventListener('click', () => document.getElementById('bg-menu').classList.remove('open'));
+            document.getElementById('btn-open-archives').onclick = () => { renderArchiveList(); document.getElementById('archive-modal').classList.add('active'); };
+            document.getElementById('btn-close-archives').onclick = () => document.getElementById('archive-modal').classList.remove('active');
+            document.getElementById('btn-save-archive').onclick = () => {
+                saveCurrentGameArchive();
+                const t = document.getElementById('save-toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1500);
+            };
+            document.getElementById('btn-ctrl-restart').onclick = () => { document.getElementById('control-modal').classList.remove('active'); restartCurrentGame(); };
+            document.getElementById('ctrl-nick-update').onclick = () => renameMyPlayer(document.getElementById('ctrl-nick-input').value);
+            const lobbyNick = document.getElementById('btn-update-nickname');
+            if (lobbyNick) lobbyNick.onclick = () => renameMyPlayer(document.getElementById('online-nickname').value);
+            document.getElementById('an-size-slider').oninput = e => { const v = Number(e.target.value); AN.size = [6, 9, 12].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a); localStorage.setItem('CW_Analyzer_BoardSize', AN.size); anSyncSetup(); };
+            document.querySelectorAll('#an-color-seg div').forEach(d => d.onclick = () => { AN.selfColor = Number(d.dataset.c); localStorage.setItem('CW_Analyzer_SelfColor', AN.selfColor); anSyncSetup(); });
+            document.getElementById('btn-enter-analyzer').onclick = () => { Haptics.light(); openAnalyzer(); };
+            document.getElementById('btn-exit-analyzer').onclick = closeAnalyzer;
+            document.getElementById('an-eraser').onclick = () => { AN.brush = 'eraser'; Haptics.light(); anRenderAll(); };
+            document.getElementById('an-start').onclick = () => { Haptics.light(); anStart(); };
+            document.getElementById('an-pause').onclick = () => { Haptics.light(); anPause(); };
+            document.getElementById('an-side').onclick = () => { Haptics.light(); anToggleSide(); };
+            document.getElementById('an-undo').onclick = () => { Haptics.light(); anUndo(); };
+            window.addEventListener('resize', () => { if (document.getElementById('view-analyzer').classList.contains('active')) anRenderAll(); });
+            setInterval(updateMatchClock, 1000);
+            anSyncSetup();
+            selectRootTab(0);
+        });
     </script>
 </body>
 </html>
