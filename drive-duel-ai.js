@@ -16,8 +16,83 @@ export const DRIVE_DIFFICULTY = Object.freeze({
 // stricter wall-clock/depth limit while retaining Drive's soft-stop settings.
 export const DRIVE_LOCAL_PHASES = Object.freeze({
   opening: Object.freeze({ movesBefore: 30, timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8 }),
-  later: Object.freeze({ movesBefore: 30, timeMs: 5000, softTimeMs: 600, minTimeMs: 80, maxDepth: 32 }),
+  later: Object.freeze({ movesBefore: 30, timeMs: 5000, softTimeMs: 1200, minTimeMs: 60, maxDepth: 32 }),
 });
+
+// Duel Bot 3 strength slider (same as iOS Nov15DuelSearch.strengthCaps).
+export const DUEL_MAX_STRENGTH = 4;
+export const DUEL_STRENGTH_CAPS = Object.freeze([
+  Object.freeze({ name: "简单", timeMs: 300, softTimeMs: 80, maxDepth: 4 }),
+  Object.freeze({ name: "中等", timeMs: 1000, softTimeMs: 300, maxDepth: 10 }),
+  Object.freeze({ name: "困难", timeMs: 2500, softTimeMs: 700, maxDepth: 20 }),
+  Object.freeze({ name: "Drive 原版", timeMs: 5000, softTimeMs: 1200, maxDepth: 32 }),
+]);
+export function strengthCap(strength) {
+  return DUEL_STRENGTH_CAPS[Math.max(1, Math.min(DUEL_MAX_STRENGTH, Number(strength) || DUEL_MAX_STRENGTH)) - 1];
+}
+export function cappedSearchConfig(config, strength = DUEL_MAX_STRENGTH) {
+  const cap = strengthCap(strength);
+  const timeMs = Math.min(config.timeMs, cap.timeMs);
+  const softTimeMs = Math.min(config.softTimeMs, cap.softTimeMs, timeMs);
+  return { ...config, timeMs, softTimeMs, minTimeMs: Math.min(config.minTimeMs, softTimeMs), maxDepth: Math.min(config.maxDepth, cap.maxDepth) };
+}
+
+// Drive opening book (Clock.pretty.js patterns, same as iOS DriveOpeningBook).
+export function openingPatterns(size) {
+  if (![6, 9, 12].includes(size)) return null;
+  const edge = size - 1;
+  const corners = [[0, 0, 1, 1], [edge, 0, -1, 1], [0, edge, 1, -1], [edge, edge, -1, -1]];
+  const cornerPatterns = corners.map(([x, y, dx, dy]) => [[x, y], [x + dx, y], [x, y + dy], [x + dx, y + dy],
+    [x, y], [x + dx, y + dy], [x + 2 * dx, y], [x, y + 2 * dy],
+    [x + 2 * dx, y + dy], [x + dx, y + 2 * dy], [x + 2 * dx, y + 2 * dy], [x + dx, y]]);
+  const repeated = values => values.concat(values).slice(0, 12);
+  const diagonal = reverse => {
+    const line = Array.from({ length: size }, (_, i) => reverse ? [i, edge - i] : [i, i]);
+    const ordered = [];
+    for (let i = 0; i < Math.floor((size + 1) / 2); i++) {
+      ordered.push(line[i]);
+      if (edge - i !== i) ordered.push(line[edge - i]);
+    }
+    return repeated(ordered);
+  };
+  const edgeLine = side => {
+    const line = Array.from({ length: size }, (_, i) => side === "top" ? [i, 0] : side === "bottom" ? [i, edge] : side === "left" ? [0, i] : [edge, i]);
+    let ordered = [line[0], line[edge]];
+    for (let i = 1; i < Math.floor(size / 2); i++) ordered.push(line[i], line[edge - i]);
+    if (size % 2 === 1) ordered.push(line[Math.floor(size / 2)]);
+    return repeated(ordered);
+  };
+  const middle = Math.floor(size / 2) - 1, next = middle + 1;
+  const center = [[middle, middle], [next, next], [middle, next], [next, middle],
+    [middle, middle], [next, next], [middle - 1, middle], [next + 1, next],
+    [middle, middle - 1], [next, next + 1], [next + 1, middle], [middle - 1, next],
+    [next, middle], [middle, next]].filter(([a, b]) => a >= 0 && a < size && b >= 0 && b < size);
+  const cornerCycle = [[0, 0], [edge, edge], [0, 0], [edge, edge], [0, 0], [edge, edge],
+    [1, 0], [edge - 1, edge], [0, 1], [edge, edge - 1], [1, 1], [edge - 1, edge - 1]];
+  return [
+    [[0, 0], [edge, edge], [edge, 0], [0, edge], [1, 0], [edge - 1, edge],
+     [edge, 1], [0, edge - 1], [1, 1], [edge - 1, edge - 1], [edge - 1, 1], [1, edge - 1]],
+    cornerPatterns[0], cornerPatterns[1], cornerPatterns[2], cornerPatterns[3],
+    diagonal(false), diagonal(true), edgeLine("top"), edgeLine("bottom"),
+    edgeLine("left"), edgeLine("right"), center.slice(0, 12), cornerCycle,
+  ];
+}
+export function openingMove(cells, size, side, startIndex, seed) {
+  const patterns = openingPatterns(size);
+  if (!patterns || !patterns.length) return null;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash ^ seed.charCodeAt(i)) >>> 0;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const pattern = patterns[hash % patterns.length];
+  if (startIndex >= pattern.length) return null;
+  for (const [x, y] of pattern.slice(Math.max(0, startIndex))) {
+    const index = y * size + x;
+    if (index >= 0 && index < cells.length && cells[index] && cellOwner(cells[index]) === side) return index;
+  }
+  return null;
+}
 
 export function effectiveSearchConfig(difficulty, movesPlayed = 0) {
   const selected = DRIVE_DIFFICULTY[difficulty] || DRIVE_DIFFICULTY[2];
@@ -102,11 +177,11 @@ function counts(cells) {
   return result;
 }
 
-function terminalScore(cells, side, enteredMask) {
+function terminalScore(cells, side, enteredMask, depth = 0) {
   if (enteredMask !== 3) return null;
   const c = counts(cells);
-  if (c[0] === 0 && c[1] > 0) return side === 1 ? TERMINAL : -TERMINAL;
-  if (c[1] === 0 && c[0] > 0) return side === 0 ? TERMINAL : -TERMINAL;
+  if (c[0] === 0 && c[1] > 0) return side === 1 ? TERMINAL + depth : -TERMINAL - depth;
+  if (c[1] === 0 && c[0] > 0) return side === 0 ? TERMINAL + depth : -TERMINAL - depth;
   return null;
 }
 
@@ -263,15 +338,23 @@ export function quietHeuristic(cells, move, side, entered, size) {
 }
 
 function makeContext(deadline) {
-  return { deadline, nodes: 0, stopped: false, tt: new Map(), killers: Array.from({ length: MAX_PLY + 1 }, () => [-1, -1]), history: new Int32Array(2 * 144) };
+  return { deadline, nodes: 0, stopped: false, tt: new Map(), killers: Array.from({ length: MAX_PLY + 1 }, () => [-1, -1]), history: new Float64Array(2 * 144) };
 }
 
-function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size) {
+function pieceCount(cells, side) {
+  let n = 0;
+  for (const code of cells) if (code && cellOwner(code) === side) n++;
+  return n;
+}
+
+// Drive `ze()` search with Color War move rules (see iOS Nov15DuelSearch).
+function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size, allowNull) {
   context.nodes++;
   if ((context.nodes & 4095) === 0 && Date.now() >= context.deadline) context.stopped = true;
-  if (context.stopped || ply >= MAX_PLY) return { score: evaluate(cells, side, enteredMask), move: -1 };
-  const terminal = terminalScore(cells, side, enteredMask);
+  if (context.stopped) return { score: 0, move: -1 };
+  const terminal = terminalScore(cells, side, enteredMask, depth);
   if (terminal !== null) return { score: terminal, move: -1 };
+  if (ply >= MAX_PLY) return { score: evaluate(cells, side, enteredMask), move: -1 };
   const entered = [(enteredMask & 1) !== 0, (enteredMask & 2) !== 0];
   const key = keyFor(cells, side, enteredMask, size), cached = context.tt.get(key);
   const ttMove = cached?.move ?? -1, oldAlpha = alpha;
@@ -281,36 +364,43 @@ function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size
     if (cached.flag === 2 && cached.score <= alpha) return { score: cached.score, move: cached.move };
   }
   if (depth <= 0) return { score: evaluate(cells, side, enteredMask), move: -1 };
-  const moves = legalMoves(cells, side, entered, size);
-  if (!moves.length) return { score: evaluate(cells, side, enteredMask), move: -1 };
+  if (allowNull && depth >= 3 && beta - alpha === 1 && pieceCount(cells, side) >= 3) {
+    const reduction = depth >= 6 ? 3 : 2;
+    const nullScore = -search(cells, 1 - side, enteredMask, depth - 1 - reduction, -beta, -beta + 1, ply + 1, context, size, false).score;
+    if (context.stopped) return { score: 0, move: -1 };
+    if (nullScore >= beta) return { score: nullScore, move: -1 };
+  }
   const orderContext = { ttMove, killers: context.killers, history: context.history, entered };
-  moves.sort((a, b) => driveMoveScore(cells, b, side, size, ply, orderContext) - driveMoveScore(cells, a, side, size, ply, orderContext));
+  // Stable sort (JS Array.sort is stable), descending score.
+  const moves = legalMoves(cells, side, entered, size)
+    .map(move => ({ move, score: driveMoveScore(cells, move, side, size, ply, orderContext) }))
+    .sort((a, b) => b.score - a.score).map(item => item.move);
+  if (!moves.length) return { score: evaluate(cells, side, enteredMask), move: -1 };
   let best = -INF, bestMove = moves[0];
   for (const move of moves) {
     const next = simulate(cells, move, side, enteredMask, size);
-    const result = search(next.cells, 1 - side, next.enteredMask, depth - 1, -beta, -alpha, ply + 1, context, size);
-    const score = -result.score;
+    const childTerminal = terminalScore(next.cells, 1 - side, next.enteredMask, depth);
+    const score = childTerminal !== null ? -childTerminal
+      : -search(next.cells, 1 - side, next.enteredMask, depth - 1, -beta, -alpha, ply + 1, context, size, true).score;
+    if (context.stopped) return { score: 0, move: -1 };
     if (score > best) { best = score; bestMove = move; }
     if (score > alpha) alpha = score;
     if (alpha >= beta) {
-      const oldCharge = cellCharge(cells[move]);
-      const newCharge = oldCharge + (entered[side] ? 1 : 3);
+      const newCharge = cellCharge(cells[move]) + (entered[side] ? 1 : 3);
       if (newCharge < 4) {
         const killers = context.killers[ply];
         if (killers[0] !== move) { killers[1] = killers[0]; killers[0] = move; }
-        const idx = side * 144 + move;
-        context.history[idx] = Math.min(2_000_000, context.history[idx] + depth * depth);
+        context.history[side * 144 + move] += depth * depth;
       }
       break;
     }
-    if (context.stopped) break;
   }
   const flag = best <= oldAlpha ? 2 : best >= beta ? 1 : 0;
   context.tt.set(key, { depth, score: best, flag, move: bestMove });
   return { score: best, move: bestMove };
 }
 
-export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null }) {
+export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null, openingSeed = null, strength = DUEL_MAX_STRENGTH }) {
   const size = board.length;
   if (size < 2 || size > 12 || board.some(row => row.length !== size)) return null;
   if (activePlayers.length !== 2) return null;
@@ -328,7 +418,16 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
   }
   const moves = legalMoves(cells, side, entered, size);
   if (!moves.length) return null;
-  const config = effectiveSearchConfig(difficulty, movesPlayed);
+  if (moves.length === 1) return { r: Math.floor(moves[0] / size), c: moves[0] % size, depth: 1, score: 0 };
+  if (openingSeed !== null && enteredMask === 3 && movesPlayed < 30) {
+    const firstSide = movesPlayed % 2 === 0 ? side : 1 - side;
+    const ownMoves = side === firstSide ? Math.floor((movesPlayed + 1) / 2) : Math.floor(movesPlayed / 2);
+    if (ownMoves < 12) {
+      const opening = openingMove(cells, size, side, ownMoves, openingSeed);
+      if (opening !== null && moves.includes(opening)) return { r: Math.floor(opening / size), c: opening % size, depth: 0, score: 0 };
+    }
+  }
+  const config = cappedSearchConfig(effectiveSearchConfig(difficulty, movesPlayed), strength);
   const startedAt = Date.now();
   const deadline = startedAt + config.timeMs;
   const context = makeContext(deadline);
@@ -343,11 +442,11 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
   }
   for (let depth = 1; depth <= config.maxDepth && Date.now() < deadline && !signal?.aborted; depth++) {
     context.stopped = false;
-    const result = search(cells, side, enteredMask, depth, -INF, INF, 0, context, size);
+    const result = search(cells, side, enteredMask, depth, -INF, INF, 0, context, size, true);
     if (context.stopped || signal?.aborted || result.move < 0) break;
     bestMove = result.move; bestScore = result.score; completedDepth = depth;
     completedMoves.push(bestMove); completedScores.push(bestScore);
-    if (Math.abs(bestScore) >= TERMINAL - 1000) break;
+    if (bestScore > 900000 || bestScore < -900000) break;
     if (depth >= 6 && Date.now() - startedAt >= config.softTimeMs && Date.now() - startedAt >= config.minTimeMs && completedMoves.length >= 3) {
       const recentMoves = completedMoves.slice(-3);
       const scoreDelta = Math.abs(bestScore - completedScores[completedScores.length - 3]);

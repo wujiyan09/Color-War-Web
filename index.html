@@ -499,6 +499,13 @@
                     </div>
                     <input type="range" id="duel-board-size-slider" min="6" max="12" step="3" value="9">
                 </div>
+                <div class="setting-card glass-panel">
+                    <div class="setting-row">
+                        <span>Bot 3 难度: <b id="duel-strength-label"></b></span>
+                        <span id="duel-strength-desc" style="font-size:0.75rem; opacity:0.7;"></span>
+                    </div>
+                    <input type="range" id="duel-strength-slider" min="1" max="4" step="1" value="4">
+                </div>
                 <div class="duel-player-cards" id="duel-player-cards"></div>
                 <button id="btn-start-duel" class="glass-btn primary" style="width: 100%;">▶ 开始对决</button>
             </div>
@@ -643,7 +650,8 @@
     </div>
 
     <script type="module">
-        import { chooseDriveDuelMove } from "./drive-duel-ai.js";
+        import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
+        import { chooseParanoidMove } from "./paranoid-ai.js";
 
         const DEFAULT_WEBSOCKET_SERVER_URL = 'https://colorwar-server.wujiyan2009.workers.dev';
 
@@ -690,6 +698,9 @@
         let isInGame = false;
         let isDuelGame = false;
         let localDuelMovesPlayed = 0;
+        let localMovesPlayed = 0; // every move, used by party Bot 3 (iOS localDuelMoveCount)
+        let gameSessionSeed = 'local';
+        let duelBotStrength = (() => { const v = Number(localStorage.getItem('CW_Duel_BotStrength')); return v >= 1 && v <= DUEL_MAX_STRENGTH ? v : DUEL_MAX_STRENGTH; })();
 
         let currentRoomId = null;
         let myPlayerIndex = 0;
@@ -877,11 +888,29 @@
                     const grid = Array.from({ length: this.boardSize }, (_, r) =>
                         this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
                     );
+                    // Duel Bot 3: Drive-method search, level 3 + strength slider + opening book.
                     const driveMove = chooseDriveDuelMove({
                         board: grid, activePlayers: this.activePlayers, currentPlayer: this.currentPlayer,
-                        hasEntered: this.hasEntered, difficulty: this.aiLevel, movesPlayed: this.movesPlayed, signal
+                        hasEntered: this.hasEntered, difficulty: 3, movesPlayed: this.movesPlayed, signal,
+                        openingSeed: gameSessionSeed, strength: duelBotStrength
                     });
                     return driveMove ? { r: driveMove.r, c: driveMove.c } : null;
+                }
+                if (this.playerType === 'driveBot' && this.activePlayers.length > 2) {
+                    // Party Bot 3: paranoid while 3+ alive, duel search once two remain.
+                    const grid = Array.from({ length: this.boardSize }, (_, r) =>
+                        this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
+                    );
+                    const alive = this.activePlayers.filter(p => !this.eliminated[p]);
+                    let move = null;
+                    if (alive.length === 2) {
+                        move = chooseDriveDuelMove({ board: grid, activePlayers: alive, currentPlayer: this.currentPlayer,
+                            hasEntered: this.hasEntered, difficulty: 3, movesPlayed: localMovesPlayed, signal });
+                    } else if (alive.length > 2) {
+                        move = chooseParanoidMove({ board: grid, players: alive, currentPlayer: this.currentPlayer,
+                            hasEntered: this.hasEntered, eliminated: this.eliminated, movesPlayed: localMovesPlayed, signal });
+                    }
+                    if (move) return { r: move.r, c: move.c };
                 }
                 const validMoves = this.getPlayableCells(this.currentPlayer, this.cells);
                 if (validMoves.length === 0) return null;
@@ -934,6 +963,19 @@
             document.getElementById('tab-multiplayer').onclick = () => switchModeTab('multiplayer');
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
             
+            const syncDuelStrength = () => {
+                const cap = strengthCap(duelBotStrength);
+                document.getElementById('duel-strength-slider').value = duelBotStrength;
+                document.getElementById('duel-strength-label').innerText = cap.name;
+                document.getElementById('duel-strength-desc').innerText = `每步最多 ${(cap.timeMs / 1000).toFixed(1)} 秒 · 深度 ${cap.maxDepth}`;
+            };
+            document.getElementById('duel-strength-slider').oninput = (e) => {
+                duelBotStrength = Math.max(1, Math.min(DUEL_MAX_STRENGTH, parseInt(e.target.value, 10) || DUEL_MAX_STRENGTH));
+                localStorage.setItem('CW_Duel_BotStrength', String(duelBotStrength));
+                syncDuelStrength();
+            };
+            syncDuelStrength();
+
             document.getElementById('duel-board-size-slider').oninput = (e) => {
                 boardSize = nearestDuelBoardSize(parseInt(e.target.value, 10));
                 e.target.value = boardSize;
@@ -1043,17 +1085,17 @@
             container.innerHTML = duelPlayerTypes.map((type, index) => {
                 const isBot = type !== 'human';
                 const tint = index === 0 ? '#ff667c' : '#63d9ff';
-                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'BOT' : '真人'}，点击切换">
+                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'Bot 3' : '真人'}，点击切换">
                     <span class="duel-icon" style="color:${tint}">${isBot ? '🤖' : '👤'}</span>
                     <span class="duel-title">玩家 ${index + 1}</span>
-                    <span class="duel-role">${isBot ? 'BOT · 点击切换真人' : '真人 · 点击切换 BOT'}</span>
+                    <span class="duel-role">${isBot ? 'Bot 3 · 点击切换真人' : '真人 · 点击切换 Bot 3'}</span>
                 </button>`;
             }).join('');
             container.querySelectorAll('.duel-player-card').forEach(card => {
                 card.onclick = () => {
                     const index = Number(card.dataset.playerIndex);
                     Haptics.light();
-                    duelPlayerTypes[index] = duelPlayerTypes[index] === 'human' ? 'mathNightmare' : 'human';
+                    duelPlayerTypes[index] = duelPlayerTypes[index] === 'human' ? 'driveBot' : 'human';
                     renderDuelPlayerCards();
                 };
             });
@@ -1087,6 +1129,7 @@
                             <option value="human" ${playerTypes[i] === 'human' ? 'selected' : ''}>真人</option>
                             <option value="mathNightmare" ${playerTypes[i] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
                             <option value="enhancedNightmare" ${playerTypes[i] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                            <option value="driveBot" ${playerTypes[i] === 'driveBot' ? 'selected' : ''}>Bot 3</option>
                             <option value="disabled" ${playerTypes[i] === 'disabled' ? 'selected' : ''} ${i < 2 ? 'disabled' : ''}>未加入</option>
                         </select>`}
                 `;
@@ -1260,6 +1303,8 @@
             isProcessingCascade = false;
             winnerIndex = null;
             localDuelMovesPlayed = 0;
+            localMovesPlayed = 0;
+            gameSessionSeed = 'local-' + (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
 
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
@@ -1625,6 +1670,7 @@
             updateBoardCellsDOM();
             isProcessingCascade = false;
             if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) localDuelMovesPlayed++;
+            localMovesPlayed++;
 
             if (checkGameOver()) {
                 Haptics.heavy();
@@ -1687,7 +1733,7 @@
             if (!isInGame || winnerIndex !== null || isProcessingCascade) return;
 
             const currentType = playerTypes[currentPlayer];
-            if (currentType.includes('Nightmare')) {
+            if (currentType.includes('Nightmare') || currentType === 'driveBot') {
                 if (currentRoomId && !isHost) return;
 
                 currentAbortController = new AbortController();
@@ -1739,6 +1785,7 @@
                             <option value="human" ${playerTypes[p] === 'human' ? 'selected' : ''}>真人</option>
                             <option value="mathNightmare" ${playerTypes[p] === 'mathNightmare' ? 'selected' : ''}>算法-噩梦</option>
                             <option value="enhancedNightmare" ${playerTypes[p] === 'enhancedNightmare' ? 'selected' : ''}>算法-噩梦(加强)</option>
+                            <option value="driveBot" ${playerTypes[p] === 'driveBot' ? 'selected' : ''}>Bot 3</option>
                         </select>`}
                 `;
                 container.appendChild(row);
@@ -1755,7 +1802,7 @@
 
         const WIRE_PLAYER_TYPES = {
             human: "真人", mathNightmare: "算法-噩梦", enhancedNightmare: "算法-噩梦 (加强版)",
-            network: "网络玩家", disabled: "未加入"
+            network: "网络玩家", disabled: "未加入", driveBot: "Bot 3"
         };
 
         function fromWirePlayerType(type) {

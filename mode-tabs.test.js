@@ -22,13 +22,14 @@ test("mode tabs expose duel, multiplayer, and online panels", () => {
   }
 });
 
-test("duel setup contains only the board slider, two role cards, and start action", () => {
+test("duel setup contains the board slider, Bot 3 strength slider, two role cards, and start action", () => {
   const panel = between('id="panel-duel"', 'id="panel-multiplayer"');
   assert.match(panel, /id="duel-board-size-slider"/);
   assert.match(panel, /id="duel-player-cards"/);
+  assert.match(panel, /id="duel-strength-slider"/);
   assert.match(panel, /id="btn-start-duel"/);
   assert.doesNotMatch(panel, /ai-level-slider|random-first-toggle|local-player-list/);
-  assert.match(html, /duelPlayerTypes\[index\] === 'human' \? 'mathNightmare' : 'human'/);
+  assert.match(html, /duelPlayerTypes\[index\] === 'human' \? 'driveBot' : 'human'/);
   assert.match(html, /function startDuelGame\(\)/);
   assert.match(html, /runRandomWheel\(active, \(selected\) => initBoard\(selected\)\)/);
 });

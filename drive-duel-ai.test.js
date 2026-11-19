@@ -13,12 +13,12 @@ test("Drive difficulty parameters are applied to all Color War AI levels", () =>
 
 test("Drive local phase limits combine with difficulty budgets by the stricter cap", () => {
   assert.deepEqual(DRIVE_LOCAL_PHASES.opening, { movesBefore: 30, timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8 });
-  assert.deepEqual(DRIVE_LOCAL_PHASES.later, { movesBefore: 30, timeMs: 5000, softTimeMs: 600, minTimeMs: 80, maxDepth: 32 });
+  assert.deepEqual(DRIVE_LOCAL_PHASES.later, { movesBefore: 30, timeMs: 5000, softTimeMs: 1200, minTimeMs: 60, maxDepth: 32 });
   assert.deepEqual(effectiveSearchConfig(1, 0), { name: "easy", phase: "opening", timeMs: 80, softTimeMs: 80, minTimeMs: 40, maxDepth: 1, randomize: true });
   assert.deepEqual(effectiveSearchConfig(2, 29), { name: "medium", phase: "opening", timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8, randomize: false });
-  assert.deepEqual(effectiveSearchConfig(2, 30), { name: "medium", phase: "later", timeMs: 1200, softTimeMs: 600, minTimeMs: 80, maxDepth: 8, randomize: false });
+  assert.deepEqual(effectiveSearchConfig(2, 30), { name: "medium", phase: "later", timeMs: 1200, softTimeMs: 1200, minTimeMs: 60, maxDepth: 8, randomize: false });
   assert.deepEqual(effectiveSearchConfig(3, 29), { name: "hard", phase: "opening", timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8, randomize: false });
-  assert.deepEqual(effectiveSearchConfig(4, 30), { name: "hard", phase: "later", timeMs: 5000, softTimeMs: 600, minTimeMs: 80, maxDepth: 32, randomize: false });
+  assert.deepEqual(effectiveSearchConfig(4, 30), { name: "hard", phase: "later", timeMs: 5000, softTimeMs: 1200, minTimeMs: 60, maxDepth: 32, randomize: false });
 });
 
 test("empty-board first placement returns a legal square under Color War entry rules", () => {
@@ -65,4 +65,10 @@ test("easy threat heuristic penalizes hanging a 3-charge cell beside an enemy 3"
   const risky = quietHeuristic(cells, 2 * 5 + 2, 0, [true, true], 5);
   const safe = quietHeuristic(cells, 4 * 5 + 4, 0, [true, true], 5);
   assert.ok(risky < safe, `risky=${risky}, safe=${safe}`);
+});
+
+test("Bot 3 strength slider caps match iOS", async () => {
+  const { cappedSearchConfig, effectiveSearchConfig: eff } = await import("./drive-duel-ai.js");
+  assert.deepEqual([1, 2, 3, 4].map(s => { const c = cappedSearchConfig(eff(3, 40), s); return [c.timeMs, c.softTimeMs, c.minTimeMs, c.maxDepth]; }),
+    [[300, 80, 60, 4], [1000, 300, 60, 10], [2500, 700, 60, 20], [5000, 1200, 60, 32]]);
 });

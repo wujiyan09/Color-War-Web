@@ -38,15 +38,17 @@ test("multiplayer first placement retains the non-corner safeguard", () => {
   assert.equal(ai.isCornerCell(move), false);
 });
 
-test("local duel route supplies current game state and selected difficulty to Drive engine", () => {
+test("local duel route supplies current game state, Bot 3 hard level, slider strength and opening seed to Drive engine", () => {
   const observed = [];
   const fakeDriveChooser = (args) => { observed.push(args); return { r: 1, c: 3 }; };
-  const DriveAISolver = new Function("MAX_PLAYERS", "chooseDriveDuelMove", `${html.slice(start, end)}; return AISolver;`)(8, fakeDriveChooser);
+  const DriveAISolver = new Function("MAX_PLAYERS", "chooseDriveDuelMove", "gameSessionSeed", "duelBotStrength", `${html.slice(start, end)}; return AISolver;`)(8, fakeDriveChooser, "local-test", 2);
   for (const level of [1, 2, 3, 4]) {
     const game = new DriveAISolver(5, [0, 1], 1, "enhancedNightmare", level, grid(5, { r: 1, c: 3, owner: 1, count: 2 }), [true, true], [false, false], true, 31);
     assert.deepEqual(game.calculateBestMove(), { r: 1, c: 3 });
   }
-  assert.deepEqual(observed.map(x => x.difficulty), [1, 2, 3, 4]);
+  assert.deepEqual(observed.map(x => x.difficulty), [3, 3, 3, 3]);
+  assert.deepEqual(observed.map(x => x.strength), [2, 2, 2, 2]);
+  assert.equal(observed[0].openingSeed, "local-test");
   assert.deepEqual(observed[0].activePlayers, [0, 1]);
   assert.equal(observed[0].currentPlayer, 1);
   assert.equal(observed[0].hasEntered[1], true);
