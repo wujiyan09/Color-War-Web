@@ -361,9 +361,11 @@ export function initAccount(hooks) {
             + card(head('🕘 最近战绩') + (recent.length ? `<div style="display:flex;gap:8px">${dots}</div><div style="opacity:.7;font-size:.8rem;margin-top:6px">上一局：${esc(summary(recent[0]))}</div>` : '<div style="opacity:.7">还没有对局记录。打完一局就会出现在这里。</div>'), 'history')
             + `<div class="setting-card glass-panel acc-card">${head('<span data-go="leaderboard" style="cursor:pointer">🏆 排行榜</span>', false)}${lbControls(S.lbPreview)}${lbRows(S.lbPreview, '这段时间还没有人上榜（和 AI 打满 3 局即可上榜）')}<button class="glass-btn" data-go="leaderboard" style="width:100%;margin-top:8px">查看前 100 名 ›</button></div>`
             + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7">加好友后可以直接邀请对方联机。</div>'), 'friends')
-            + `<button class="glass-btn danger" id="acc-logout" style="width:100%">退出登录</button>`
-            + `<button class="glass-btn danger" id="acc-delete" style="width:100%;margin-top:10px;opacity:.85">注销账号</button>`
-            + `<div class="setting-card glass-panel acc-card" id="acc-tip" style="cursor:pointer">${head('❤️ 打赏作者')}<div style="opacity:.7">喜欢 Color War 的话，可以用微信扫码请作者喝杯奶茶。</div></div>`;
+            + `<div style="display:flex;flex-direction:column;gap:12px;width:100%;margin-top:4px">`
+            + `<button class="glass-btn danger" id="acc-logout" style="width:100%;margin:0">退出登录</button>`
+            + `<button class="glass-btn danger" id="acc-delete" style="width:100%;margin:0;opacity:.85">注销账号</button>`
+            + `<div class="setting-card glass-panel acc-card" id="acc-tip" style="cursor:pointer;margin:6px 0 0">${head('❤️ 打赏作者')}<div style="opacity:.7">喜欢 Color War 的话，可以用微信扫码请作者喝杯奶茶。</div></div>`
+            + `</div>`;
     }
 
     function renderProfile() {
