@@ -88,7 +88,7 @@ export function initAccount(hooks) {
     };
 
     const S = { user: null, history: readJSON(LOCAL_HISTORY_KEY, []), friends: { friends: [], incoming: [], outgoing: [] },
-        view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbKey: null, lbFull: null, lbPreview: null,
+        view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbKey: null, lbSize: null, lbFull: null, lbPreview: null,
         seenInvites: new Set(), seenUpdates: new Set(), seenFriendReqs: new Set(), isRegister: false, error: '' };
     // 登录后联机昵称用账号用户名；退出后恢复登录前手动填的昵称。
     const MANUAL_NICK_KEY = 'CW_Account_ManualNickname';
@@ -220,9 +220,10 @@ export function initAccount(hooks) {
     // ---------- 排行榜 ----------
     async function loadLeaderboard(full) {
         try {
-            const q = `/api/leaderboard?period=${S.lbPeriod}&limit=${full ? 100 : 5}` + (S.lbKey ? `&aiKey=${encodeURIComponent(S.lbKey)}` : '');
+            const q = `/api/leaderboard?period=${S.lbPeriod}&limit=${full ? 100 : 5}` + (S.lbKey ? `&aiKey=${encodeURIComponent(S.lbKey)}` : '') + (S.lbSize ? `&boardSize=${S.lbSize}` : '');
             const data = await api('GET', q);
             if (!S.lbKey) S.lbKey = data.aiKey;
+            if (!S.lbSize && data.boardSize) S.lbSize = data.boardSize;
             if (full) S.lbFull = data; else S.lbPreview = data;
         } catch (e) { if (full) S.lbFull = { error: e.message }; else S.lbPreview = { error: e.message }; }
     }
@@ -302,7 +303,8 @@ export function initAccount(hooks) {
     function lbControls(data) {
         const periods = PERIODS.map(([k, t]) => `<div class="${S.lbPeriod === k ? 'active' : ''}" data-period="${k}">${t}</div>`).join('');
         const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(l.aiLabel || l.aiKey)}</button>`).join('');
-        return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${levels}</div>` : ''}`;
+        const sizes = (data?.boardSizes || []).map(b => `<button class="glass-btn ${S.lbSize === b.boardSize ? 'primary' : ''}" data-lbsize="${b.boardSize}" style="padding:4px 10px;font-size:.8rem">${b.boardSize}×${b.boardSize}</button>`).join('');
+        return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${levels}</div>` : ''}${sizes ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${sizes}</div>` : ''}`;
     }
 
     function lbRows(data, emptyText) {
@@ -326,6 +328,15 @@ export function initAccount(hooks) {
             `<p style="text-align:center;opacity:.7;font-size:.85rem">登录后可以同步战绩、上排行榜、加好友和邀请好友联机。</p>`;
     }
 
+    // 打赏：换图就把仓库根目录的 wechat-pay.png 替换成微信收款码（文件名不变）
+    function showTip() {
+        const o = document.createElement('div');
+        o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+        o.innerHTML = `<div class="glass-panel" style="max-width:360px;width:100%;padding:20px;border-radius:24px;text-align:center"><b style="font-size:1.1rem">微信收款码</b><img src="wechat-pay.png?v=1" alt="微信收款码" style="display:block;width:100%;margin:14px 0;border-radius:16px;background:#fff"><div style="opacity:.75;font-size:.85rem;margin-bottom:12px">微信扫一扫，或长按图片识别</div><button class="glass-btn primary" style="width:100%">关闭</button></div>`;
+        o.onclick = e => { if (e.target === o || e.target.tagName === 'BUTTON') o.remove(); };
+        document.body.appendChild(o);
+    }
+
     function renderHome() {
         const u = S.user, st = u.stats || {};
         const recent = S.history.slice(0, 5);
@@ -334,7 +345,8 @@ export function initAccount(hooks) {
             + card(head('🕘 最近战绩') + (recent.length ? `<div style="display:flex;gap:8px">${dots}</div><div style="opacity:.7;font-size:.8rem;margin-top:6px">上一局：${esc(summary(recent[0]))}</div>` : '<div style="opacity:.7">还没有对局记录。打完一局就会出现在这里。</div>'), 'history')
             + `<div class="setting-card glass-panel acc-card">${head('<span data-go="leaderboard" style="cursor:pointer">🏆 排行榜</span>', false)}${lbControls(S.lbPreview)}${lbRows(S.lbPreview, '这段时间还没有人上榜（和 AI 打满 3 局即可上榜）')}<button class="glass-btn" data-go="leaderboard" style="width:100%;margin-top:8px">查看前 100 名 ›</button></div>`
             + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7">加好友后可以直接邀请对方联机。</div>'), 'friends')
-            + `<button class="glass-btn danger" id="acc-logout" style="width:100%">退出登录</button>`;
+            + `<button class="glass-btn danger" id="acc-logout" style="width:100%">退出登录</button>`
+            + `<div class="setting-card glass-panel acc-card" id="acc-tip" style="cursor:pointer">${head('❤️ 打赏作者')}<div style="opacity:.7">喜欢 Color War 的话，可以用微信扫码请作者喝杯奶茶。</div></div>`;
     }
 
     function renderProfile() {
@@ -385,7 +397,7 @@ export function initAccount(hooks) {
         let cells = '';
         for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
             const hl = last && last.row === i && last.column === j;
-            cells += `<div class="cell" data-rr="${i}" data-rc="${j}" style="width:${side}px;height:${side}px;cursor:default">${hl ? '<div style="position:absolute;inset:-3px;border:2px solid #fff;border-radius:0;pointer-events:none;z-index:5"></div>' : ''}</div>`;
+            cells += `<div class="cell" data-rr="${i}" data-rc="${j}" style="width:${side}px;height:${side}px;cursor:default">${hl ? '<div style="position:absolute;inset:1px;border:2px solid rgba(255,255,255,0.45);border-radius:22%;pointer-events:none;z-index:5"></div>' : ''}</div>`;
         }
         return back('复盘') + `<div style="text-align:center;font-weight:700;margin-bottom:8px">${esc(r.title)}</div>
             <div class="board glass-panel" id="acc-replay-board" style="grid-template-columns:repeat(${n},${side}px);width:max-content;margin:0 auto;pointer-events:none" data-side="${side}">${cells}</div>
@@ -435,12 +447,17 @@ export function initAccount(hooks) {
         root.querySelectorAll('[data-auth]').forEach(el => el.onclick = () => { S.isRegister = el.dataset.auth === '1'; S.error = ''; render(); });
         if ($('acc-submit')) $('acc-submit').onclick = () => auth(S.isRegister, $('acc-user').value.trim(), $('acc-pass').value, $('acc-pass2')?.value);
         if ($('acc-logout')) $('acc-logout').onclick = logout;
+        if ($('acc-tip')) $('acc-tip').onclick = showTip;
         root.querySelectorAll('[data-period]').forEach(el => el.onclick = e => {
-            e.stopPropagation(); S.lbPeriod = el.dataset.period;
+            e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbSize = null;
             loadLeaderboard(S.view === 'leaderboard').then(render); render();
         });
         root.querySelectorAll('[data-lbkey]').forEach(el => el.onclick = e => {
-            e.stopPropagation(); S.lbKey = el.dataset.lbkey;
+            e.stopPropagation(); S.lbKey = el.dataset.lbkey; S.lbSize = null;
+            loadLeaderboard(S.view === 'leaderboard').then(render); render();
+        });
+        root.querySelectorAll('[data-lbsize]').forEach(el => el.onclick = e => {
+            e.stopPropagation(); S.lbSize = Number(el.dataset.lbsize);
             loadLeaderboard(S.view === 'leaderboard').then(render); render();
         });
         root.querySelectorAll('[data-replay]').forEach(el => el.onclick = () => { S.replayId = el.dataset.replay; S.frame = 0; S.view = 'replay'; render(); });
