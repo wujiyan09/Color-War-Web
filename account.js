@@ -133,7 +133,8 @@ export function initAccount(hooks) {
         const st = hooks.getState();
         current = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(), playedAt: Date.now(), title: '',
             boardSize: st.boardSize, names: [...st.playerNames], colors: st.playerColors.map(c => String(c).replace('#', '').slice(0, 6)),
-            frames: [encodeFrame(st.board)], moves: [], isSaved: false };
+            frames: [encodeFrame(st.board)], moves: [], isSaved: false,
+            emojis: Array.isArray(st.playerEmojis) ? [...st.playerEmojis] : null };
     }
 
     function recordMove(row, col, player) {
@@ -362,18 +363,32 @@ export function initAccount(hooks) {
             + '<p style="opacity:.6;font-size:.75rem;text-align:center">最近 5 局和你保存的对局可以复盘，复盘只存在这个浏览器里。</p>';
     }
 
+    function paintReplayPieces() {
+        const boardEl = document.getElementById('acc-replay-board');
+        const r = boardEl && replays.find(x => x.id === S.replayId);
+        if (!r || typeof hooks.paintPiece !== 'function') return;
+        const n = r.boardSize, f = Math.min(S.frame, r.frames.length - 1), side = Number(boardEl.dataset.side);
+        boardEl.querySelectorAll('.cell').forEach(el => {
+            const c = decodeCell(r.frames[f], n, Number(el.dataset.rr), Number(el.dataset.rc));
+            if (c.owner === null || !c.count) return;
+            hooks.paintPiece(el, '#' + (r.colors[c.owner] || '808080'), r.emojis ? r.emojis[c.owner] : null, c.count, side * 0.76);
+        });
+    }
+
     function renderReplay() {
         const r = replays.find(x => x.id === S.replayId);
         if (!r) return back('复盘') + '<div style="opacity:.7">这局的复盘已经不在本机了</div>';
         const n = r.boardSize, f = Math.min(S.frame, r.frames.length - 1), last = f > 0 ? r.moves[f - 1] : null;
+        // 和对局棋盘用同一套 .board / .cell 样式，棋子在 render() 后用对局的 paintPiece 画。
+        const avail = Math.min(520, (root.clientWidth || 520) - 4);
+        const side = Math.max(10, (avail - 12 - 4 * (n - 1)) / n);
         let cells = '';
         for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-            const c = decodeCell(r.frames[f], n, i, j);
             const hl = last && last.row === i && last.column === j;
-            cells += `<div style="aspect-ratio:1;border-radius:18%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;${hl ? 'outline:2px solid rgba(255,255,255,.8);' : ''}">${c.owner !== null && c.count ? `<div style="width:70%;height:70%;border-radius:50%;background:#${esc(r.colors[c.owner] || '808080')};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(9px,${30 / n}vw,22px)">${c.count}</div>` : ''}</div>`;
+            cells += `<div class="cell" data-rr="${i}" data-rc="${j}" style="width:${side}px;height:${side}px;cursor:default">${hl ? '<div style="position:absolute;inset:-3px;border:2px solid #fff;border-radius:0;pointer-events:none;z-index:5"></div>' : ''}</div>`;
         }
         return back('复盘') + `<div style="text-align:center;font-weight:700;margin-bottom:8px">${esc(r.title)}</div>
-            <div style="display:grid;grid-template-columns:repeat(${n},1fr);gap:2px;max-width:520px;margin:0 auto">${cells}</div>
+            <div class="board glass-panel" id="acc-replay-board" style="grid-template-columns:repeat(${n},${side}px);width:max-content;margin:0 auto;pointer-events:none" data-side="${side}">${cells}</div>
             <div style="text-align:center;margin:10px 0;opacity:.85">${last ? `第 ${f} 步：${esc(r.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
             <input type="range" id="acc-frame" min="0" max="${r.frames.length - 1}" value="${f}" style="width:100%;max-width:520px;display:block;margin:0 auto">
             <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:10px">
@@ -401,6 +416,7 @@ export function initAccount(hooks) {
         if (!S.user) html = renderAuth();
         else html = ({ home: renderHome, profile: renderProfile, history: renderHistory, replay: renderReplay, leaderboard: renderLeaderboard, friends: renderFriends }[S.view] || renderHome)();
         root.innerHTML = html;
+        paintReplayPieces();
         bind();
     }
 
