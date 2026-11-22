@@ -302,13 +302,13 @@ export function initAccount(hooks) {
     function lbControls(data) {
         const periods = PERIODS.map(([k, t]) => `<div class="${S.lbPeriod === k ? 'active' : ''}" data-period="${k}">${t}</div>`).join('');
         const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(l.aiLabel || l.aiKey)}</button>`).join('');
-        return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${levels}</div>` : ''}`;
+        return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;justify-content:safe center">${levels}</div>` : ''}`;
     }
 
     function lbRows(data, emptyText) {
-        if (!data) return '<div style="opacity:.7">加载中…</div>';
-        if (data.error) return `<div style="color:#f39c12">${esc(data.error)}</div>`;
-        if (!data.entries.length) return `<div style="opacity:.7">${emptyText}</div>`;
+        if (!data) return '<div style="opacity:.7;text-align:center">加载中…</div>';
+        if (data.error) return `<div style="color:#f39c12;text-align:center">${esc(data.error)}</div>`;
+        if (!data.entries.length) return `<div style="opacity:.7;text-align:center">${emptyText}</div>`;
         return data.entries.map(e => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0">
             <b style="width:28px;text-align:center;color:${e.rank <= 3 ? '#ffd700' : '#fff'}">${e.rank}</b>${avatarHTML(e.avatar, e.username, 28)}
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.username)}</span>
@@ -331,9 +331,9 @@ export function initAccount(hooks) {
         const recent = S.history.slice(0, 5);
         const dots = recent.map(m => `<span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:${resultColor(m)}">${resultText(m).length === 1 ? resultText(m) : '—'}</span>`).join('');
         return card(`<div style="display:flex;align-items:center;gap:14px">${avatarHTML(u.avatar, u.username, 60)}<div style="flex:1"><div style="font-size:1.4rem;font-weight:800">${esc(u.username)}</div><div style="opacity:.7">${st.games || 0} 局 · ${st.wins || 0} 胜 ${st.losses || 0} 负</div></div><span style="opacity:.5">›</span></div>`, 'profile')
-            + card(head('🕘 最近战绩') + (recent.length ? `<div style="display:flex;gap:8px">${dots}</div><div style="opacity:.7;font-size:.8rem;margin-top:6px">上一局：${esc(summary(recent[0]))}</div>` : '<div style="opacity:.7">还没有对局记录。打完一局就会出现在这里。</div>'), 'history')
+            + card(head('🕘 最近战绩') + (recent.length ? `<div style="display:flex;gap:8px;justify-content:center">${dots}</div><div style="opacity:.7;font-size:.8rem;margin-top:6px;text-align:center">上一局：${esc(summary(recent[0]))}</div>` : '<div style="opacity:.7;text-align:center">还没有对局记录。打完一局就会出现在这里。</div>'), 'history')
             + `<div class="setting-card glass-panel acc-card">${head('<span data-go="leaderboard" style="cursor:pointer">🏆 排行榜</span>', false)}${lbControls(S.lbPreview)}${lbRows(S.lbPreview, '这段时间还没有人上榜（和 AI 打满 3 局即可上榜）')}<button class="glass-btn" data-go="leaderboard" style="width:100%;margin-top:8px">查看前 100 名 ›</button></div>`
-            + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7">加好友后可以直接邀请对方联机。</div>'), 'friends')
+            + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex;justify-content:center">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px;text-align:center">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7;text-align:center">加好友后可以直接邀请对方联机。</div>'), 'friends')
             + `<button class="glass-btn danger" id="acc-logout" style="width:100%">退出登录</button>`;
     }
 
