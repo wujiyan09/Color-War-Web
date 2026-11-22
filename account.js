@@ -414,19 +414,31 @@ export function initAccount(hooks) {
 
     function renderFriends() {
         const f = S.friends;
-        const row = (u, actions) => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0">${avatarHTML(u.avatar, u.username, 32)}<span style="flex:1">${esc(u.username)}</span>${actions}</div>`;
+        const row = (u, actions) => { const fr = f.friends.some(x => x.id === u.id); return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0"><span ${fr ? `data-friend="${u.id}"` : ''} style="display:flex;align-items:center;gap:10px;flex:1;cursor:${fr ? 'pointer' : 'default'}">${avatarHTML(u.avatar, u.username, 32)}<span>${esc(u.username)}</span></span>${actions}</div>`; };
         return back('好友')
             + card(`${head('添加好友', false)}<div style="display:flex;gap:8px"><input id="acc-friend-name" class="glass-input" placeholder="输入对方的用户名" style="flex:1"><button class="glass-btn primary" id="acc-add-friend">发送申请</button></div>${S.error ? `<div style="color:#f39c12;font-size:.85rem;margin-top:6px">${esc(S.error)}</div>` : ''}`)
             + (f.incoming.length ? card(head('好友申请', false) + f.incoming.map(u => row(u, `<button class="glass-btn primary" data-accept="${u.id}">接受</button><button class="glass-btn" data-decline="${u.id}">拒绝</button>`)).join('')) : '')
-            + card(head('我的好友', false) + (f.friends.length ? f.friends.map(u => row(u, `<button class="glass-btn primary" data-invite="${u.id}">邀请联机</button><button class="glass-btn danger" data-remove="${u.id}" title="删除好友">✕</button>`)).join('') : '<div style="opacity:.7">还没有好友</div>'))
+            + card(head('我的好友', false) + (f.friends.length ? f.friends.map(u => row(u, `<button class="glass-btn" data-friend="${u.id}">战绩</button><button class="glass-btn primary" data-invite="${u.id}">邀请联机</button><button class="glass-btn danger" data-remove="${u.id}" title="删除好友">✕</button>`)).join('') : '<div style="opacity:.7">还没有好友</div>'))
             + (f.outgoing.length ? card(head('等待对方同意', false) + f.outgoing.map(u => row(u, '')).join('')) : '');
+    }
+
+    function renderFriendRecord() {
+        const d = S.friendRecord, name = d?.user?.username || '好友';
+        const top = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><button class="glass-btn" data-go="friends">‹ 返回</button><b style="font-size:1.1rem">${esc(name)} · 近一个月战绩</b></div>`;
+        if (!d) return top + card('<div style="opacity:.7">加载中…</div>');
+        if (d.error) return top + card(`<div style="color:#f39c12">${esc(d.error)}</div>`);
+        const st = d.stats;
+        return top + card(`<div style="display:flex;align-items:center;gap:14px">${avatarHTML(d.user.avatar, d.user.username, 48)}<div><div style="font-weight:800">${esc(d.user.username)}</div><div style="opacity:.7">${st.games} 局 · ${st.wins} 胜 ${st.losses} 负</div></div></div>`)
+            + card(d.matches.length ? d.matches.map(m => `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+                <span style="background:${resultColor(m)};border-radius:999px;padding:2px 9px;font-weight:800;font-size:.85rem">${esc(resultText(m))}</span>
+                <div style="flex:1;min-width:0"><div>${esc(summary(m))}</div><div style="opacity:.6;font-size:.75rem">${new Date(m.playedAt).toLocaleString('zh-CN', { hour12: false })}</div></div></div>`).join('') : '<div style="opacity:.7">近一个月没有对局</div>');
     }
 
     function render() {
         if (!root) return;
         let html;
         if (!S.user) html = renderAuth();
-        else html = ({ home: renderHome, profile: renderProfile, history: renderHistory, replay: renderReplay, leaderboard: renderLeaderboard, friends: renderFriends }[S.view] || renderHome)();
+        else html = ({ home: renderHome, profile: renderProfile, history: renderHistory, replay: renderReplay, leaderboard: renderLeaderboard, friends: renderFriends, friendRecord: renderFriendRecord }[S.view] || renderHome)();
         root.innerHTML = html;
         paintReplayPieces();
         bind();
@@ -447,6 +459,12 @@ export function initAccount(hooks) {
         root.querySelectorAll('[data-auth]').forEach(el => el.onclick = () => { S.isRegister = el.dataset.auth === '1'; S.error = ''; render(); });
         if ($('acc-submit')) $('acc-submit').onclick = () => auth(S.isRegister, $('acc-user').value.trim(), $('acc-pass').value, $('acc-pass2')?.value);
         if ($('acc-logout')) $('acc-logout').onclick = logout;
+        root.querySelectorAll('[data-friend]').forEach(el => el.onclick = async e => {
+            e.stopPropagation(); S.friendRecord = null; S.view = 'friendRecord'; render();
+            try { S.friendRecord = await api('GET', `/api/friends/${encodeURIComponent(el.dataset.friend)}/matches`); }
+            catch (err) { S.friendRecord = { error: err.message }; }
+            if (S.view === 'friendRecord') render();
+        });
         if ($('acc-tip')) $('acc-tip').onclick = showTip;
         root.querySelectorAll('[data-period]').forEach(el => el.onclick = e => {
             e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbSize = null;
