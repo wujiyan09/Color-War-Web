@@ -636,7 +636,7 @@
                     <div id="online-guest-board" style="display:none; text-align:left; font-size:0.85rem; margin-top:8px;"></div>
                     <div style="margin: 12px 0 8px 0; font-size: 0.85rem; font-weight: bold; text-align: left;">📋 房间席位配置</div>
                     <div class="player-list glass-panel" id="online-player-list" style="max-height: 160px;"></div>
-                    <div id="btn-add-online-ai" style="display:none; gap:8px; margin-top:8px; align-items:center;"><span style="font-weight:700; font-size:0.85rem;">⊕ 添加 Bot</span><button type="button" class="glass-btn" data-bot="mathNightmare" style="flex:1;">Bot 1</button><button type="button" class="glass-btn" data-bot="enhancedNightmare" style="flex:1;">Bot 2</button></div>
+                    <div id="btn-add-online-ai" style="display:none; gap:8px; margin-top:8px; align-items:center;"><span style="font-weight:700; font-size:0.85rem;">⊕ 添加 Bot</span><button type="button" class="glass-btn" data-bot="mathNightmare" style="flex:1;">Bot 1</button><button type="button" class="glass-btn" data-bot="enhancedNightmare" style="flex:1;">Bot 2</button><button type="button" class="glass-btn" data-bot="driveBot" style="flex:1;">Bot 3</button></div>
                     <div id="online-guest-wait" style="display:none; margin-top:10px; color:#aaa; font-size:0.85rem;">等待房主启动对局...</div>
 
                     <div style="display: flex; gap: 10px; margin-top: 12px;">
@@ -1341,7 +1341,7 @@
             if (!currentRoomId || !isHost || isInGame) return;
             const seat = playerTypes.findIndex(type => type === 'disabled');
             if (seat < 0) return;
-            const type = botType === 'enhancedNightmare' ? 'enhancedNightmare' : 'mathNightmare';
+            const type = ['enhancedNightmare', 'driveBot'].includes(botType) ? botType : 'mathNightmare';
             playerTypes[seat] = type;
             playerNames[seat] = `${DISPLAY_TYPE_NAMES[type]} ${seat + 1}`;
             renderPlayerList('online-player-list');
@@ -1975,7 +1975,7 @@
 
         const WIRE_PLAYER_TYPES = {
             human: "真人", mathNightmare: "算法-噩梦", enhancedNightmare: "算法-噩梦 (加强版)",
-            network: "网络玩家", disabled: "未加入", driveBot: "Bot 3"
+            network: "网络玩家", disabled: "未加入", driveBot: "drive-bot"
         };
 
         function fromWirePlayerType(type) {
@@ -1984,7 +1984,8 @@
                 "算法-噩梦": "mathNightmare", mathNightmare: "mathNightmare",
                 "算法-噩梦 (加强版)": "enhancedNightmare", enhancedNightmare: "enhancedNightmare",
                 "网络玩家": "network", p2pNetwork: "network", network: "network",
-                "未加入": "disabled", disabled: "disabled"
+                "未加入": "disabled", disabled: "disabled",
+                "drive-bot": "driveBot", driveBot: "driveBot", "Bot 3": "driveBot"
             })[type] || "disabled";
         }
 
