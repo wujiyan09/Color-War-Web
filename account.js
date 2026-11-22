@@ -90,6 +90,22 @@ export function initAccount(hooks) {
     const S = { user: null, history: readJSON(LOCAL_HISTORY_KEY, []), friends: { friends: [], incoming: [], outgoing: [] },
         view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbKey: null, lbFull: null, lbPreview: null,
         seenInvites: new Set(), seenUpdates: new Set(), seenFriendReqs: new Set(), isRegister: false, error: '' };
+    // 登录后联机昵称用账号用户名；退出后恢复登录前手动填的昵称。
+    const MANUAL_NICK_KEY = 'CW_Account_ManualNickname';
+    function setUser(u) {
+        const prev = S.user;
+        S.user = u;
+        const input = document.getElementById('online-nickname');
+        if (!input) return;
+        if (u && u.username) {
+            if (!prev && localStorage.getItem(MANUAL_NICK_KEY) === null) localStorage.setItem(MANUAL_NICK_KEY, input.value || '');
+            input.value = u.username;
+        } else if (prev) {
+            const manual = localStorage.getItem(MANUAL_NICK_KEY);
+            if (manual) input.value = manual;
+            localStorage.removeItem(MANUAL_NICK_KEY);
+        }
+    }
     let replays = readJSON(REPLAYS_KEY, []);
     let current = null;
     let pollTimer = null;
@@ -175,7 +191,7 @@ export function initAccount(hooks) {
 
     async function loadMe() {
         if (!localStorage.getItem(TOKEN_KEY)) { render(); loadLeaderboard(false).then(render); return; }
-        try { S.user = (await api('GET', '/api/me')).user; await afterLogin(); }
+        try { setUser((await api('GET', '/api/me')).user); await afterLogin(); }
         catch (e) { if (e.status === 401) localStorage.removeItem(TOKEN_KEY); render(); }
     }
 
@@ -186,7 +202,7 @@ export function initAccount(hooks) {
             const body = isRegister ? { username, password, confirmPassword: confirm } : { username, password };
             const res = await api('POST', isRegister ? '/api/register' : '/api/login', body);
             localStorage.setItem(TOKEN_KEY, res.token);
-            S.user = res.user;
+            setUser(res.user);
             await afterLogin();
         } catch (e) { S.error = e.message; render(); }
     }
@@ -195,7 +211,7 @@ export function initAccount(hooks) {
         api('POST', '/api/logout').catch(() => {});
         localStorage.removeItem(TOKEN_KEY);
         clearInterval(pollTimer);
-        S.user = null; S.view = 'home';
+        setUser(null); S.view = 'home';
         S.history = readJSON(LOCAL_HISTORY_KEY, []);
         render();
     }
@@ -324,7 +340,7 @@ export function initAccount(hooks) {
         const u = S.user;
         const emojis = ['🙂', '😎', '🐯', '🐼', '🦊', '🐸', '🐙', '🦄', '🔥', '⚡️', '🌈', '🎯', '🎻', '🚀', '👾', '🍀'];
         return back('个人资料') + card(`<div style="text-align:center;margin-bottom:10px" id="acc-avatar-preview">${avatarHTML(S.draftAvatar ?? u.avatar, u.username, 96)}</div>
-            <button class="glass-btn" id="acc-photo" style="width:100%;margin-bottom:8px">从相册选择头像</button><input type="file" id="acc-photo-input" accept="image/*" style="display:none">
+            <label class="glass-btn" id="acc-photo" style="position:relative;width:100%;box-sizing:border-box;margin-bottom:8px">从相册选择头像<input type="file" id="acc-photo-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></label>
             <div style="opacity:.7;font-size:.8rem">或者用表情头像</div>
             <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin:6px 0">${emojis.map(e => `<button class="glass-btn" data-emoji="${e}" style="padding:4px;font-size:1.3rem">${e}</button>`).join('')}</div>
             <label style="display:flex;align-items:center;gap:8px">表情头像底色 <input type="color" id="acc-emoji-color" value="${S.emojiColor || '#1e5bb8'}"></label>`)
@@ -422,7 +438,6 @@ export function initAccount(hooks) {
         if ($('acc-save-replay')) $('acc-save-replay').onclick = () => { r.isSaved = !r.isSaved; saveReplays(); render(); };
         // 资料
         if ($('acc-photo')) {
-            $('acc-photo').onclick = () => $('acc-photo-input').click();
             $('acc-photo-input').onchange = e => {
                 const file = e.target.files[0]; if (!file) return;
                 const img = new Image();
@@ -443,7 +458,7 @@ export function initAccount(hooks) {
                 if (S.draftAvatar !== undefined) body.avatar = S.draftAvatar;
                 const bark = $('acc-bark').value.trim();
                 if (bark !== (S.user.barkKey || '')) body.barkKey = bark;
-                try { S.user = (await api('PATCH', '/api/me', body)).user; S.draftAvatar = undefined; go('home'); }
+                try { setUser((await api('PATCH', '/api/me', body)).user); S.draftAvatar = undefined; go('home'); }
                 catch (e) { S.error = e.message; render(); }
             };
         }
