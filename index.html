@@ -799,7 +799,7 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML } from './account.js?v=20261122-6';
+        import { initAccount, avatarHTML } from './account.js?v=20261123-1';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
@@ -2526,6 +2526,7 @@
         const account = initAccount({
             serverURL: DEFAULT_WEBSOCKET_SERVER_URL,
             paintPiece,
+            isGameActive: () => isInGame && winnerIndex === null,
             getState: () => ({
                 board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors], playerEmojis: [...playerEmojis],
                 active: getActivePlayers(), winnerIndex, online: !!currentRoomId, myPlayerIndex,

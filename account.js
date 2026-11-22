@@ -221,11 +221,19 @@ export function initAccount(hooks) {
 
     function startPolling() {
         clearInterval(pollTimer);
-        pollTimer = setInterval(() => { if (!document.hidden) poll(); }, 20000);
+        pollTimer = setInterval(() => { if (!document.hidden && !inGame()) poll(); }, 20000);
         poll();
     }
+    // 对局进行中（任何模式）暂停轮询；对局结束/离开对局时立刻补一次（顺带补传战绩）。本地检查，不发请求。
+    const inGame = () => !!(hooks.isGameActive && hooks.isGameActive());
+    let wasInGame = false;
+    setInterval(() => {
+        const now = inGame();
+        if (wasInGame && !now && S.user && !document.hidden) poll();
+        wasInGame = now;
+    }, 1000);
     window.addEventListener('online', () => uploadPending());
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && S.user) poll(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && S.user && !inGame()) poll(); });
 
     async function auth(isRegister, username, password, confirm) {
         S.error = '';
