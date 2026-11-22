@@ -25,7 +25,7 @@ export const DUEL_STRENGTH_CAPS = Object.freeze([
   Object.freeze({ name: "简单", timeMs: 300, softTimeMs: 80, maxDepth: 4 }),
   Object.freeze({ name: "中等", timeMs: 1000, softTimeMs: 300, maxDepth: 10 }),
   Object.freeze({ name: "困难", timeMs: 2500, softTimeMs: 700, maxDepth: 20 }),
-  Object.freeze({ name: "Drive 原版", timeMs: 5000, softTimeMs: 1200, maxDepth: 32 }),
+  Object.freeze({ name: "困难+", timeMs: 5000, softTimeMs: 1200, maxDepth: 32 }),
 ]);
 export function strengthCap(strength) {
   return DUEL_STRENGTH_CAPS[Math.max(1, Math.min(DUEL_MAX_STRENGTH, Number(strength) || DUEL_MAX_STRENGTH)) - 1];

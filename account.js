@@ -62,7 +62,9 @@ const writeJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const modeText = m => m === 'vsAI' ? '人机' : m === 'online' ? '联机' : '本地';
 const resultText = m => m.result === 'win' ? '胜' : m.result === 'loss' ? '负' : m.result === 'draw' ? '平' : (m.detail?.winnerName ? `${m.detail.winnerName} 胜` : '—');
 const resultColor = m => m.result === 'win' ? '#2ecc71' : m.result === 'loss' ? '#e74c3c' : '#7f8c8d';
-const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, m.aiLabel, `${m.moves}步`].filter(Boolean).join(' · ');
+// 只改显示：Bot 3 强度 4（原 Drive 原版）显示为“困难+”，存储的 aiKey/aiLabel 不变
+const displayAILabel = l => l ? String(l).replace('Bot 3 · 强度 4', 'Bot 3 · 困难+') : l;
+const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, displayAILabel(m.aiLabel), `${m.moves}步`].filter(Boolean).join(' · ');
 
 export function avatarHTML(avatar, name, size = 40) {
     const base = `width:${size}px;height:${size}px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.35);`;
@@ -342,7 +344,7 @@ export function initAccount(hooks) {
 
     function lbControls(data) {
         const periods = PERIODS.map(([k, t]) => `<div class="${S.lbPeriod === k ? 'active' : ''}" data-period="${k}">${t}</div>`).join('');
-        const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(l.aiLabel || l.aiKey)}</button>`).join('');
+        const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(displayAILabel(l.aiLabel || l.aiKey))}</button>`).join('');
         const sizes = (data?.boardSizes || []).map(b => `<button class="glass-btn ${S.lbSize === b.boardSize ? 'primary' : ''}" data-lbsize="${b.boardSize}" style="padding:4px 10px;font-size:.8rem">${b.boardSize}×${b.boardSize}</button>`).join('');
         return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${levels}</div>` : ''}${sizes ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${sizes}</div>` : ''}`;
     }
