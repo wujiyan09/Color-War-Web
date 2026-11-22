@@ -64,7 +64,7 @@ const resultText = m => m.result === 'win' ? '胜' : m.result === 'loss' ? '负'
 const resultColor = m => m.result === 'win' ? '#2ecc71' : m.result === 'loss' ? '#e74c3c' : '#7f8c8d';
 const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, m.aiLabel, `${m.moves}步`].filter(Boolean).join(' · ');
 
-function avatarHTML(avatar, name, size = 40) {
+export function avatarHTML(avatar, name, size = 40) {
     const base = `width:${size}px;height:${size}px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.35);`;
     if (avatar && avatar.startsWith('data:image')) return `<span style="${base}"><img src="${esc(avatar)}" style="width:100%;height:100%;object-fit:cover"></span>`;
     if (avatar && avatar.startsWith('emoji:')) {
@@ -563,6 +563,7 @@ export function initAccount(hooks) {
 
     return {
         begin, recordMove, finish,
+        myAvatar: () => S.user?.avatar || null,
         show() { if (S.user) { refreshHistory().then(render); } render(); }
     };
 }

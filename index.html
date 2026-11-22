@@ -776,7 +776,7 @@
     </div>
 
     <script type="module">
-        import { initAccount } from './account.js?v=20261122-2';
+        import { initAccount, avatarHTML } from './account.js?v=20261122-3';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
@@ -1612,6 +1612,19 @@
             });
         }
 
+        // 和 iOS 一样：联机用同步来的头像；本地只有一个真人座位时用自己的账号头像；Bot 不显示头像
+        function seatAvatar(pIdx) {
+            const t = playerTypes[pIdx];
+            if (!t || t === 'disabled' || ['mathNightmare', 'enhancedNightmare', 'driveBot'].includes(t)) return null;
+            let a = null;
+            if (currentRoomId) a = playerAvatars[pIdx] || (pIdx === myPlayerIndex ? account.myAvatar() : null);
+            else {
+                const humans = playerTypes.map((x, i) => x === 'human' ? i : -1).filter(i => i >= 0 && i < MAX_PLAYERS);
+                if (humans.length === 1 && humans[0] === pIdx) a = account.myAvatar();
+            }
+            return a && (a.startsWith('data:image') || a.startsWith('emoji:')) ? a : null;
+        }
+
         function renderSidePlayers() {
             const active = getActivePlayers();
             const mid = Math.ceil(active.length / 2);
@@ -1637,7 +1650,7 @@
                                 <circle cx="21" cy="21" r="18" fill="none" stroke="${playerColor}" stroke-width="3"
                                         stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"/>
                             </svg>
-                            <div style="font-size:1rem; z-index:2;">${escapeHTML(playerEmojis[pIdx])}</div>
+                            ${seatAvatar(pIdx) ? `<div style="z-index:2;display:flex;opacity:${isElim ? .3 : 1}">${avatarHTML(seatAvatar(pIdx), playerNames[pIdx], 31)}</div>` : `<div style="font-size:1rem; z-index:2;">${escapeHTML(playerEmojis[pIdx])}</div>`}
                         </div>
                         <span style="color:${isTurn ? '#fff' : '#aaa'}">${escapeHTML(playerNames[pIdx])}</span>
                     `;
@@ -2038,7 +2051,10 @@
             renderPlayerList('online-player-list');
         }
 
+        // 每个座位的账号头像（服务器 roomRoster 带来；旧服务器没有这个字段）
+        let playerAvatars = [];
         function updateRoster(packet) {
+            if (Array.isArray(packet.playerAvatars)) playerAvatars = packet.playerAvatars.slice(0, MAX_PLAYERS);
             if (Array.isArray(packet.playerNames)) {
                 packet.playerNames.forEach((name, i) => {
                     if (i < MAX_PLAYERS && name) playerNames[i] = name;
@@ -2168,6 +2184,10 @@
                             setRoomConnectionStatus('已连接', true);
                             showRoomLobby();
                             updateRoster(packet);
+                            {
+                                const av = account.myAvatar() || '';
+                                sendGamePacket('setAvatar', { avatar: (av.startsWith('data:image') || av.startsWith('emoji:')) && av.length <= 48000 ? av : '' });
+                            }
                             if (isHost && packet.hostResumeToken) sessionStorage.setItem(roomResumeTokenKey(currentRoomId), packet.hostResumeToken);
                             if (isHost && !hostRecoveryPending) syncRoomSettingsToCloud();
                             roomConnectionRestoring = false;
@@ -2366,6 +2386,7 @@
         }
 
         function leaveCloudRoom() {
+            playerAvatars = [];
             const leavingRoomId = currentRoomId;
             if (reconnectTimer) clearTimeout(reconnectTimer);
             reconnectTimer = null;
