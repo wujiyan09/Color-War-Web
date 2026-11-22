@@ -318,44 +318,67 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            width: 52px;
+            width: 56px;
             justify-content: center;
         }
 
+        /* 与 iOS PlayerProgressOrbView 一致：46pt 玻璃圆，淡色底，3.5 宽比例环，内圈头像/表情/色点 */
         .player-orb-card {
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-size: 0.65rem;
-            font-weight: 700;
-            transition: transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
+            gap: 4px;
             opacity: 1;
+            transition: opacity 300ms ease;
         }
 
-        .player-orb-card.eliminated { opacity: 0.25; }
-        .player-orb-card.active { transform: scale(1.15); }
+        .player-orb-card.eliminated { opacity: 0.35; }
 
         .orb-circle-wrap {
             position: relative;
-            width: 42px; height: 42px;
+            width: 46px; height: 46px;
+            flex: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 2px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 0.5px solid rgba(255, 255, 255, 0.35);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            backdrop-filter: blur(12px) saturate(160%);
+            transition: transform 250ms cubic-bezier(0.34, 1.45, 0.5, 1), box-shadow 250ms ease;
         }
+
+        .player-orb-card.active .orb-circle-wrap { transform: scale(1.15); }
 
         .orb-circle-bg {
             position: absolute;
-            width: 100%; height: 100%;
+            inset: 0;
             border-radius: 50%;
         }
 
         .orb-svg-ring {
             position: absolute;
-            top: -2px; left: -2px;
+            inset: 0;
             width: 46px; height: 46px;
             transform: rotate(-90deg);
         }
+
+        .orb-svg-ring circle { transition: stroke-dashoffset 300ms ease-in-out; }
+
+        .orb-name {
+            width: 54px;
+            font-size: 10px;
+            font-weight: 500;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .player-orb-card.active .orb-name { font-weight: 700; color: #fff; }
 
         .board {
             position: relative;
@@ -776,7 +799,7 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML } from './account.js?v=20261122-3';
+        import { initAccount, avatarHTML } from './account.js?v=20261122-4';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
@@ -1636,23 +1659,31 @@
                 list.forEach(pIdx => {
                     const isTurn = currentPlayer === pIdx, isElim = eliminated[pIdx];
                     const pct = getOrbPercentage(pIdx);
-                    const circumference = 2 * Math.PI * 18;
-                    const strokeDashoffset = circumference * (1 - pct);
+                    // iOS：环在 46 的圆里内缩 3pt（半径 20），线宽 3.5，圆头；出局后环清空
+                    const circumference = 2 * Math.PI * 20;
+                    const strokeDashoffset = circumference * (1 - (isElim ? 0 : Math.max(0, Math.min(1, pct))));
                     const playerColor = normalizePlayerColor(playerColors[pIdx]) || DEFAULT_COLORS[pIdx];
 
                     const card = document.createElement('div');
                     card.className = `player-orb-card ${isTurn ? 'active' : ''} ${isElim ? 'eliminated' : ''}`;
                     
+                    const av = seatAvatar(pIdx), em = playerEmojis[pIdx];
+                    const inner = av
+                        ? `<div style="z-index:2;display:flex;opacity:${isElim ? .3 : 1}">${avatarHTML(av, playerNames[pIdx], 31)}</div>`
+                        : em
+                            ? `<div style="z-index:2;font-size:${46 * 0.42}px;line-height:1;opacity:${isElim ? .3 : 1}">${escapeHTML(em)}</div>`
+                            : `<div style="z-index:2;width:${46 * 0.38}px;height:${46 * 0.38}px;border-radius:50%;background:${playerColor};opacity:${isElim ? .2 : .85}"></div>`;
                     card.innerHTML = `
-                        <div class="orb-circle-wrap">
-                            <div class="orb-circle-bg" style="background:${playerColor}"></div>
-                            <svg class="orb-svg-ring" viewBox="0 0 42 42">
-                                <circle cx="21" cy="21" r="18" fill="none" stroke="${playerColor}" stroke-width="3"
-                                        stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"/>
+                        <div class="orb-circle-wrap" style="${isTurn ? `box-shadow:0 0 10px ${playerColor}cc, inset 0 1px 1px rgba(255,255,255,.3)` : ''}">
+                            <div class="orb-circle-bg" style="background:${playerColor};opacity:${isElim ? .05 : .2}"></div>
+                            <svg class="orb-svg-ring" viewBox="0 0 46 46">
+                                <circle cx="23" cy="23" r="20" fill="none" stroke="${playerColor}" stroke-width="3.5"
+                                        stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round"
+                                        ${isElim || pct <= 0 ? 'stroke-opacity="0"' : ''}/>
                             </svg>
-                            ${seatAvatar(pIdx) ? `<div style="z-index:2;display:flex;opacity:${isElim ? .3 : 1}">${avatarHTML(seatAvatar(pIdx), playerNames[pIdx], 31)}</div>` : `<div style="font-size:1rem; z-index:2;">${escapeHTML(playerEmojis[pIdx])}</div>`}
+                            ${inner}
                         </div>
-                        <span style="color:${isTurn ? '#fff' : '#aaa'}">${escapeHTML(playerNames[pIdx])}</span>
+                        <span class="orb-name">${escapeHTML(playerNames[pIdx])}</span>
                     `;
                     el.appendChild(card);
                 });

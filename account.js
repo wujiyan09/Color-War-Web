@@ -83,6 +83,7 @@ export function initAccount(hooks) {
         try { res = await fetch(hooks.serverURL + path, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
         catch { throw new Error('网络连接失败，请稍后再试'); }
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401 && token && localStorage.getItem(TOKEN_KEY) === token) sessionExpired(data.error || '登录已过期，请重新登录');
         if (!res.ok) throw Object.assign(new Error(data.error || `服务器错误 (${res.status})`), { status: res.status });
         return data;
     };
@@ -92,9 +93,12 @@ export function initAccount(hooks) {
         seenInvites: new Set(), seenUpdates: new Set(), seenFriendReqs: new Set(), isRegister: false, error: '' };
     // 登录后联机昵称用账号用户名；退出后恢复登录前手动填的昵称。
     const MANUAL_NICK_KEY = 'CW_Account_ManualNickname';
+    // 上次登录成功时的账号信息：打开网页时直接用它恢复登录，不联网校验
+    const CACHED_USER_KEY = 'CW_Account_CachedUser';
     function setUser(u) {
         const prev = S.user;
         S.user = u;
+        if (u) writeJSON(CACHED_USER_KEY, u); else localStorage.removeItem(CACHED_USER_KEY);
         const input = document.getElementById('online-nickname');
         if (!input) return;
         if (u && u.username) {
@@ -184,17 +188,44 @@ export function initAccount(hooks) {
         if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
         await uploadPending();
         await Promise.all([refreshHistory(), refreshFriends(), loadLeaderboard(false)]);
-        clearInterval(pollTimer);
-        pollTimer = setInterval(poll, 8000);
-        poll();
+        startPolling();
         render();
     }
 
     async function loadMe() {
         if (!localStorage.getItem(TOKEN_KEY)) { render(); loadLeaderboard(false).then(render); return; }
+        const cached = readJSON(CACHED_USER_KEY, null);
+        if (cached && cached.id) {
+            // 默认保持登录：不请求 /api/me，等真正联网操作（传战绩、好友、排行榜、邀请）时再校验
+            setUser(cached);
+            render();
+            uploadPending();
+            loadLeaderboard(false).then(render);
+            startPolling();
+            return;
+        }
+        // 旧版本还没有缓存，只校验这一次
         try { setUser((await api('GET', '/api/me')).user); await afterLogin(); }
-        catch (e) { if (e.status === 401) localStorage.removeItem(TOKEN_KEY); render(); }
+        catch { render(); }
     }
+
+    // 401：清掉登录状态，保留没传上去的战绩，重新登录后补传
+    function sessionExpired(message) {
+        localStorage.removeItem(TOKEN_KEY);
+        clearInterval(pollTimer);
+        setUser(null); S.view = 'home';
+        S.history = readJSON(LOCAL_HISTORY_KEY, []);
+        S.error = message;
+        render();
+    }
+
+    function startPolling() {
+        clearInterval(pollTimer);
+        pollTimer = setInterval(() => { if (!document.hidden) poll(); }, 8000);
+        poll();
+    }
+    window.addEventListener('online', () => uploadPending());
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && S.user) poll(); });
 
     async function auth(isRegister, username, password, confirm) {
         S.error = '';
@@ -244,6 +275,7 @@ export function initAccount(hooks) {
         if (!S.user) return;
         let data;
         try { data = await api('GET', '/api/notifications'); } catch { return; }
+        if (readJSON(PENDING_KEY, []).length) uploadPending();
         for (const inv of data.invites) {
             if (S.seenInvites.has(inv.id)) continue;
             S.seenInvites.add(inv.id);
