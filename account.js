@@ -221,7 +221,7 @@ export function initAccount(hooks) {
 
     function startPolling() {
         clearInterval(pollTimer);
-        pollTimer = setInterval(() => { if (!document.hidden) poll(); }, 30000);
+        pollTimer = setInterval(() => { if (!document.hidden) poll(); }, 20000);
         poll();
     }
     window.addEventListener('online', () => uploadPending());
