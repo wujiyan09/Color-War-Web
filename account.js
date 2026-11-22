@@ -329,6 +329,22 @@ export function initAccount(hooks) {
     }
 
     // 打赏：换图就把仓库根目录的 wechat-pay.png 替换成微信收款码（文件名不变）
+    function showDeleteAccount() {
+        const o = document.createElement('div');
+        o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+        o.innerHTML = `<div class="glass-panel" style="max-width:380px;width:100%;padding:20px;border-radius:24px"><b style="font-size:1.1rem;color:#e74c3c">注销账号</b><p style="opacity:.85;font-size:.9rem;line-height:1.5">注销后会永久删除你的账号、全部战绩、好友和邀请，也会从排行榜上移除。别人战绩里你的名字会显示为“已注销用户”。<b>此操作无法撤销。</b></p><input type="password" id="acc-del-pw" class="glass-input" placeholder="输入密码确认" style="width:100%;box-sizing:border-box"><div id="acc-del-err" style="color:#f39c12;font-size:.85rem;margin-top:6px"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="glass-btn" data-x="cancel" style="flex:1">取消</button><button class="glass-btn danger" data-x="ok" style="flex:1">永久注销</button></div></div>`;
+        o.onclick = async e => {
+            if (e.target === o || e.target.dataset.x === 'cancel') return o.remove();
+            if (e.target.dataset.x !== 'ok') return;
+            const pw = o.querySelector('#acc-del-pw').value;
+            if (!pw) { o.querySelector('#acc-del-err').textContent = '请输入密码'; return; }
+            e.target.disabled = true;
+            try { await api('POST', '/api/me/delete', { password: pw }); o.remove(); logout(); }
+            catch (err) { o.querySelector('#acc-del-err').textContent = err.message; e.target.disabled = false; }
+        };
+        document.body.appendChild(o);
+    }
+
     function showTip() {
         const o = document.createElement('div');
         o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -346,6 +362,7 @@ export function initAccount(hooks) {
             + `<div class="setting-card glass-panel acc-card">${head('<span data-go="leaderboard" style="cursor:pointer">🏆 排行榜</span>', false)}${lbControls(S.lbPreview)}${lbRows(S.lbPreview, '这段时间还没有人上榜（和 AI 打满 3 局即可上榜）')}<button class="glass-btn" data-go="leaderboard" style="width:100%;margin-top:8px">查看前 100 名 ›</button></div>`
             + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7">加好友后可以直接邀请对方联机。</div>'), 'friends')
             + `<button class="glass-btn danger" id="acc-logout" style="width:100%">退出登录</button>`
+            + `<button class="glass-btn danger" id="acc-delete" style="width:100%;margin-top:10px;opacity:.85">注销账号</button>`
             + `<div class="setting-card glass-panel acc-card" id="acc-tip" style="cursor:pointer">${head('❤️ 打赏作者')}<div style="opacity:.7">喜欢 Color War 的话，可以用微信扫码请作者喝杯奶茶。</div></div>`;
     }
 
@@ -466,6 +483,7 @@ export function initAccount(hooks) {
             if (S.view === 'friendRecord') render();
         });
         if ($('acc-tip')) $('acc-tip').onclick = showTip;
+        if ($('acc-delete')) $('acc-delete').onclick = showDeleteAccount;
         root.querySelectorAll('[data-period]').forEach(el => el.onclick = e => {
             e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbSize = null;
             loadLeaderboard(S.view === 'leaderboard').then(render); render();

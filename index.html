@@ -83,6 +83,11 @@
 
         #view-menu { max-width: 480px; }
         #view-game { max-width: 100vw; }
+        /* 对局背景：和 iOS 一样，顶部是当前玩家颜色（35%），往下渐变到深蓝；切换回合 0.45 秒过渡。自定义背景图时不显示 */
+        #game-bg { display:none; position:fixed; inset:0; z-index:-1; pointer-events:none; background:rgb(6,14,36); }
+        #game-bg i { position:absolute; inset:0; opacity:.35; background-color:#3366ff; transition:background-color .45s ease-in-out;
+            -webkit-mask-image:linear-gradient(to bottom, #000, transparent); mask-image:linear-gradient(to bottom, #000, transparent); }
+        body:has(#view-game.active):not(.custom-bg) #game-bg { display:block; }
 
         .view.active { display: flex; }
 
@@ -521,6 +526,7 @@
     </style>
 </head>
 <body>
+    <div id="game-bg"><i></i></div>
 
     <!-- 主菜单 -->
     <div id="view-menu" class="view active">
@@ -1170,6 +1176,7 @@
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     document.body.style.backgroundImage = `url(${evt.target.result})`;
+                    document.body.classList.add('custom-bg');
                     localStorage.setItem('CW_CustomBg', evt.target.result);
                 };
                 reader.readAsDataURL(file);
@@ -1179,10 +1186,12 @@
         function resetBackgroundToDefault() {
             localStorage.removeItem('CW_CustomBg');
             document.body.style.backgroundImage = "var(--default-bg)";
+            document.body.classList.remove('custom-bg');
         }
 
         function loadSavedBackground() {
             const bg = localStorage.getItem('CW_CustomBg');
+            document.body.classList.toggle('custom-bg', !!bg);
             if (bg) document.body.style.backgroundImage = `url(${bg})`;
             else document.body.style.backgroundImage = "var(--default-bg)";
         }
@@ -1642,6 +1651,8 @@
 
         function updateTurnHeader() {
             document.getElementById('turn-color-dot').style.background = playerColors[currentPlayer];
+            const gameTint = document.querySelector('#game-bg i');
+            if (gameTint) gameTint.style.backgroundColor = playerColors[currentPlayer] || '#3366ff';
             document.getElementById('turn-text').innerText = getActivePlayers().length === 2
                 ? `${currentPlayer === 0 ? '红' : '蓝'}回合`
                 : `${playerNames[currentPlayer] || '玩家'}回合`;
