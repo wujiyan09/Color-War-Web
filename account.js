@@ -316,7 +316,7 @@ export function initAccount(hooks) {
     }
 
     function renderAuth() {
-        return `<div style="text-align:center;font-size:2rem;font-weight:900;margin:10px 0 14px">COLOR WAR</div>` + card(`
+        return card(`
             <div class="seg" style="margin-bottom:12px"><div class="${S.isRegister ? '' : 'active'}" data-auth="0">登录</div><div class="${S.isRegister ? 'active' : ''}" data-auth="1">注册</div></div>
             <input id="acc-user" class="glass-input" placeholder="用户名" autocomplete="username" style="width:100%;margin-bottom:8px">
             <input id="acc-pass" class="glass-input" type="password" placeholder="${S.isRegister ? '密码（至少 6 位）' : '密码'}" autocomplete="${S.isRegister ? 'new-password' : 'current-password'}" style="width:100%;margin-bottom:8px">
