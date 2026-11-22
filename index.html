@@ -2460,8 +2460,9 @@
         // 账号模块只读取游戏状态；邀请联机复用现有的房间流程。
         const account = initAccount({
             serverURL: DEFAULT_WEBSOCKET_SERVER_URL,
+            paintPiece,
             getState: () => ({
-                board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors],
+                board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors], playerEmojis: [...playerEmojis],
                 active: getActivePlayers(), winnerIndex, online: !!currentRoomId, myPlayerIndex,
                 duelBotStrength, aiLevel
             }),
