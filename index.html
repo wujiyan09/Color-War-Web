@@ -138,6 +138,7 @@
         .bottom-tab .ti { font-size:1.15rem; line-height:1; }
         .bottom-tab.active { background:rgba(255,255,255,0.2); color:#fff; }
         .glass-input { background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:10px 12px; color:#fff; font-size:1rem; box-sizing:border-box; }
+        #panel-account { flex: 1 0 auto; flex-direction: column; justify-content: safe center; }
         #account-banner { position:fixed; top:8px; left:0; right:0; z-index:300; pointer-events:none; padding:0 12px; }
         .seg { display:flex; background:rgba(0,0,0,0.4); border-radius:10px; padding:3px; border:1px solid rgba(255,255,255,0.1); }
         .seg div { flex:1; text-align:center; padding:6px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; color:rgba(255,255,255,0.65); }
@@ -659,7 +660,7 @@
             </div>
 
             <!-- 账号（对应 iOS 第 4 个标签页） -->
-            <div id="panel-account" style="width: 100%; max-width: 480px; margin: 0 auto; display: none; padding-bottom: 90px;"></div>
+            <div id="panel-account" style="width: 100%; display: none; padding-bottom: 90px;"></div>
         </div>
     </div>
 
@@ -2502,7 +2503,7 @@
                 ['panel-duel', 'panel-multiplayer', 'panel-online'].forEach(id => document.getElementById(id).style.display = 'none');
                 document.getElementById('panel-analyzer').style.display = tab === 2 ? 'block' : 'none';
             }
-            document.getElementById('panel-account').style.display = tab === 3 ? 'block' : 'none';
+            document.getElementById('panel-account').style.display = tab === 3 ? 'flex' : 'none';
             if (tab === 3) account.show();
         }
 
