@@ -332,7 +332,7 @@ export function initAccount(hooks) {
     function showTip() {
         const o = document.createElement('div');
         o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
-        o.innerHTML = `<div class="glass-panel" style="max-width:360px;width:100%;padding:20px;border-radius:24px;text-align:center"><b style="font-size:1.1rem">微信收款码</b><img src="wechat-pay.png?v=1" alt="微信收款码" style="display:block;width:100%;margin:14px 0;border-radius:16px;background:#fff"><div style="opacity:.75;font-size:.85rem;margin-bottom:12px">微信扫一扫，或长按图片识别</div><button class="glass-btn primary" style="width:100%">关闭</button></div>`;
+        o.innerHTML = `<div class="glass-panel" style="max-width:360px;width:100%;padding:20px;border-radius:24px;text-align:center"><b style="font-size:1.1rem">微信收款码</b><img src="wechat-pay.png?v=2" alt="微信收款码" style="display:block;width:100%;margin:14px 0;border-radius:16px"><div style="opacity:.75;font-size:.85rem;margin-bottom:12px">微信扫一扫，或长按图片识别</div><button class="glass-btn primary" style="width:100%">关闭</button></div>`;
         o.onclick = e => { if (e.target === o || e.target.tagName === 'BUTTON') o.remove(); };
         document.body.appendChild(o);
     }
