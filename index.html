@@ -137,6 +137,8 @@
         .bottom-tab { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 20px; border-radius:26px; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.6); cursor:pointer; transition:background 0.25s, color 0.25s; }
         .bottom-tab .ti { font-size:1.15rem; line-height:1; }
         .bottom-tab.active { background:rgba(255,255,255,0.2); color:#fff; }
+        .glass-input { background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:10px 12px; color:#fff; font-size:1rem; box-sizing:border-box; }
+        #account-banner { position:fixed; top:8px; left:0; right:0; z-index:300; pointer-events:none; padding:0 12px; }
         .seg { display:flex; background:rgba(0,0,0,0.4); border-radius:10px; padding:3px; border:1px solid rgba(255,255,255,0.1); }
         .seg div { flex:1; text-align:center; padding:6px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; color:rgba(255,255,255,0.65); }
         .seg div.active { background:rgba(255,255,255,0.25); color:#fff; }
@@ -655,6 +657,9 @@
                 </div>
                 <button id="btn-enter-analyzer" class="glass-btn primary" style="width:100%; font-size:1.1rem;">🔍 进入分析器</button>
             </div>
+
+            <!-- 账号（对应 iOS 第 4 个标签页） -->
+            <div id="panel-account" style="width: 100%; display: none; padding-bottom: 90px;"></div>
         </div>
     </div>
 
@@ -663,7 +668,9 @@
         <div class="bottom-tab active" data-tab="0"><span class="ti">◉</span>对弈</div>
         <div class="bottom-tab" data-tab="1"><span class="ti">🎉</span>派对</div>
         <div class="bottom-tab" data-tab="2"><span class="ti">🛠</span>分析器</div>
+        <div class="bottom-tab" data-tab="3"><span class="ti">👤</span>账号</div>
     </nav>
+    <div id="account-banner"></div>
 
     <!-- 分析器 -->
     <div id="view-analyzer" class="view">
@@ -762,6 +769,7 @@
     </div>
 
     <script type="module">
+        import { initAccount } from './account.js';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
@@ -1450,6 +1458,7 @@
             localMovesPlayed = 0;
             matchStartedAt = Date.now();
             gameSessionSeed = 'local-' + (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
+            account.begin();
 
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
@@ -1827,10 +1836,12 @@
             isProcessingCascade = false;
             if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) localDuelMovesPlayed++;
             localMovesPlayed++;
+            account.recordMove(row, col, player);
 
             if (checkGameOver()) {
                 Haptics.heavy();
                 showWinnerOverlay();
+                account.finish();
             } else if (!currentRoomId || isHost) {
                 advanceToNextTurn();
             }
@@ -2446,6 +2457,40 @@
         const DISPLAY_TYPE_NAMES = { human: "真人", mathNightmare: "Bot 1", enhancedNightmare: "Bot 2", driveBot: "Bot 3", network: "网络玩家", disabled: "未加入" };
         let selectedTab = 0;
 
+        // 账号模块只读取游戏状态；邀请联机复用现有的房间流程。
+        const account = initAccount({
+            serverURL: DEFAULT_WEBSOCKET_SERVER_URL,
+            getState: () => ({
+                board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors],
+                active: getActivePlayers(), winnerIndex, online: !!currentRoomId, myPlayerIndex,
+                duelBotStrength, aiLevel
+            }),
+            isInGame: () => isInGame,
+            joinRoom(code) {
+                if (currentRoomId) leaveCloudRoom();
+                selectRootTab(1);
+                switchModeTab('online');
+                document.getElementById('join-code-input').value = code;
+                joinCloudRoomByCode();
+            },
+            async hostRoom() {
+                if (!(currentRoomId && isHost)) {
+                    if (currentRoomId) leaveCloudRoom();
+                    selectRootTab(1);
+                    switchModeTab('online');
+                    createCloudRoom();
+                } else {
+                    selectRootTab(1);
+                    switchModeTab('online');
+                }
+                for (let i = 0; i < 40; i++) {
+                    if (currentRoomId && roomSocket && roomSocket.readyState === WebSocket.OPEN) return currentRoomId;
+                    await new Promise(r => setTimeout(r, 250));
+                }
+                return null;
+            }
+        });
+
         function selectRootTab(tab) {
             selectedTab = tab;
             document.querySelectorAll('.bottom-tab').forEach(el => el.classList.toggle('active', Number(el.dataset.tab) === tab));
@@ -2454,8 +2499,10 @@
             else if (tab === 1) switchModeTab(currentRoomId || localStorage.getItem('CW_SelectedPartyMode') === '1' ? 'online' : 'multiplayer');
             else {
                 ['panel-duel', 'panel-multiplayer', 'panel-online'].forEach(id => document.getElementById(id).style.display = 'none');
-                document.getElementById('panel-analyzer').style.display = 'block';
+                document.getElementById('panel-analyzer').style.display = tab === 2 ? 'block' : 'none';
             }
+            document.getElementById('panel-account').style.display = tab === 3 ? 'block' : 'none';
+            if (tab === 3) account.show();
         }
 
         // ---- Archives (CW_Saved_Game_Archives) ----
