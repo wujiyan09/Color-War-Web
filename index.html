@@ -2910,7 +2910,7 @@
             sideBtn.disabled = AN.thinking || (AN.started && !AN.paused);
             const undo = document.getElementById('an-undo');
             undo.disabled = !AN.undo.length || AN.thinking;
-            [start, pause, sideBtn, undo].forEach(b => b.style.height = compact ? '56px' : '48px');
+            [start, pause, sideBtn, undo].forEach(b => b.style.height = compact ? '46px' : '44px');
             anRenderReplay();
         }
 
