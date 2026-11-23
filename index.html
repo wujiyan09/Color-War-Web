@@ -587,7 +587,7 @@
                         <span>Bot 3 难度: <b id="duel-strength-label"></b></span>
                         <span id="duel-strength-desc" style="font-size:0.75rem; opacity:0.7;"></span>
                     </div>
-                    <input type="range" id="duel-strength-slider" min="1" max="4" step="1" value="4">
+                    <input type="range" id="duel-strength-slider" min="0" max="4" step="1" value="4">
                 </div>
                 <div class="duel-player-cards" id="duel-player-cards"></div>
                 <button id="btn-start-duel" class="glass-btn primary" style="width: 100%; font-size:1.1rem;">▶ 开始对决</button>
@@ -807,8 +807,9 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-3';
+        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-4';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261123-2";
+        import { chooseBeginnerMove, BEGINNER_STRENGTH, BEGINNER_NAME, BEGINNER_DETAIL } from "./duel-beginner-bot.js?v=20261123-1";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
         import { applyMove as botpickApplyMove, encode as bpEncode, owner as bpOwner, charge as bpCharge } from "./botpick-engine.js";
@@ -871,7 +872,7 @@
         let matchStartedAt = Date.now();
         let localMovesPlayed = 0; // every move, used by party Bot 3 (iOS localDuelMoveCount)
         let gameSessionSeed = 'local';
-        let duelBotStrength = (() => { const v = Number(localStorage.getItem('CW_Duel_BotStrength')); return v >= 1 && v <= DUEL_MAX_STRENGTH ? v : DUEL_MAX_STRENGTH; })();
+        let duelBotStrength = (() => { const raw = localStorage.getItem('CW_Duel_BotStrength'); const v = Number(raw); return raw !== null && Number.isInteger(v) && v >= BEGINNER_STRENGTH && v <= DUEL_MAX_STRENGTH ? v : DUEL_MAX_STRENGTH; })();
 
         let currentRoomId = null;
         let myPlayerIndex = 0;
@@ -1059,6 +1060,10 @@
                     const grid = Array.from({ length: this.boardSize }, (_, r) =>
                         this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
                     );
+                    // 入门（强度 0）：Bot 3 规则外的弱化外壳，不经过引擎搜索
+                    if (duelBotStrength === 0 && this.playerType === 'driveBot') {
+                        return chooseBeginnerMove({ board: grid, activePlayers: this.activePlayers, currentPlayer: this.currentPlayer, hasEntered: this.hasEntered });
+                    }
                     // Duel Bot 3: Drive-method search, level 3 + strength slider + opening book.
                     const driveMove = chooseDriveDuelMove({
                         board: grid, activePlayers: this.activePlayers, currentPlayer: this.currentPlayer,
@@ -1142,13 +1147,19 @@
             document.getElementById('tab-online').onclick = () => switchModeTab('online');
             
             const syncDuelStrength = () => {
-                const cap = strengthCap(duelBotStrength);
                 document.getElementById('duel-strength-slider').value = duelBotStrength;
+                if (duelBotStrength === BEGINNER_STRENGTH) {
+                    document.getElementById('duel-strength-label').innerText = BEGINNER_NAME;
+                    document.getElementById('duel-strength-desc').innerText = BEGINNER_DETAIL;
+                    return;
+                }
+                const cap = strengthCap(duelBotStrength);
                 document.getElementById('duel-strength-label').innerText = cap.name;
                 document.getElementById('duel-strength-desc').innerText = `每步最多 ${(cap.timeMs / 1000).toFixed(1)} 秒 · 深度 ${cap.maxDepth}`;
             };
             document.getElementById('duel-strength-slider').oninput = (e) => {
-                duelBotStrength = Math.max(1, Math.min(DUEL_MAX_STRENGTH, parseInt(e.target.value, 10) || DUEL_MAX_STRENGTH));
+                const v = parseInt(e.target.value, 10);
+                duelBotStrength = Number.isInteger(v) ? Math.max(BEGINNER_STRENGTH, Math.min(DUEL_MAX_STRENGTH, v)) : DUEL_MAX_STRENGTH;
                 localStorage.setItem('CW_Duel_BotStrength', String(duelBotStrength));
                 syncDuelStrength();
             };

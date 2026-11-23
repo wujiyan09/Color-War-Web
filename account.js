@@ -35,7 +35,10 @@ export function describeMatch(state, replay) {
     } else if (active.length === 2 && humans.length === 1 && ais.length === 1) {
         mode = 'vsAI';
         const t = types[ais[0]];
-        if (t === 'driveBot') { aiKey = `bot3-s${state.duelBotStrength}`; aiLabel = `Bot 3 · 强度 ${state.duelBotStrength}`; }
+        if (t === 'driveBot') {
+            if (state.duelBotStrength === 0) { aiKey = 'bot3-s0'; aiLabel = 'Bot 3 · 入门'; } // 入门单独一个榜
+            else { aiKey = `bot3-s${state.duelBotStrength}`; aiLabel = `Bot 3 · 强度 ${state.duelBotStrength}`; }
+        }
         else if (t === 'enhancedNightmare') { aiKey = `bot2-l${state.aiLevel}`; aiLabel = `Bot 2 · ${state.aiLevel}档`; }
         else { aiKey = `bot1-l${state.aiLevel}`; aiLabel = `Bot 1 · ${state.aiLevel}档`; }
     }
