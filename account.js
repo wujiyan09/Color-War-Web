@@ -93,7 +93,7 @@ export function initAccount(hooks) {
         return data;
     };
 
-    const S = { user: null, history: readJSON(LOCAL_HISTORY_KEY, []), friends: { friends: [], incoming: [], outgoing: [] },
+    const S = { user: null, history: readJSON(LOCAL_HISTORY_KEY, []), friends: readJSON('CW_Account_CachedFriends', null) || { friends: [], incoming: [], outgoing: [] },
         view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbAutoPeriod: true, lbKey: null, lbSize: null, lbFull: null, lbPreview: null,
         seenInvites: new Set(), seenUpdates: new Set(), seenFriendReqs: new Set(), isRegister: false, error: '' };
     // 登录后联机昵称用账号用户名；退出后恢复登录前手动填的昵称。
@@ -207,6 +207,7 @@ export function initAccount(hooks) {
             setUser(cached);
             render();
             uploadPending().then(() => api('GET', '/api/me')).then(d => { if (d?.user) { setUser(d.user); render(); } }).catch(() => {});
+            refreshFriends().then(render); // 先显示本机缓存的好友，再刷新一次
             loadLeaderboard(false).then(render);
             startPolling();
             return;
@@ -220,7 +221,7 @@ export function initAccount(hooks) {
     function sessionExpired(message) {
         localStorage.removeItem(TOKEN_KEY);
         clearInterval(pollTimer);
-        setUser(null); S.view = 'home';
+        setUser(null); S.view = 'home'; S.friends = { friends: [], incoming: [], outgoing: [] }; localStorage.removeItem('CW_Account_CachedFriends');
         S.history = readJSON(LOCAL_HISTORY_KEY, []);
         S.error = message;
         render();
@@ -258,7 +259,7 @@ export function initAccount(hooks) {
         api('POST', '/api/logout').catch(() => {});
         localStorage.removeItem(TOKEN_KEY);
         clearInterval(pollTimer);
-        setUser(null); S.view = 'home';
+        setUser(null); S.view = 'home'; S.friends = { friends: [], incoming: [], outgoing: [] }; localStorage.removeItem('CW_Account_CachedFriends');
         S.history = readJSON(LOCAL_HISTORY_KEY, []);
         render();
     }
@@ -284,7 +285,7 @@ export function initAccount(hooks) {
     // ---------- 好友与邀请 ----------
     async function refreshFriends() {
         if (!S.user) return;
-        try { S.friends = await api('GET', '/api/friends'); } catch { /* ignore */ }
+        try { S.friends = await api('GET', '/api/friends'); writeJSON('CW_Account_CachedFriends', S.friends); } catch { /* ignore */ }
     }
 
     function notify(title, body) {

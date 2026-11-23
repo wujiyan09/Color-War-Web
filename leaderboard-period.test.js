@@ -13,3 +13,8 @@ test("periods are 周榜/月榜/总榜 and stats refresh after uploading matches
   expect(acc).not.toContain("季榜");
   expect(acc).toContain("try { setUser((await api('GET', '/api/me')).user); render(); }");
 });
+test("friends list cached locally and refreshed once on load", () => {
+  expect(acc).toContain("readJSON('CW_Account_CachedFriends', null)");
+  expect(acc).toContain("writeJSON('CW_Account_CachedFriends', S.friends)");
+  expect(acc).toContain("refreshFriends().then(render); // 先显示本机缓存的好友");
+});
