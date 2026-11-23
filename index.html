@@ -153,6 +153,10 @@
         .an-wrap.vertical { flex-direction:column; gap:8px; }
         #an-board { display:grid; gap:3px; padding:6px; }
         .an-cell { border-radius:17%; background:rgba(255,255,255,0.05); border:0.7px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; transition: background 0.2s; }
+        .an-recent-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+        .an-recent-row .t { flex:1; min-width:0; } .an-recent-row .t b { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.85rem; }
+        .an-recent-row .t span { font-size:.72rem; opacity:.6; }
+        .an-recent-row button { padding:6px 10px; font-size:.78rem; }
         .an-cell.hl { background:rgba(255,214,0,0.42); border:1.5px solid rgba(255,214,0,0.85); }
         .an-piece { width:76%; height:76%; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8%; padding:16%; animation: anPop 0.2s cubic-bezier(.3,1.6,.6,1); }
         .an-piece i { width:26%; height:26%; background:#fff; border-radius:50%; display:block; }
@@ -686,6 +690,7 @@
                     <div class="seg" id="an-color-seg"><div data-c="0">红色</div><div data-c="1">蓝色</div></div>
                 </div>
                 <button id="btn-enter-analyzer" class="glass-btn primary" style="width:100%; font-size:1.1rem;">🔍 进入分析器</button>
+                <div id="an-recent" class="setting-card glass-panel" style="margin-top:12px;"></div>
             </div>
 
             <!-- 账号（对应 iOS 第 4 个标签页） -->
@@ -706,7 +711,10 @@
     <div id="view-analyzer" class="view">
         <button id="btn-exit-analyzer" class="glass-btn" style="position:absolute; top:max(12px, env(safe-area-inset-top)); left:12px; z-index:5;">❮ 返回</button>
         <div id="an-wrap" class="an-wrap">
-            <div id="an-board" class="glass-panel"></div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div id="an-board" class="glass-panel"></div>
+                <div id="an-replay" style="display:none; width:100%; max-width:520px; text-align:center;"></div>
+            </div>
             <div class="an-panel">
                 <div class="an-brushes glass-panel" id="an-brushes">
                     <div style="font-weight:800;">画笔</div>
@@ -799,7 +807,7 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML } from './account.js?v=20261123-2';
+        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-3';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261123-2";
         import { chooseParanoidMove } from "./paranoid-ai.js";
         import { Bot12Solver } from "./bot12-ai.js";
@@ -848,7 +856,17 @@
         let snapshotSeq = 0;
 
         let isInGame = false;
-        let isDuelGame = false;
+        // 唯一的对局模式来源：'duel' 对弈 / 'party' 派对 / 'online' 联机房间。连接状态只管网络。
+        let gameMode = 'duel';
+        let lastLocalMode = 'duel';
+        function enterLocalMode(mode) {
+            if (gameMode === 'online' || currentRoomId) leaveCloudRoom(); // 本地对局绝不会把棋步发到房间
+            gameMode = mode;
+        }
+        function enterOnlineMode() {
+            if (gameMode !== 'online') lastLocalMode = gameMode;
+            gameMode = 'online';
+        }
         let localDuelMovesPlayed = 0;
         let matchStartedAt = Date.now();
         let localMovesPlayed = 0; // every move, used by party Bot 3 (iOS localDuelMoveCount)
@@ -1270,7 +1288,7 @@
         function startDuelGame() {
             playerTypes = [...duelPlayerTypes, ...Array(MAX_PLAYERS - duelPlayerTypes.length).fill('disabled')];
             const active = getActivePlayers();
-            isDuelGame = true;
+            enterLocalMode('duel');
             isRandomFirst = false;
             initBoard(active[0]); // Red always starts local two-player games.
         }
@@ -1389,7 +1407,7 @@
         }
 
         function startLocalGame() {
-            isDuelGame = false;
+            enterLocalMode('party');
             const active = getActivePlayers();
             if (active.length < 2) { alert("至少需要 2 名玩家！"); return; }
             isRandomFirst = document.getElementById('random-first-toggle').checked;
@@ -1477,7 +1495,7 @@
             eliminated = Array(MAX_PLAYERS).fill(false);
             emphasizedCells.clear();
             currentPlayer = firstPlayer;
-            if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) {
+            if (gameMode === 'duel' && getActivePlayers().length === 2) {
                 const [redPlayer, bluePlayer] = getActivePlayers();
                 board[0][0] = { owner: redPlayer, count: 1 };
                 board[boardSize - 1][boardSize - 1] = { owner: bluePlayer, count: 1 };
@@ -1890,7 +1908,7 @@
             updateEliminationStatus();
             updateBoardCellsDOM();
             isProcessingCascade = false;
-            if (isDuelGame && !currentRoomId && getActivePlayers().length === 2) localDuelMovesPlayed++;
+            if (gameMode === 'duel' && getActivePlayers().length === 2) localDuelMovesPlayed++;
             localMovesPlayed++;
             account.recordMove(row, col, player);
 
@@ -1966,7 +1984,7 @@
                     try {
                         if (signal.aborted || !isInGame) return;
                         const activePlayers = getActivePlayers();
-                        const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && activePlayers.length === 2;
+                        const isLocalTwoPlayerDuel = gameMode === 'duel' && activePlayers.length === 2;
                         const solver = new AISolver(boardSize, activePlayers, currentPlayer, currentType, aiLevel, board, hasEntered, eliminated, isLocalTwoPlayerDuel, localDuelMovesPlayed);
                         const move = solver.calculateBestMove(signal);
                         if (move && !signal.aborted && isInGame) {
@@ -1995,7 +2013,7 @@
             const container = document.getElementById('control-player-rows');
             container.innerHTML = '';
 
-            const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && getActivePlayers().length === 2;
+            const isLocalTwoPlayerDuel = gameMode === 'duel' && getActivePlayers().length === 2;
             document.getElementById('ctrl-takeover-section').style.display = isLocalTwoPlayerDuel ? 'none' : 'block';
             document.getElementById('ctrl-nick-section').style.display = currentRoomId ? 'block' : 'none';
             document.getElementById('ctrl-nick-input').value = document.getElementById('online-nickname').value;
@@ -2141,6 +2159,7 @@
 
         async function connectRoom(roomCode, role, restoring = false) {
             if (!restoring) {
+                enterOnlineMode();
                 currentRoomId = roomCode;
                 roomRole = role;
                 reconnectAttempt = 0;
@@ -2298,6 +2317,7 @@
                 if (currentRoomId !== targetRoom) return;
                 if (!restoring && error.message.includes('地址必须')) {
                     currentRoomId = null;
+                    if (gameMode === 'online') gameMode = lastLocalMode;
                     roomRole = null;
                     alert(`WebSocket 地址无效：${error.message}`);
                     return;
@@ -2432,6 +2452,7 @@
                 } else if (socket.readyState === WebSocket.CONNECTING) socket.close();
             }
             currentRoomId = null;
+            if (gameMode === 'online') gameMode = lastLocalMode;
             roomRole = null;
             roomConnectionRestoring = false;
             hostRecoveryPending = false;
@@ -2527,6 +2548,8 @@
             serverURL: DEFAULT_WEBSOCKET_SERVER_URL,
             paintPiece,
             isGameActive: () => isInGame && winnerIndex === null,
+            canImportToAnalyzer: r => canImportReplay(r),
+            importToAnalyzer: r => openAnalyzerReplay(r),
             getState: () => ({
                 board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors], playerEmojis: [...playerEmojis],
                 active: getActivePlayers(), winnerIndex, online: !!currentRoomId, myPlayerIndex,
@@ -2567,6 +2590,7 @@
             else {
                 ['panel-duel', 'panel-multiplayer', 'panel-online'].forEach(id => document.getElementById(id).style.display = 'none');
                 document.getElementById('panel-analyzer').style.display = tab === 2 ? 'block' : 'none';
+                if (tab === 2) anRenderRecent();
             }
             document.getElementById('panel-account').style.display = tab === 3 ? 'flex' : 'none';
             if (tab === 3) account.show();
@@ -2584,7 +2608,7 @@
                 id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), date: Date.now(), boardSize, currentPlayer,
                 playerNames: [...playerNames], playerTypes: [...playerTypes], colorsHex: [...playerColors], emojis: [...playerEmojis],
                 board: board.map(row => row.map(c => ({ owner: c.owner, count: c.count }))),
-                hasEntered: [...hasEntered], eliminated: [...eliminated], localDuelMoveCount: localMovesPlayed, isDuel: isDuelGame
+                hasEntered: [...hasEntered], eliminated: [...eliminated], localDuelMoveCount: localMovesPlayed, isDuel: gameMode === 'duel'
             });
             saveAllArchives(list);
         }
@@ -2617,7 +2641,7 @@
             restoreArchive(a, selectedTab === 0);
         }
         function restoreArchive(a, duel) {
-            isDuelGame = duel;
+            enterLocalMode(duel ? 'duel' : 'party');
             boardSize = a.boardSize; currentPlayer = a.currentPlayer;
             playerNames = [...a.playerNames]; playerTypes = a.playerTypes.map(t => t === 'network' ? 'human' : t);
             playerColors = [...a.colorsHex]; playerEmojis = [...a.emojis];
@@ -2637,7 +2661,8 @@
 
         // ---- Analyzer (AnalyzerPlayView) ----
         const AN = { size: Number(localStorage.getItem('CW_Analyzer_BoardSize')) || 6, selfColor: Number(localStorage.getItem('CW_Analyzer_SelfColor')) || 0,
-            board: [], brush: { owner: 0, count: 1 }, started: false, paused: false, thinking: false, waiting: false, moveCount: 0, hl: null, undo: [], worker: null, token: 0 };
+            board: [], brush: { owner: 0, count: 1 }, started: false, paused: false, thinking: false, waiting: false, moveCount: 0, hl: null, undo: [], worker: null, token: 0,
+            line: null, frame: 0, onLine: false, best: null };
         if (![6, 9, 12].includes(AN.size)) AN.size = 6;
         if (AN.selfColor !== 1) AN.selfColor = 0;
         function anSyncSetup() {
@@ -2659,6 +2684,7 @@
             return b;
         }
         function openAnalyzer(archive = null) {
+            AN.line = null; AN.onLine = false; AN.best = null;
             const size = archive && [6, 9, 12].includes(archive.boardSize) ? archive.boardSize : AN.size;
             Object.assign(AN, { board: anMakeBoard(size, archive), boardSizeNow: size, brush: { owner: 0, count: 1 }, started: false, paused: false,
                 thinking: false, waiting: false, moveCount: archive?.localDuelMoveCount || 0, hl: null, undo: [] });
@@ -2668,6 +2694,7 @@
         }
         function closeAnalyzer() {
             anCancel();
+            if (selectedTab === 2) anRenderRecent();
             document.getElementById('view-analyzer').classList.remove('active');
             document.getElementById('view-menu').classList.add('active');
         }
@@ -2683,6 +2710,7 @@
             return true;
         }
         function anTap(r, c) {
+            if (AN.onLine) anLeaveLine();
             if (!AN.started || AN.paused) {
                 anPushUndo();
                 AN.board[r][c] = AN.brush === 'eraser' ? { owner: null, count: 0 } : { owner: AN.brush.owner, count: AN.brush.count };
@@ -2715,6 +2743,8 @@
             } catch { finish(null); }
         }
         function anStart() {
+            if (AN.onLine) { const side = anSideToMove(); if (side !== null) { AN.selfColor = side; anSyncSetup(); } anLeaveLine(); }
+            AN.best = null;
             if (!AN.started) { AN.started = true; AN.paused = false; AN.brush = { owner: 0, count: 1 }; anRunSelf(); }
             else if (AN.paused) { AN.paused = false; if (!AN.waiting) anRunSelf(); }
             anRenderAll();
@@ -2729,12 +2759,120 @@
             if (AN.thinking || (AN.started && !AN.paused)) return;
             AN.selfColor = 1 - AN.selfColor; localStorage.setItem('CW_Analyzer_SelfColor', AN.selfColor); anSyncSetup(); anRenderAll();
         }
+        // ---- 导入整局：最近对局 → 分析器（进度条、最优解、从任意一步分支，原棋谱不变） ----
+        function replaySeats(r) {
+            const seats = new Set(r.moves.map(m => m.player));
+            const n = r.boardSize;
+            if (r.frames[0]) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const o = decodeCell(r.frames[0], n, i, j).owner; if (o !== null) seats.add(o); }
+            return [...seats].sort((a, b) => a - b);
+        }
+        function canImportReplay(r) {
+            return !!r && r.boardSize >= 5 && r.boardSize <= 12 && r.moves.length > 0 && r.frames.length === r.moves.length + 1 && replaySeats(r).length === 2;
+        }
+        function anSeatMap() { const m = {}; replaySeats(AN.line).forEach((s, i) => m[s] = i); return m; }
+        function anSideToMove() {
+            if (!AN.line) return null;
+            const mv = AN.line.moves[AN.frame];
+            return mv ? anSeatMap()[mv.player] : null;
+        }
+        function openAnalyzerReplay(r) {
+            if (!canImportReplay(r)) return;
+            selectRootTab(2);
+            openAnalyzer();
+            AN.line = r; AN.boardSizeNow = r.boardSize;
+            anShowFrame(r.frames.length - 1);
+        }
+        function anShowFrame(f) {
+            const line = AN.line; if (!line) return;
+            anCancel();
+            const n = line.boardSize, map = anSeatMap();
+            AN.frame = Math.max(0, Math.min(line.frames.length - 1, f));
+            AN.board = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
+                const v = decodeCell(line.frames[AN.frame], n, i, j);
+                return v.owner === null || map[v.owner] === undefined || v.count <= 0 ? { owner: null, count: 0 } : { owner: map[v.owner], count: v.count };
+            }));
+            Object.assign(AN, { moveCount: AN.frame, hl: null, best: null, onLine: true, started: false, paused: false, thinking: false, waiting: false, undo: [] });
+            anRenderAll();
+        }
+        function anLeaveLine() { AN.onLine = false; AN.undo = []; AN.best = null; }
+        function anBestMove() {
+            const side = anSideToMove();
+            if (!AN.onLine || side === null || AN.thinking) return;
+            if (!AN.board.some(row => row.some(c => c.owner === side))) { AN.best = '该方还没落子，开局第一步不计算'; anRenderAll(); return; }
+            AN.thinking = true; AN.hl = null; AN.best = null; anRenderAll();
+            const token = ++AN.token, n = AN.boardSizeNow, frame = AN.frame, line = AN.line;
+            const finish = move => {
+                if (token !== AN.token) return;
+                if (AN.worker) { AN.worker.terminate(); AN.worker = null; }
+                AN.thinking = false;
+                if (!AN.onLine || AN.frame !== frame) { anRenderAll(); return; }
+                if (move === null || move === undefined) { AN.best = '这一步没有可走的位置'; anRenderAll(); return; }
+                const r = Math.floor(move / n), c = move % n, actual = line.moves[frame];
+                AN.hl = move;
+                AN.best = `${side === 0 ? '红' : '蓝'}方最优解：(${r + 1}, ${c + 1})` + (actual ? (actual.row === r && actual.column === c ? ' · 和实战一样' : ` · 实战下在 (${actual.row + 1}, ${actual.column + 1})`) : '');
+                anRenderAll();
+            };
+            try {
+                // 和“开始分析”用同一个 worker / 引擎 / 参数，只算不落子
+                AN.worker = new Worker(new URL('./analyzer-worker.js', import.meta.url), { type: 'module' });
+                AN.worker.onmessage = e => finish(e.data.move);
+                AN.worker.onerror = () => finish(null);
+                AN.worker.postMessage({ cells: anCells(), size: n, side, timeMs: 5000 });
+            } catch { finish(null); }
+        }
+        function anRenderReplay() {
+            const el = document.getElementById('an-replay');
+            const line = AN.line;
+            if (!line) { el.style.display = 'none'; el.innerHTML = ''; return; }
+            el.style.display = 'block';
+            if (!AN.onLine) {
+                el.innerHTML = `<button class="glass-btn" id="an-back-line" style="width:100%; max-width:320px;">↩ 回到导入的对局（第 ${AN.frame} 步）</button>`;
+                document.getElementById('an-back-line').onclick = () => { Haptics.light(); anShowFrame(AN.frame); };
+                return;
+            }
+            const f = AN.frame, last = f > 0 ? line.moves[f - 1] : null, side = anSideToMove();
+            el.innerHTML = `<div style="opacity:.85; margin-bottom:6px;">${last ? `第 ${f} 步：${escAn(line.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
+                <input type="range" id="an-frame" min="0" max="${line.frames.length - 1}" value="${f}" style="width:100%;">
+                <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:6px">
+                <button class="glass-btn" data-anstep="first">⏮</button><button class="glass-btn" data-anstep="prev">‹</button><b style="min-width:70px;text-align:center">${f}/${line.frames.length - 1}</b><button class="glass-btn" data-anstep="next">›</button><button class="glass-btn" data-anstep="last">⏭</button></div>
+                <button class="glass-btn primary" id="an-best" style="width:100%; max-width:320px; margin-top:8px;" ${AN.thinking || side === null ? 'disabled' : ''}>${AN.thinking ? '⏳ 计算中…' : (side === null ? '对局已结束' : `💡 算${side === 0 ? '红' : '蓝'}方最优解`)}</button>
+                ${AN.best ? `<div style="color:#ffd60a; font-weight:700; font-size:.85rem; margin-top:6px;">${AN.best}</div>` : ''}`;
+            document.getElementById('an-frame').oninput = e => anShowFrame(Number(e.target.value));
+            el.querySelectorAll('[data-anstep]').forEach(b => b.onclick = () => {
+                const max = line.frames.length - 1;
+                anShowFrame({ first: 0, prev: f - 1, next: f + 1, last: max }[b.dataset.anstep]);
+            });
+            document.getElementById('an-best').onclick = () => { Haptics.light(); anBestMove(); };
+        }
+        function escAn(t) { return String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+        function anRenderRecent() {
+            const el = document.getElementById('an-recent'); if (!el) return;
+            const all = account.listReplays(), pinned = all.filter(r => r.isSaved), recent = all.filter(r => !r.isSaved);
+            const row = r => {
+                const ok = canImportReplay(r);
+                const d = new Date(r.playedAt), when = `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                return `<div class="an-recent-row"><div class="t"><b>${escAn(r.title || `${r.boardSize}×${r.boardSize} 对局`)}</b><span>${when}${ok ? '' : ' · 多人局不能导入'}</span></div>
+                    <button class="glass-btn" data-anpin="${r.id}" title="${r.isSaved ? '取消收藏' : '收藏'}">${r.isSaved ? '★' : '☆'}</button>
+                    <button class="glass-btn" data-andel="${r.id}" title="删除">🗑</button>
+                    <button class="glass-btn primary" data-animport="${r.id}" ${ok ? '' : 'disabled'}>导入分析器</button></div>`;
+            };
+            el.innerHTML = `<div style="font-weight:800;">最近对局</div><div style="font-size:.72rem;opacity:.6;margin:2px 0 6px;">自动保留最近 5 局；点 ☆ 收藏后长期保留。</div>`
+                + (all.length ? '' : '<div style="opacity:.7;font-size:.85rem;padding:6px 0;">还没有对局记录，下完一局就会出现在这里。</div>')
+                + (pinned.length ? `<div style="font-size:.75rem;font-weight:700;color:#ffd60a;margin-top:4px;">已收藏</div>${pinned.map(row).join('')}` : '')
+                + (recent.length ? `<div style="font-size:.75rem;font-weight:700;opacity:.8;margin-top:4px;">最近 5 局</div>${recent.map(row).join('')}` : '');
+            const byId = id => all.find(r => r.id === id);
+            el.querySelectorAll('[data-anpin]').forEach(b => b.onclick = () => { Haptics.light(); account.toggleSavedReplay(b.dataset.anpin); anRenderRecent(); });
+            el.querySelectorAll('[data-andel]').forEach(b => b.onclick = () => { if (confirm('删除这局记录？')) { account.deleteReplay(b.dataset.andel); anRenderRecent(); } });
+            el.querySelectorAll('[data-animport]').forEach(b => b.onclick = () => { Haptics.light(); openAnalyzerReplay(byId(b.dataset.animport)); });
+        }
+
         function anRenderAll() {
             const n = AN.boardSizeNow, W = window.innerWidth, H = window.innerHeight;
             const horizontal = W >= 900 && H >= 620;
             const wrap = document.getElementById('an-wrap');
             wrap.classList.toggle('vertical', !horizontal);
-            const maxSide = horizontal ? Math.max(96, Math.min(680, Math.min(W - 280, H - 24))) : Math.max(96, Math.min(W - 24, H - 374));
+            const reserve = !AN.line ? 0 : (AN.onLine ? (horizontal ? 200 : 216) : 52);
+            const maxSide = horizontal ? Math.max(96, Math.min(680, Math.min(W - 280, H - 24 - reserve))) : Math.max(96, Math.min(W - 24, H - 374 - reserve));
             const side = Math.max(10, (maxSide - 12 - 3 * (n - 1)) / n);
             const boardEl = document.getElementById('an-board');
             boardEl.style.gridTemplateColumns = `repeat(${n}, ${side}px)`;
@@ -2773,6 +2911,7 @@
             const undo = document.getElementById('an-undo');
             undo.disabled = !AN.undo.length || AN.thinking;
             [start, pause, sideBtn, undo].forEach(b => b.style.height = compact ? '56px' : '48px');
+            anRenderReplay();
         }
 
         function updateMatchClock() {

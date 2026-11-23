@@ -466,7 +466,8 @@ export function initAccount(hooks) {
             <input type="range" id="acc-frame" min="0" max="${r.frames.length - 1}" value="${f}" style="width:100%;max-width:520px;display:block;margin:0 auto">
             <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:10px">
             <button class="glass-btn" data-step="first">⏮</button><button class="glass-btn" data-step="prev">‹</button><b style="min-width:70px;text-align:center">${f}/${r.frames.length - 1}</b><button class="glass-btn" data-step="next">›</button><button class="glass-btn" data-step="last">⏭</button></div>
-            <button class="glass-btn ${r.isSaved ? 'primary' : ''}" id="acc-save-replay" style="width:100%;margin-top:12px">${r.isSaved ? '★ 已保存（不会被自动删除）' : '☆ 保存这局复盘'}</button>`;
+            <button class="glass-btn ${r.isSaved ? 'primary' : ''}" id="acc-save-replay" style="width:100%;margin-top:12px">${r.isSaved ? '★ 已保存（不会被自动删除）' : '☆ 保存这局复盘'}</button>
+            ${hooks.importToAnalyzer ? `<button class="glass-btn" id="acc-import-analyzer" style="width:100%;margin-top:8px" ${hooks.canImportToAnalyzer?.(r) ? '' : 'disabled'}>🔍 导入分析器</button>` : ''}`;
     }
 
     function renderLeaderboard() {
@@ -549,6 +550,7 @@ export function initAccount(hooks) {
         });
         if ($('acc-frame')) $('acc-frame').oninput = e => { S.frame = Number(e.target.value); render(); };
         if ($('acc-save-replay')) $('acc-save-replay').onclick = () => { r.isSaved = !r.isSaved; saveReplays(); render(); };
+        if ($('acc-import-analyzer')) $('acc-import-analyzer').onclick = () => hooks.importToAnalyzer(r);
         // 资料
         if ($('acc-photo')) {
             $('acc-photo-input').onchange = e => {
@@ -605,6 +607,10 @@ export function initAccount(hooks) {
 
     return {
         begin, recordMove, finish,
+        // 最近对局（分析器用）：未收藏的滚动保留 5 局，收藏的长期保留
+        listReplays: () => replays.slice(),
+        toggleSavedReplay(id) { const r = replays.find(x => x.id === id); if (r) { r.isSaved = !r.isSaved; saveReplays(); } },
+        deleteReplay(id) { replays = replays.filter(x => x.id !== id); saveReplays(); },
         myAvatar: () => S.user?.avatar || null,
         show() { if (S.user) { refreshHistory().then(render); } render(); }
     };

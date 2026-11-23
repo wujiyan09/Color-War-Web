@@ -56,8 +56,8 @@ test("local duel route supplies current game state, Bot 3 hard level, slider str
 });
 
 test("Drive AI is gated to explicit local two-player duel mode, not multiplayer or online", () => {
-  assert.match(html, /isDuelGame && !currentRoomId && activePlayers\.length === 2/);
-  assert.match(html, /isDuelGame = true/);
-  assert.match(html, /isDuelGame = false/);
+  assert.match(html, /gameMode === 'duel' && activePlayers\.length === 2/);
+  assert.match(html, /enterLocalMode\('duel'\)/);
+  assert.match(html, /enterLocalMode\('party'\)/);
   assert.match(html, /if \(this\.isLocalDuel\)/);
 });

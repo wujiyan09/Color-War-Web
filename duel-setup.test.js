@@ -15,13 +15,13 @@ function between(startMarker, endMarker) {
 test("duel starts with two human players by default and always starts red", () => {
   assert.match(html, /let duelPlayerTypes = \['human', 'human'\]/);
   const duelStart = between("function startDuelGame()", "function renderPlayerList(");
-  assert.match(duelStart, /isDuelGame = true;\s*isRandomFirst = false;\s*initBoard\(active\[0\]\)/);
+  assert.match(duelStart, /enterLocalMode\('duel'\);\s*isRandomFirst = false;\s*initBoard\(active\[0\]\)/);
   assert.doesNotMatch(duelStart, /runRandomWheel/);
 });
 
 test("local two-player duel seeds red and blue in opposite corners", () => {
   const init = between("function initBoard(firstPlayer)", "function getOrbPercentage(");
-  assert.match(init, /if \(isDuelGame && !currentRoomId && getActivePlayers\(\)\.length === 2\)/);
+  assert.match(init, /if \(gameMode === 'duel' && getActivePlayers\(\)\.length === 2\)/);
   assert.match(init, /board\[0\]\[0\] = \{ owner: redPlayer, count: 1 \}/);
   assert.match(init, /board\[boardSize - 1\]\[boardSize - 1\] = \{ owner: bluePlayer, count: 1 \}/);
   assert.match(init, /hasEntered\[redPlayer\] = true/);
@@ -31,7 +31,7 @@ test("local two-player duel seeds red and blue in opposite corners", () => {
 
 test("in-game role editing is disabled only for local two-player duel", () => {
   const controls = between("function openControlPanelModal()", "const WIRE_PLAYER_TYPES =");
-  assert.match(controls, /const isLocalTwoPlayerDuel = isDuelGame && !currentRoomId && getActivePlayers\(\)\.length === 2/);
+  assert.match(controls, /const isLocalTwoPlayerDuel = gameMode === 'duel' && getActivePlayers\(\)\.length === 2/);
   assert.match(controls, /currentRoomId \|\| isLocalTwoPlayerDuel\s*\? `<span>/);
   assert.match(controls, /if \(!currentRoomId && !isLocalTwoPlayerDuel\)/);
   assert.match(controls, /<select id="ctrl-p-\$\{p\}">/);
