@@ -55,7 +55,13 @@ export function describeMatch(state, replay) {
             controllers: active.map(p => BOT_NAMES[types[p]] || (types[p] === 'human' ? '真人' : '网络玩家')),
             colors: active.map(p => replay.colors[p] || '808080'),
             winnerName: winner !== null && winner >= 0 ? state.playerNames[winner] : null
-        }
+        },
+        // 防作弊：上传完整棋步让服务器复盘核对
+        moveList: replay.moves.map(m => [m.row, m.column, m.player]),
+        seats: [...active],
+        mySeat,
+        start: !state.online && state.gameMode === 'duel' && active.length === 2 ? 'duel' : 'empty',
+        roomCode: state.online && /^[0-9]{6}$/.test(String(state.roomCode || '')) ? String(state.roomCode) : null
     };
 }
 
