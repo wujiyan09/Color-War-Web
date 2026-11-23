@@ -5,7 +5,7 @@ const TOKEN_KEY = 'CW_Account_Token';
 const PENDING_KEY = 'CW_Account_PendingMatches';
 const LOCAL_HISTORY_KEY = 'CW_Local_MatchHistory';
 const REPLAYS_KEY = 'CW_Replays';
-const PERIODS = [['week', '周榜'], ['month', '月榜'], ['season', '季榜'], ['year', '年榜']];
+const PERIODS = [['week', '周榜'], ['month', '月榜'], ['all', '总榜']];
 const BOT_NAMES = { mathNightmare: 'Bot 1', enhancedNightmare: 'Bot 2', driveBot: 'Bot 3' };
 
 export function encodeFrame(board) {
@@ -176,6 +176,8 @@ export function initAccount(hooks) {
             await api('POST', '/api/matches', { matches: pending });
             const sent = new Set(pending.map(m => m.id));
             writeJSON(PENDING_KEY, readJSON(PENDING_KEY, []).filter(m => !sent.has(m.id)));
+            // 传完战绩刷新资料卡上的「N 局 · 胜 · 负」，否则一直显示缓存里的旧数字
+            try { setUser((await api('GET', '/api/me')).user); render(); } catch { /* ignore */ }
         } catch { /* 下次再传 */ }
     }
 
@@ -204,7 +206,7 @@ export function initAccount(hooks) {
             // 默认保持登录：不请求 /api/me，等真正联网操作（传战绩、好友、排行榜、邀请）时再校验
             setUser(cached);
             render();
-            uploadPending();
+            uploadPending().then(() => api('GET', '/api/me')).then(d => { if (d?.user) { setUser(d.user); render(); } }).catch(() => {});
             loadLeaderboard(false).then(render);
             startPolling();
             return;
@@ -265,7 +267,7 @@ export function initAccount(hooks) {
     async function loadLeaderboard(full) {
         try {
             const query = period => `/api/leaderboard?period=${period}&limit=${full ? 100 : 5}` + (S.lbKey ? `&aiKey=${encodeURIComponent(S.lbKey)}` : '') + (S.lbSize ? `&boardSize=${S.lbSize}` : '');
-            // 没手动选过周期：周榜没人就自动看月榜，再空就季榜、年榜；手动选了就只查那个周期
+            // 没手动选过周期：周榜没人就自动看月榜，再空就看总榜；手动选了就只查那个周期
             let data = null;
             for (const period of S.lbAutoPeriod ? PERIODS.map(([k]) => k) : [S.lbPeriod]) {
                 const res = await api('GET', query(period));

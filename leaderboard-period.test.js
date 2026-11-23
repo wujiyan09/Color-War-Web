@@ -8,3 +8,8 @@ test("leaderboard auto period falls back week→month→season→year, manual pi
   // switching difficulty/size does not turn manual mode off or on
   expect(acc).toMatch(/S\.lbKey = el\.dataset\.lbkey; S\.lbSize = null;/);
 });
+test("periods are 周榜/月榜/总榜 and stats refresh after uploading matches", () => {
+  expect(acc).toContain("const PERIODS = [['week', '周榜'], ['month', '月榜'], ['all', '总榜']];");
+  expect(acc).not.toContain("季榜");
+  expect(acc).toContain("try { setUser((await api('GET', '/api/me')).user); render(); }");
+});
