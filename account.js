@@ -55,7 +55,11 @@ export function describeMatch(state, replay) {
             controllers: active.map(p => BOT_NAMES[types[p]] || (types[p] === 'human' ? '真人' : '网络玩家')),
             colors: active.map(p => replay.colors[p] || '808080'),
             winnerName: winner !== null && winner >= 0 ? state.playerNames[winner] : null
-        }
+        },
+        // 防刷（可选字段）：完整棋步 [座位, 行, 列]、终局棋盘、是否从存档恢复
+        moveList: replay.moves.map(m => [m.player, m.row, m.column]),
+        finalBoard: replay.frames[replay.frames.length - 1] || null,
+        ...(replay.restored ? { restored: true } : {})
     };
 }
 
@@ -138,6 +142,12 @@ export function initAccount(hooks) {
         try { writeJSON(REPLAYS_KEY, replays); } catch { replays = replays.slice(0, 5); writeJSON(REPLAYS_KEY, replays); }
     }
 
+    // 从历史存档恢复：重新开始记录，并标记为恢复的对局（服务器保留但不进排行榜）
+    function beginRestored() {
+        begin();
+        current.restored = true;
+    }
+
     function begin() {
         const st = hooks.getState();
         current = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(), playedAt: Date.now(), title: '',
@@ -159,11 +169,12 @@ export function initAccount(hooks) {
         replay.title = `${resultText(record)} · ${summary(record)}`;
         replays.unshift(replay);
         saveReplays();
+        const { moveList: _ml, finalBoard: _fb, ...slim } = record; // 棋步只随上传发送，本地战绩不存，省空间
         const local = readJSON(LOCAL_HISTORY_KEY, []).filter(m => m.id !== record.id);
-        local.unshift(record);
+        local.unshift(slim);
         writeJSON(LOCAL_HISTORY_KEY, local.slice(0, 500));
         writeJSON(PENDING_KEY, [...readJSON(PENDING_KEY, []), record]);
-        S.history = [record, ...S.history.filter(m => m.id !== record.id)];
+        S.history = [slim, ...S.history.filter(m => m.id !== record.id)];
         uploadPending();
         render();
     }
@@ -640,7 +651,7 @@ export function initAccount(hooks) {
     loadMe();
 
     return {
-        begin, recordMove, finish,
+        begin, beginRestored, recordMove, finish,
         // 最近对局（分析器用）：未收藏的滚动保留 5 局，收藏的长期保留
         listReplays: () => replays.slice(),
         toggleSavedReplay(id) { const r = replays.find(x => x.id === id); if (r) { r.isSaved = !r.isSaved; saveReplays(); } },

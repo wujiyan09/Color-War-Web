@@ -807,7 +807,7 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-8';
+        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-10';
         import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261123-2";
         import { chooseBeginnerMove, BEGINNER_STRENGTH, BEGINNER_NAME, BEGINNER_DETAIL } from "./duel-beginner-bot.js?v=20261123-1";
         import { chooseParanoidMove } from "./paranoid-ai.js";
@@ -2665,6 +2665,7 @@
             emphasizedCells.clear(); isProcessingCascade = false; winnerIndex = null; isInGame = true;
             gameSessionSeed = 'local-' + (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
             matchStartedAt = Date.now();
+            account.beginRestored();
             document.getElementById('view-menu').classList.remove('active');
             document.getElementById('view-game').classList.add('active');
             setTimeout(() => { buildGridDOMOnce(); updateBoardCellsDOM(); updateTurnHeader(); checkAndRunAITurn(); }, 50);
