@@ -400,6 +400,25 @@ export function initAccount(hooks) {
         document.body.appendChild(o);
     }
 
+    // 修改密码：原密码 + 新密码两次；成功后其他设备的登录失效，这台保持登录
+    function showChangePassword() {
+        const o = document.createElement('div');
+        o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+        const field = (id, ph) => `<input type="password" id="${id}" class="glass-input" placeholder="${ph}" style="width:100%;box-sizing:border-box;margin-top:8px">`;
+        o.innerHTML = `<div class="glass-panel" style="max-width:380px;width:100%;padding:20px;border-radius:24px"><b style="font-size:1.1rem">修改密码</b><p style="opacity:.8;font-size:.85rem;line-height:1.5;margin:6px 0 0">修改后，其他设备上的登录会失效，这台设备保持登录。</p>${field('acc-pw-old', '原密码')}${field('acc-pw-new', '新密码（至少 6 位）')}${field('acc-pw-new2', '再次输入新密码')}<div id="acc-pw-err" style="color:#f39c12;font-size:.85rem;margin-top:6px"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="glass-btn" data-x="cancel" style="flex:1">取消</button><button class="glass-btn primary" data-x="ok" style="flex:1">确定</button></div></div>`;
+        o.onclick = async e => {
+            if (e.target === o || e.target.dataset.x === 'cancel') return o.remove();
+            if (e.target.dataset.x !== 'ok') return;
+            const old = o.querySelector('#acc-pw-old').value, pw = o.querySelector('#acc-pw-new').value, pw2 = o.querySelector('#acc-pw-new2').value;
+            const err = o.querySelector('#acc-pw-err');
+            if (pw !== pw2) { err.textContent = '两次输入的新密码不一致'; return; }
+            e.target.disabled = true;
+            try { await api('POST', '/api/me/password', { oldPassword: old, password: pw, confirmPassword: pw2 }); o.remove(); S.error = ''; alert('密码已修改，其他设备需要重新登录'); }
+            catch (ex) { err.textContent = ex.message; e.target.disabled = false; }
+        };
+        document.body.appendChild(o);
+    }
+
     function showTip() {
         const o = document.createElement('div');
         o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -418,6 +437,7 @@ export function initAccount(hooks) {
             + card(head(`👥 好友${S.friends.incoming.length ? ` <span style="background:#e74c3c;border-radius:999px;padding:0 7px;font-size:.8rem">${S.friends.incoming.length}</span>` : ''}`) + (S.friends.friends.length ? `<div style="display:flex">${S.friends.friends.slice(0, 8).map(f => avatarHTML(f.avatar, f.username, 32)).join('')}</div><div style="opacity:.7;font-size:.8rem;margin-top:4px">${S.friends.friends.length} 位好友</div>` : '<div style="opacity:.7">加好友后可以直接邀请对方联机。</div>'), 'friends')
             + `<div style="display:flex;flex-direction:column;gap:12px;width:100%;margin-top:4px">`
             + `<button class="glass-btn danger" id="acc-logout" style="width:100%;margin:0">退出登录</button>`
+            + `<button class="glass-btn" id="acc-change-pw" style="width:100%;margin:0 0 8px">修改密码</button>`
             + `<button class="glass-btn danger" id="acc-delete" style="width:100%;margin:0;opacity:.85">注销账号</button>`
             + `<div class="setting-card glass-panel acc-card" id="acc-tip" style="cursor:pointer;margin:6px 0 0">${head('❤️ 打赏作者')}<div style="opacity:.7">喜欢 Color War 的话，可以用微信扫码请作者喝杯奶茶。</div></div>`
             + `</div>`;
@@ -542,6 +562,7 @@ export function initAccount(hooks) {
         });
         if ($('acc-tip')) $('acc-tip').onclick = showTip;
         if ($('acc-delete')) $('acc-delete').onclick = showDeleteAccount;
+        if ($('acc-change-pw')) $('acc-change-pw').onclick = showChangePassword;
         root.querySelectorAll('[data-period]').forEach(el => el.onclick = e => {
             e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbAutoPeriod = false; S.lbSize = null;
             loadLeaderboard(S.view === 'leaderboard').then(render); render();

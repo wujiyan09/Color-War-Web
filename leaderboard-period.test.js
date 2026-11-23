@@ -18,3 +18,7 @@ test("friends list cached locally and refreshed once on load", () => {
   expect(acc).toContain("writeJSON('CW_Account_CachedFriends', S.friends)");
   expect(acc).toContain("refreshFriends().then(render); // 先显示本机缓存的好友");
 });
+test("修改密码 dialog posts old + new twice to /api/me/password", () => {
+  expect(acc).toContain("api('POST', '/api/me/password', { oldPassword: old, password: pw, confirmPassword: pw2 })");
+  expect(acc).toContain("$('acc-change-pw').onclick = showChangePassword");
+});
