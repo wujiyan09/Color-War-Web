@@ -94,7 +94,7 @@ export function initAccount(hooks) {
     };
 
     const S = { user: null, history: readJSON(LOCAL_HISTORY_KEY, []), friends: { friends: [], incoming: [], outgoing: [] },
-        view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbKey: null, lbSize: null, lbFull: null, lbPreview: null,
+        view: 'home', replayId: null, frame: 0, lbPeriod: 'week', lbAutoPeriod: true, lbKey: null, lbSize: null, lbFull: null, lbPreview: null,
         seenInvites: new Set(), seenUpdates: new Set(), seenFriendReqs: new Set(), isRegister: false, error: '' };
     // 登录后联机昵称用账号用户名；退出后恢复登录前手动填的昵称。
     const MANUAL_NICK_KEY = 'CW_Account_ManualNickname';
@@ -264,8 +264,15 @@ export function initAccount(hooks) {
     // ---------- 排行榜 ----------
     async function loadLeaderboard(full) {
         try {
-            const q = `/api/leaderboard?period=${S.lbPeriod}&limit=${full ? 100 : 5}` + (S.lbKey ? `&aiKey=${encodeURIComponent(S.lbKey)}` : '') + (S.lbSize ? `&boardSize=${S.lbSize}` : '');
-            const data = await api('GET', q);
+            const query = period => `/api/leaderboard?period=${period}&limit=${full ? 100 : 5}` + (S.lbKey ? `&aiKey=${encodeURIComponent(S.lbKey)}` : '') + (S.lbSize ? `&boardSize=${S.lbSize}` : '');
+            // 没手动选过周期：周榜没人就自动看月榜，再空就季榜、年榜；手动选了就只查那个周期
+            let data = null;
+            for (const period of S.lbAutoPeriod ? PERIODS.map(([k]) => k) : [S.lbPeriod]) {
+                const res = await api('GET', query(period));
+                if (!data) data = res;
+                if (!S.lbAutoPeriod || (res.entries && res.entries.length)) { data = res; S.lbPeriod = period; break; }
+            }
+            if (S.lbAutoPeriod && !(data.entries && data.entries.length)) S.lbPeriod = 'week';
             if (!S.lbKey) S.lbKey = data.aiKey;
             if (!S.lbSize && data.boardSize) S.lbSize = data.boardSize;
             if (full) S.lbFull = data; else S.lbPreview = data;
@@ -533,7 +540,7 @@ export function initAccount(hooks) {
         if ($('acc-tip')) $('acc-tip').onclick = showTip;
         if ($('acc-delete')) $('acc-delete').onclick = showDeleteAccount;
         root.querySelectorAll('[data-period]').forEach(el => el.onclick = e => {
-            e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbSize = null;
+            e.stopPropagation(); S.lbPeriod = el.dataset.period; S.lbAutoPeriod = false; S.lbSize = null;
             loadLeaderboard(S.view === 'leaderboard').then(render); render();
         });
         root.querySelectorAll('[data-lbkey]').forEach(el => el.onclick = e => {
