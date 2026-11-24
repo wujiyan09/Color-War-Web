@@ -101,3 +101,12 @@ test("record labels: duel Bot 3 shows as Bot 0 · tier, party bots show Bot N on
   assert.equal(displayAILabel("bot1-l2"), "Bot 1");
   assert.equal(displayAILabel("联机"), "联机");
 });
+
+test("Bot 3 records on board sizes the duel tab never allowed are party games -> 'Bot 3'", async () => {
+  const { displayAILabel } = await import("./account.js");
+  assert.equal(displayAILabel("Bot 3 · 强度 2", 5), "Bot 3");
+  assert.equal(displayAILabel("Bot 3 · 强度 2", 8), "Bot 3");
+  assert.equal(displayAILabel("Bot 3 · 强度 2", 6), "Bot 0 · 中等");
+  assert.equal(displayAILabel("Bot 0 · 中等", 5), "Bot 3");
+  assert.equal(displayAILabel("Bot 2 · 2档", 5), "Bot 2");
+});

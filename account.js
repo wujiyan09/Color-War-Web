@@ -76,9 +76,12 @@ const resultColor = m => m.result === 'win' ? '#2ecc71' : m.result === 'loss' ? 
 // 只改显示，存储的 aiKey/aiLabel 不变（2026-11-24）：双人（对弈）的 Bot 3 显示为
 // “Bot 0 · 难度名”，派对的 Bot 1/2 只显示“Bot N”。和 iOS displayAILabel 同一套规则。
 const DUEL_TIER_NAMES = ['入门', '简单', '中等', '困难', '困难+']; // = BEGINNER_NAME + DUEL_STRENGTH_CAPS names
-export const displayAILabel = l => {
+// 对弈 tab 一直只能用 6/9/12 棋盘（有战绩之前就限制了），其他尺寸的 Bot 3 记录一定是派对局 → 只显示“Bot 3”。
+const DUEL_SIZES = [6, 9, 12];
+export const displayAILabel = (l, boardSize = null) => {
     if (!l) return l;
     const s = String(l);
+    if (boardSize != null && !DUEL_SIZES.includes(Number(boardSize)) && /^(?:Bot [03] · |bot3-s)/.test(s)) return 'Bot 3';
     if (s === 'Bot 3 · 入门') return 'Bot 0 · 入门';
     const duel = s.match(/^(?:Bot 3 · 强度 |bot3-s)(\d+)$/);
     if (duel) return `Bot 0 · ${DUEL_TIER_NAMES[Math.max(0, Math.min(4, Number(duel[1])))]}`;
@@ -86,7 +89,7 @@ export const displayAILabel = l => {
     if (party) return `Bot ${party[1] || party[2]}`;
     return s;
 };
-const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, displayAILabel(m.aiLabel), `${m.moves}步`].filter(Boolean).join(' · ');
+const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, displayAILabel(m.aiLabel, m.boardSize), `${m.moves}步`].filter(Boolean).join(' · ');
 
 export function avatarHTML(avatar, name, size = 40) {
     const base = `width:${size}px;height:${size}px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.35);`;
