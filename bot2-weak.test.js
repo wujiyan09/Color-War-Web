@@ -22,7 +22,7 @@ function apply(b, size, r, c, p, entered) {
 const empty = size => Array.from({ length: size }, () => Array.from({ length: size }, () => ({ owner: null, count: 0 })));
 
 test("Bot 2 parameters match iOS Bot2Weak.swift", () => {
-  assert.equal(BOT2_MISTAKE_RATE, 0.05);
+  assert.equal(BOT2_MISTAKE_RATE, 0.15);
   assert.equal(BOT2_MISTAKE_WINDOW, 30);
   assert.deepEqual(bot2Limits(0), { timeMs: 150, softTimeMs: 50, minTimeMs: 20, maxDepth: 4 });
   assert.deepEqual(bot2Limits(29), { timeMs: 150, softTimeMs: 50, minTimeMs: 20, maxDepth: 4 });

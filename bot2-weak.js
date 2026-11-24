@@ -3,7 +3,7 @@
 // both called with `weak: true`. Same evaluation weights and move ordering as
 // Bot 3; only the budgets below and a small root mistake are different.
 // Mirrors iOS Bot2Weak.swift (keep the numbers identical).
-export const BOT2_MISTAKE_RATE = 0.05;
+export const BOT2_MISTAKE_RATE = 0.15;
 export const BOT2_MISTAKE_WINDOW = 30;
 
 // < 30 plies: depth 4, 150 ms. Later: depth 8, 800 ms.
