@@ -383,7 +383,7 @@ export function initAccount(hooks) {
 
     function lbControls(data) {
         const periods = PERIODS.map(([k, t]) => `<div class="${S.lbPeriod === k ? 'active' : ''}" data-period="${k}">${t}</div>`).join('');
-        const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(displayAILabel(l.aiLabel || l.aiKey))}</button>`).join('');
+        const levels = (data?.levels || []).map(l => `<button class="glass-btn ${S.lbKey === l.aiKey ? 'primary' : ''}" data-lbkey="${esc(l.aiKey)}" style="padding:4px 10px;font-size:.8rem">${esc(displayAILabel(l.aiKey) !== l.aiKey ? displayAILabel(l.aiKey) : displayAILabel(l.aiLabel || l.aiKey))}</button>`).join('');
         const sizes = (data?.boardSizes || []).map(b => `<button class="glass-btn ${S.lbSize === b.boardSize ? 'primary' : ''}" data-lbsize="${b.boardSize}" style="padding:4px 10px;font-size:.8rem">${b.boardSize}×${b.boardSize}</button>`).join('');
         return `<div class="seg" style="margin-bottom:8px">${periods}</div>${levels ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${levels}</div>` : ''}${sizes ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${sizes}</div>` : ''}`;
     }
