@@ -160,7 +160,7 @@ function search(s, side, depth, alphaIn, betaIn, ply, ctx, size) {
 export function paranoidParameters(movesPlayed) {
   return movesPlayed < 30
     ? { timeMs: 400, softTimeMs: 120, minTimeMs: 40, maxDepth: 8 }
-    : { timeMs: 5000, softTimeMs: 1200, minTimeMs: 60, maxDepth: 32 };
+    : { timeMs: 5000, softTimeMs: 600, minTimeMs: 80, maxDepth: 32 }; // = iOS Nov15ParanoidSearch
 }
 
 export function chooseParanoidMove({ board, players, currentPlayer, hasEntered = [], eliminated = [], movesPlayed = 0, signal = null, weak = false, rng = Math.random }) {

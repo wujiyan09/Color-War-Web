@@ -807,10 +807,10 @@
     </div>
 
     <script type="module">
-        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-10';
-        import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261124-1";
+        import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261124-1';
+        import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261124-2";
         import { chooseBeginnerMove, BEGINNER_STRENGTH, BEGINNER_NAME, BEGINNER_DETAIL } from "./duel-beginner-bot.js?v=20261123-1";
-        import { chooseParanoidMove } from "./paranoid-ai.js?v=20261124-1";
+        import { chooseParanoidMove } from "./paranoid-ai.js?v=20261124-2";
         import { Bot12Solver } from "./bot12-ai.js";
         import { applyMove as botpickApplyMove, encode as bpEncode, owner as bpOwner, charge as bpCharge } from "./botpick-engine.js";
 
@@ -1089,8 +1089,9 @@
                     }
                     if (move) return { r: move.r, c: move.c };
                 }
-                if (this.playerType === 'driveBot' && this.activePlayers.length > 2) {
-                    // Party Bot 3: paranoid while 3+ alive, duel search once two remain.
+                if (this.playerType === 'driveBot' && this.activePlayers.length >= 2) {
+                    // Party Bot 3 (incl. 2-seat party games, same as iOS): paranoid while 3+ alive,
+                    // duel search (level 3, max strength, no opening book) once two remain.
                     const grid = Array.from({ length: this.boardSize }, (_, r) =>
                         this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
                     );
@@ -2581,7 +2582,7 @@
             getState: () => ({
                 board, boardSize, playerNames: [...playerNames], playerTypes: [...playerTypes], playerColors: [...playerColors], playerEmojis: [...playerEmojis],
                 active: getActivePlayers(), winnerIndex, online: !!currentRoomId, myPlayerIndex,
-                duelBotStrength, aiLevel
+                duelBotStrength, aiLevel, gameMode
             }),
             isInGame: () => isInGame,
             joinRoom(code) {

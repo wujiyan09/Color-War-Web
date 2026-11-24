@@ -35,7 +35,11 @@ export function describeMatch(state, replay) {
     } else if (active.length === 2 && humans.length === 1 && ais.length === 1) {
         mode = 'vsAI';
         const t = types[ais[0]];
-        if (t === 'driveBot') {
+        if (t === 'driveBot' && state.gameMode && state.gameMode !== 'duel') {
+            // 派对里的 1v1 Bot 3：标签只写“Bot 3”（不是双人的 Bot 0 · 难度）；aiKey 暂不变，不动排行榜
+            aiKey = `bot3-s${state.duelBotStrength}`; aiLabel = 'Bot 3';
+        }
+        else if (t === 'driveBot') {
             if (state.duelBotStrength === 0) { aiKey = 'bot3-s0'; aiLabel = 'Bot 3 · 入门'; } // 入门单独一个榜
             else { aiKey = `bot3-s${state.duelBotStrength}`; aiLabel = `Bot 3 · 强度 ${state.duelBotStrength}`; }
         }
