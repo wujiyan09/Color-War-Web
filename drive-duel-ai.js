@@ -1,4 +1,19 @@
 import { BOT2_MISTAKE_RATE, BOT2_MISTAKE_WINDOW, bot2Limits, bot2Pick } from "./bot2-weak.js";
+// Anti-memorisation variety (mirrors iOS Nov15DuelSearch.varyPlies / varyMargin / seededUnit).
+export const VARY_PLIES = 20;
+export let VARY_MARGIN = 20; // 5 gave almost no variety at this eval scale; 20 passed the strength gate (2026-11-24)
+export function setVaryMarginForTests(v) { VARY_MARGIN = v; }
+/** Deterministic [0,1) from (seed, ply): FNV-1a over the seed, mixed with ply, then mulberry32. */
+export function seededUnit(seed, ply) {
+  let h = 2166136261;
+  const s = String(seed);
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i) & 0xff; h = Math.imul(h, 16777619) >>> 0; }
+  let t = (h ^ Math.imul(ply + 1, 0x9E3779B1)) >>> 0;
+  t = (t + 0x6D2B79F5) >>> 0;
+  let r = Math.imul(t ^ (t >>> 15), 1 | t);
+  r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+  return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+}
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const INF = 1e9;
 const TERMINAL = 1e6;
@@ -401,7 +416,7 @@ function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size
   return { score: best, move: bestMove };
 }
 
-export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null, openingSeed = null, strength = DUEL_MAX_STRENGTH, weak = false, rng = Math.random }) {
+export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null, openingSeed = null, strength = DUEL_MAX_STRENGTH, weak = false, rng = Math.random, varySeed = null }) {
   const size = board.length;
   if (size < 2 || size > 12 || board.some(row => row.length !== size)) return null;
   if (activePlayers.length !== 2) return null;
@@ -453,6 +468,27 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
       const recentMoves = completedMoves.slice(-3);
       const scoreDelta = Math.abs(bestScore - completedScores[completedScores.length - 3]);
       if (recentMoves.every(move => move === recentMoves[0]) && scoreDelta <= 8) break;
+    }
+  }
+  // Anti-memorisation (2026-11-24): Bot 0 / party Bot 3 in vs-AI games. Only in the first VARY_PLIES plies, pick
+  // uniformly (per-game seeded RNG) among root moves scoring within VARY_MARGIN of the best at the last completed
+  // depth. Never outside the margin; decided (mate / forced win) positions always play the best move.
+  if (!weak && varySeed !== null && movesPlayed < VARY_PLIES && completedDepth > 0 && Math.abs(bestScore) < 900000) {
+    const cutoff = bestScore - VARY_MARGIN;
+    context.deadline = Date.now() + config.timeMs;
+    context.stopped = false;
+    const candidates = [bestMove];
+    for (const move of moves) {
+      if (move === bestMove) continue;
+      const next = simulate(cells, move, side, enteredMask, size);
+      const terminal = terminalScore(next.cells, 1 - side, next.enteredMask, completedDepth);
+      const score = terminal !== null ? -terminal
+        : -search(next.cells, 1 - side, next.enteredMask, completedDepth - 1, -cutoff, -(cutoff - 1), 1, context, size, true).score;
+      if (context.stopped || signal?.aborted) break;
+      if (score >= cutoff) candidates.push(move);
+    }
+    if (!context.stopped && !signal?.aborted && candidates.length > 1) {
+      bestMove = candidates[Math.floor(seededUnit(varySeed, movesPlayed) * candidates.length) % candidates.length];
     }
   }
   if (weak && completedDepth > 0 && rng() < BOT2_MISTAKE_RATE) {
