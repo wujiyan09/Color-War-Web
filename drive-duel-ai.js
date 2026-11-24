@@ -1,3 +1,4 @@
+import { BOT2_MISTAKE_RATE, BOT2_MISTAKE_WINDOW, bot2Limits, bot2Pick } from "./bot2-weak.js";
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const INF = 1e9;
 const TERMINAL = 1e6;
@@ -400,7 +401,7 @@ function search(cells, side, enteredMask, depth, alpha, beta, ply, context, size
   return { score: best, move: bestMove };
 }
 
-export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null, openingSeed = null, strength = DUEL_MAX_STRENGTH }) {
+export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlayer, hasEntered = [], difficulty = 2, movesPlayed = 0, signal = null, openingSeed = null, strength = DUEL_MAX_STRENGTH, weak = false, rng = Math.random }) {
   const size = board.length;
   if (size < 2 || size > 12 || board.some(row => row.length !== size)) return null;
   if (activePlayers.length !== 2) return null;
@@ -419,7 +420,7 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
   const moves = legalMoves(cells, side, entered, size);
   if (!moves.length) return null;
   if (moves.length === 1) return { r: Math.floor(moves[0] / size), c: moves[0] % size, depth: 1, score: 0 };
-  if (openingSeed !== null && enteredMask === 3 && movesPlayed < 30) {
+  if (!weak && openingSeed !== null && enteredMask === 3 && movesPlayed < 30) {
     const firstSide = movesPlayed % 2 === 0 ? side : 1 - side;
     const ownMoves = side === firstSide ? Math.floor((movesPlayed + 1) / 2) : Math.floor(movesPlayed / 2);
     if (ownMoves < 12) {
@@ -427,7 +428,8 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
       if (opening !== null && moves.includes(opening)) return { r: Math.floor(opening / size), c: opening % size, depth: 0, score: 0 };
     }
   }
-  const config = cappedSearchConfig(effectiveSearchConfig(difficulty, movesPlayed), strength);
+  // weak = Bot 2 (party/online): weakened budgets, no randomize, no opening book.
+  const config = weak ? { ...bot2Limits(movesPlayed), randomize: false } : cappedSearchConfig(effectiveSearchConfig(difficulty, movesPlayed), strength);
   const startedAt = Date.now();
   const deadline = startedAt + config.timeMs;
   const context = makeContext(deadline);
@@ -452,6 +454,25 @@ export function chooseDriveDuelMove({ board, activePlayers = [0, 1], currentPlay
       const scoreDelta = Math.abs(bestScore - completedScores[completedScores.length - 3]);
       if (recentMoves.every(move => move === recentMoves[0]) && scoreDelta <= 8) break;
     }
+  }
+  if (weak && completedDepth > 0 && rng() < BOT2_MISTAKE_RATE) {
+    // Bot 2 mistake: null-window test of every other root move at the
+    // last completed depth; keep those scoring >= best - window.
+    const cutoff = bestScore - BOT2_MISTAKE_WINDOW;
+    context.deadline = Date.now() + config.timeMs;
+    context.stopped = false;
+    const candidates = [];
+    for (const move of moves) {
+      if (move === bestMove) continue;
+      const next = simulate(cells, move, side, enteredMask, size);
+      const terminal = terminalScore(next.cells, 1 - side, next.enteredMask, completedDepth);
+      const score = terminal !== null ? -terminal
+        : -search(next.cells, 1 - side, next.enteredMask, completedDepth - 1, -cutoff, -(cutoff - 1), 1, context, size, true).score;
+      if (context.stopped || signal?.aborted) break;
+      if (score >= cutoff) candidates.push(move);
+    }
+    const picked = bot2Pick(candidates, rng);
+    if (picked !== null) bestMove = picked;
   }
   return { r: Math.floor(bestMove / size), c: bestMove % size, depth: completedDepth || 1, score: bestScore };
 }

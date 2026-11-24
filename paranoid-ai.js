@@ -2,6 +2,7 @@
 // Paranoid alpha-beta: Bot 3 maximises, every other alive seat minimises,
 // turns follow seat order. When two seats remain the caller switches to the
 // duel search in drive-duel-ai.js.
+import { BOT2_MISTAKE_RATE, BOT2_MISTAKE_WINDOW, bot2Limits, bot2Pick } from "./bot2-weak.js";
 const MAX_SIDES = 8;
 const WIN = 1_000_000;
 const INF = 1_000_000_000;
@@ -162,7 +163,7 @@ export function paranoidParameters(movesPlayed) {
     : { timeMs: 5000, softTimeMs: 1200, minTimeMs: 60, maxDepth: 32 };
 }
 
-export function chooseParanoidMove({ board, players, currentPlayer, hasEntered = [], eliminated = [], movesPlayed = 0, signal = null }) {
+export function chooseParanoidMove({ board, players, currentPlayer, hasEntered = [], eliminated = [], movesPlayed = 0, signal = null, weak = false, rng = Math.random }) {
   const size = board.length;
   if (size < 2 || size > 12 || players.length < 3 || players.length > MAX_SIDES) return null;
   const me = players.indexOf(currentPlayer);
@@ -180,11 +181,13 @@ export function chooseParanoidMove({ board, players, currentPlayer, hasEntered =
   const moves = legalMoves(root, me);
   if (!moves.length) return null;
   if (moves.length === 1) return { r: Math.floor(moves[0] / size), c: moves[0] % size };
-  const params = paranoidParameters(movesPlayed);
+  // weak = Bot 2 (party/online): weakened budgets.
+  const params = weak ? bot2Limits(movesPlayed) : paranoidParameters(movesPlayed);
   const start = Date.now();
   const ctx = { deadline: start + params.timeMs, me, sides, nodes: 0, stopped: false, table: new Map(),
     killers: Array.from({ length: MAX_PLY + 1 }, () => [-1, -1]), history: new Float64Array(sides * 144) };
-  let best = moves.map(move => ({ move, score: orderScore(root, move, me, size, 0, -1, ctx) })).sort((a, b) => b.score - a.score)[0].move;
+  const ordered = moves.map(move => ({ move, score: orderScore(root, move, me, size, 0, -1, ctx) })).sort((a, b) => b.score - a.score).map(x => x.move);
+  let best = ordered[0];
   const done = [], scores = [];
   for (let depth = 1; depth <= params.maxDepth; depth++) {
     if (Date.now() >= ctx.deadline || signal?.aborted) break;
@@ -199,6 +202,24 @@ export function chooseParanoidMove({ board, players, currentPlayer, hasEntered =
       const recent = done.slice(-3);
       if (recent.every(m => m === recent[0]) && Math.abs(result.score - scores[scores.length - 3]) <= 8) break;
     }
+  }
+  const depthCompleted = done.length;
+  if (weak && depthCompleted > 0 && rng() < BOT2_MISTAKE_RATE) {
+    // Bot 2 mistake: null-window test of every other root move at the
+    // last completed depth; keep those scoring >= best - window.
+    const cutoff = scores[scores.length - 1] - BOT2_MISTAKE_WINDOW;
+    ctx.deadline = Date.now() + params.timeMs;
+    ctx.stopped = false;
+    const candidates = [];
+    for (const move of ordered) {
+      if (move === best) continue;
+      const next = simulate(root, move, me, size, sides);
+      const score = search(next, nextSide(me, next, sides), depthCompleted - 1, cutoff - 1, cutoff, 1, ctx, size).score;
+      if (ctx.stopped || signal?.aborted) break;
+      if (score >= cutoff) candidates.push(move);
+    }
+    const picked = bot2Pick(candidates, rng);
+    if (picked !== null) best = picked;
   }
   return { r: Math.floor(best / size), c: best % size };
 }

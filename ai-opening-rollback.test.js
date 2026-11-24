@@ -22,7 +22,8 @@ function solver({ active = [0, 1], current = 0, entered = [false, false], elimin
 }
 
 test("all four difficulty levels retain the old path for non-duel local games", () => {
-  for (const playerType of ["mathNightmare", "enhancedNightmare"]) {
+  // Bot 2 (enhancedNightmare) moved to the weakened Bot 3 engines on 2026-11-24 (bot2-weak.test.js).
+  for (const playerType of ["mathNightmare"]) {
     for (const level of [1, 2, 3, 4]) {
       const ai = solver({ playerType, level });
       assert.deepEqual(ai.calculateBestMove(), { r: 2, c: 2 }, `${playerType}, level ${level}`);

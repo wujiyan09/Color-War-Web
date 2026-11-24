@@ -584,7 +584,7 @@
                 </div>
                 <div class="setting-card glass-panel">
                     <div class="setting-row">
-                        <span>Bot 3 难度: <b id="duel-strength-label"></b></span>
+                        <span>Bot 0 难度: <b id="duel-strength-label"></b></span>
                         <span id="duel-strength-desc" style="font-size:0.75rem; opacity:0.7;"></span>
                     </div>
                     <input type="range" id="duel-strength-slider" min="0" max="4" step="1" value="4">
@@ -808,9 +808,9 @@
 
     <script type="module">
         import { initAccount, avatarHTML, decodeCell } from './account.js?v=20261123-10';
-        import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261123-2";
+        import { chooseDriveDuelMove, strengthCap, DUEL_MAX_STRENGTH } from "./drive-duel-ai.js?v=20261124-1";
         import { chooseBeginnerMove, BEGINNER_STRENGTH, BEGINNER_NAME, BEGINNER_DETAIL } from "./duel-beginner-bot.js?v=20261123-1";
-        import { chooseParanoidMove } from "./paranoid-ai.js";
+        import { chooseParanoidMove } from "./paranoid-ai.js?v=20261124-1";
         import { Bot12Solver } from "./bot12-ai.js";
         import { applyMove as botpickApplyMove, encode as bpEncode, owner as bpOwner, charge as bpCharge } from "./botpick-engine.js";
 
@@ -1072,6 +1072,23 @@
                     });
                     return driveMove ? { r: driveMove.r, c: driveMove.c } : null;
                 }
+                if (this.playerType === 'enhancedNightmare') {
+                    // Bot 2 in party / online (not duel): Bot 3's engines, weakened (bot2-weak.js).
+                    // Paranoid while 3+ alive, duel search once two remain. Same as iOS AIEngine.
+                    const grid = Array.from({ length: this.boardSize }, (_, r) =>
+                        this.cells.slice(r * this.boardSize, (r + 1) * this.boardSize)
+                    );
+                    const alive = this.activePlayers.filter(p => !this.eliminated[p]);
+                    let move = null;
+                    if (alive.length === 2) {
+                        move = chooseDriveDuelMove({ board: grid, activePlayers: alive, currentPlayer: this.currentPlayer,
+                            hasEntered: this.hasEntered, difficulty: 3, movesPlayed: localMovesPlayed, signal, weak: true });
+                    } else if (alive.length > 2) {
+                        move = chooseParanoidMove({ board: grid, players: alive, currentPlayer: this.currentPlayer,
+                            hasEntered: this.hasEntered, eliminated: this.eliminated, movesPlayed: localMovesPlayed, signal, weak: true });
+                    }
+                    if (move) return { r: move.r, c: move.c };
+                }
                 if (this.playerType === 'driveBot' && this.activePlayers.length > 2) {
                     // Party Bot 3: paranoid while 3+ alive, duel search once two remain.
                     const grid = Array.from({ length: this.boardSize }, (_, r) =>
@@ -1279,10 +1296,10 @@
             container.innerHTML = duelPlayerTypes.map((type, index) => {
                 const isBot = type !== 'human';
                 const tint = index === 0 ? '#ff667c' : '#63d9ff';
-                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'Bot 3' : '真人'}，重复点按切换">
+                return `<button type="button" class="duel-player-card" data-player-index="${index}" aria-pressed="${isBot}" aria-label="玩家 ${index + 1}，${isBot ? 'Bot 0' : '真人'}，重复点按切换">
                     <span class="duel-icon" style="color:${tint}">${isBot ? '🖥' : '👤'}</span>
                     <span class="duel-title">玩家 ${index + 1}</span>
-                    <span class="duel-role">${isBot ? 'Bot 3' : '真人'}</span>
+                    <span class="duel-role">${isBot ? 'Bot 0' : '真人'}</span>
                     <span class="duel-role" style="opacity:0.62; font-size:0.72rem;">重复点按切换</span>
                 </button>`;
             }).join('');

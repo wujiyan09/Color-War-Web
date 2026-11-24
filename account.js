@@ -69,8 +69,19 @@ const writeJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const modeText = m => m === 'vsAI' ? '人机' : m === 'online' ? '联机' : '本地';
 const resultText = m => m.result === 'win' ? '胜' : m.result === 'loss' ? '负' : m.result === 'draw' ? '平' : (m.detail?.winnerName ? `${m.detail.winnerName} 胜` : '—');
 const resultColor = m => m.result === 'win' ? '#2ecc71' : m.result === 'loss' ? '#e74c3c' : '#7f8c8d';
-// 只改显示：Bot 3 强度 4（原 Drive 原版）显示为“困难+”，存储的 aiKey/aiLabel 不变
-const displayAILabel = l => l ? String(l).replace('Bot 3 · 强度 4', 'Bot 3 · 困难+') : l;
+// 只改显示，存储的 aiKey/aiLabel 不变（2026-11-24）：双人（对弈）的 Bot 3 显示为
+// “Bot 0 · 难度名”，派对的 Bot 1/2 只显示“Bot N”。和 iOS displayAILabel 同一套规则。
+const DUEL_TIER_NAMES = ['入门', '简单', '中等', '困难', '困难+']; // = BEGINNER_NAME + DUEL_STRENGTH_CAPS names
+export const displayAILabel = l => {
+    if (!l) return l;
+    const s = String(l);
+    if (s === 'Bot 3 · 入门') return 'Bot 0 · 入门';
+    const duel = s.match(/^(?:Bot 3 · 强度 |bot3-s)(\d+)$/);
+    if (duel) return `Bot 0 · ${DUEL_TIER_NAMES[Math.max(0, Math.min(4, Number(duel[1])))]}`;
+    const party = s.match(/^(?:Bot ([12]) · \d+档|bot([12])-l\d+)$/);
+    if (party) return `Bot ${party[1] || party[2]}`;
+    return s;
+};
 const summary = m => [modeText(m.mode), `${m.players}人`, `${m.boardSize}×${m.boardSize}`, displayAILabel(m.aiLabel), `${m.moves}步`].filter(Boolean).join(' · ');
 
 export function avatarHTML(avatar, name, size = 40) {
