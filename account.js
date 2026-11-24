@@ -521,10 +521,10 @@ export function initAccount(hooks) {
         }
         return back('复盘') + `<div style="text-align:center;font-weight:700;margin-bottom:8px">${esc(r.title)}</div>
             <div class="board glass-panel" id="acc-replay-board" style="grid-template-columns:repeat(${n},${side}px);width:max-content;margin:0 auto;pointer-events:none" data-side="${side}">${cells}</div>
-            <div style="text-align:center;margin:10px 0;opacity:.85">${last ? `第 ${f} 步：${esc(r.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
+            <div id="acc-step-text" style="text-align:center;margin:10px 0;opacity:.85">${last ? `第 ${f} 步：${esc(r.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
             <input type="range" id="acc-frame" min="0" max="${r.frames.length - 1}" value="${f}" style="width:100%;max-width:520px;display:block;margin:0 auto">
             <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:10px">
-            <button class="glass-btn" data-step="first">⏮</button><button class="glass-btn" data-step="prev">‹</button><b style="min-width:70px;text-align:center">${f}/${r.frames.length - 1}</b><button class="glass-btn" data-step="next">›</button><button class="glass-btn" data-step="last">⏭</button></div>
+            <button class="glass-btn" data-step="first">⏮</button><button class="glass-btn" data-step="prev">‹</button><b id="acc-step-count" style="min-width:70px;text-align:center">${f}/${r.frames.length - 1}</b><button class="glass-btn" data-step="next">›</button><button class="glass-btn" data-step="last">⏭</button></div>
             <button class="glass-btn ${r.isSaved ? 'primary' : ''}" id="acc-save-replay" style="width:100%;margin-top:12px">${r.isSaved ? '★ 已保存（不会被自动删除）' : '☆ 保存这局复盘'}</button>
             ${hooks.importToAnalyzer ? `<button class="glass-btn" id="acc-import-analyzer" style="width:100%;margin-top:8px" ${hooks.canImportToAnalyzer?.(r) ? '' : 'disabled'}>🔍 导入分析器</button>` : ''}`;
     }
@@ -608,7 +608,22 @@ export function initAccount(hooks) {
             S.frame = { first: 0, prev: Math.max(0, S.frame - 1), next: Math.min(max, S.frame + 1), last: max }[el.dataset.step];
             render();
         });
-        if ($('acc-frame')) $('acc-frame').oninput = e => { S.frame = Number(e.target.value); render(); };
+        // 拖动时不重建整个页面（重建会替换掉正在拖的滑动条，iPad 上就拖不动）：
+        // 每帧最多更新一次，只换棋盘和文字。
+        if ($('acc-frame')) $('acc-frame').oninput = e => {
+            S.frame = Number(e.target.value);
+            if (S.frameRaf) return;
+            S.frameRaf = requestAnimationFrame(() => {
+                S.frameRaf = 0;
+                const tmp = document.createElement('div');
+                tmp.innerHTML = renderReplay();
+                for (const id of ['acc-replay-board', 'acc-step-text', 'acc-step-count']) {
+                    const live = $(id), fresh = tmp.querySelector('#' + id);
+                    if (live && fresh) live.innerHTML = fresh.innerHTML;
+                }
+                paintReplayPieces();
+            });
+        };
         if ($('acc-save-replay')) $('acc-save-replay').onclick = () => { r.isSaved = !r.isSaved; saveReplays(); render(); };
         if ($('acc-import-analyzer')) $('acc-import-analyzer').onclick = () => hooks.importToAnalyzer(r);
         // 资料

@@ -2861,13 +2861,29 @@
                 return;
             }
             const f = AN.frame, last = f > 0 ? line.moves[f - 1] : null, side = anSideToMove();
-            el.innerHTML = `<div style="opacity:.85; margin-bottom:6px;">${last ? `第 ${f} 步：${escAn(line.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
+            // 拖动滑动条时不重建这块（重建会换掉正在拖的滑动条，iPad 上拖不动），只更新文字。
+            const liveSlider = document.getElementById('an-frame');
+            if (AN.dragging && liveSlider && el.contains(liveSlider)) {
+                const t = document.getElementById('an-step-text'), c = document.getElementById('an-step-count');
+                if (t) t.innerHTML = last ? `第 ${f} 步：${escAn(line.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局';
+                if (c) c.textContent = `${f}/${line.frames.length - 1}`;
+                return;
+            }
+            el.innerHTML = `<div id="an-step-text" style="opacity:.85; margin-bottom:6px;">${last ? `第 ${f} 步：${escAn(line.names[last.player] || '玩家')} 下在 (${last.row + 1}, ${last.column + 1})` : '开局'}</div>
                 <input type="range" id="an-frame" min="0" max="${line.frames.length - 1}" value="${f}" style="width:100%;">
                 <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:6px">
-                <button class="glass-btn" data-anstep="first">⏮</button><button class="glass-btn" data-anstep="prev">‹</button><b style="min-width:70px;text-align:center">${f}/${line.frames.length - 1}</b><button class="glass-btn" data-anstep="next">›</button><button class="glass-btn" data-anstep="last">⏭</button></div>
+                <button class="glass-btn" data-anstep="first">⏮</button><button class="glass-btn" data-anstep="prev">‹</button><b id="an-step-count" style="min-width:70px;text-align:center">${f}/${line.frames.length - 1}</b><button class="glass-btn" data-anstep="next">›</button><button class="glass-btn" data-anstep="last">⏭</button></div>
                 <button class="glass-btn primary" id="an-best" style="width:100%; max-width:320px; margin-top:8px;" ${AN.thinking || side === null ? 'disabled' : ''}>${AN.thinking ? '⏳ 计算中…' : (side === null ? '对局已结束' : `💡 算${side === 0 ? '红' : '蓝'}方最优解`)}</button>
                 ${AN.best ? `<div style="color:#ffd60a; font-weight:700; font-size:.85rem; margin-top:6px;">${AN.best}</div>` : ''}`;
-            document.getElementById('an-frame').oninput = e => anShowFrame(Number(e.target.value));
+            const frameSlider = document.getElementById('an-frame');
+            frameSlider.oninput = e => {
+                AN.dragging = true; AN.pendingFrame = Number(e.target.value);
+                if (AN.frameRaf) return;
+                AN.frameRaf = requestAnimationFrame(() => { AN.frameRaf = 0; anShowFrame(AN.pendingFrame); });
+            };
+            // 松手后完整重绘一次（按钮状态等）。
+            frameSlider.onchange = () => { AN.dragging = false; anShowFrame(AN.pendingFrame ?? Number(frameSlider.value)); };
+            for (const ev of ['touchend', 'touchcancel', 'pointerup']) frameSlider.addEventListener(ev, () => { if (AN.dragging) { AN.dragging = false; requestAnimationFrame(() => anShowFrame(Number(frameSlider.value))); } });
             el.querySelectorAll('[data-anstep]').forEach(b => b.onclick = () => {
                 const max = line.frames.length - 1;
                 anShowFrame({ first: 0, prev: f - 1, next: f + 1, last: max }[b.dataset.anstep]);
