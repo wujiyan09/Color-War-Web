@@ -1,6 +1,6 @@
 // JS port of iOS DriveBotpickEngine.swift (itself a port of DotsBoard `botpick`).
-// Used by the 分析器 (analyzer): Dots rules (+1 per placement, simultaneous waves,
-// win once both sides have moved and one side has no cells left).
+// Used by the 分析器 (analyzer): Color War rules since 2026-11-24 (+1 per placement, simultaneous waves with remainder,
+// full cascades, win once both sides have moved and one side has no cells left).
 // Cell code: bit 7 = owner (0 red / 1 blue), low 4 bits = charge, 0 = empty.
 
 const CAP = 12, MAX_PLY = 48, WIN = 1000000, INF = 1000000000;
@@ -57,23 +57,18 @@ class Position {
     this.setCell(index, encode(mover, charge(cells[index]) + 1));
     const placementCells = capture ? Array.from(cells) : null;
     const waves = [];
-    let resolved = false;
-    for (let it = 0; it < size * size * 8; it++) {
-      const wave = [];
-      for (let i = 0; i < cells.length; i++) if (cells[i] !== 0 && charge(cells[i]) >= 4) wave.push(i);
-      if (!wave.length) break;
-      const exploded = [];
-      for (const ei of wave) {
-        const src = cells[ei];
-        if (src === 0 || charge(src) < 4) continue;
-        const so = owner(src);
-        exploded.push(ei);
-        this.setCell(ei, 0);
-        for (const a of neighbors(ei, size)) this.setCell(a, encode(so, charge(cells[a]) + 1));
-        if (this.redCount === 0 || this.blueCount === 0) { resolved = true; break; }
-      }
-      if (capture && exploded.length) waves.push({ cells: Array.from(cells), exploding: exploded });
-      if (resolved) break;
+    // Color War rules (2026-11-24, same as index.html executeMove): each wave explodes all cells at >= 4 at once,
+    // an exploding cell keeps its remainder (count - 4), neighbours become the mover's; the next wave is the cells that
+    // received orbs and now hold >= 4. Cascades always run to the end (no mid-wave stop); elimination is checked after.
+    let wave = charge(cells[index]) >= 4 ? [index] : [];
+    for (let it = 0; it < size * size * 64 && wave.length; it++) {
+      const exploding = wave.filter(i => charge(cells[i]) >= 4);
+      if (!exploding.length) break;
+      for (const ei of exploding) { const left = charge(cells[ei]) - 4; this.setCell(ei, left > 0 ? encode(mover, left) : 0); }
+      const changed = new Set();
+      for (const ei of exploding) for (const a of neighbors(ei, size)) { this.setCell(a, encode(mover, Math.min(15, charge(cells[a]) + 1))); changed.add(a); }
+      if (capture) waves.push({ cells: Array.from(cells), exploding });
+      wave = [...changed].filter(i => charge(cells[i]) >= 4);
     }
     if (mover === 0) this.movesRed++; else this.movesBlue++;
     if (this.movesRed >= 1 && this.movesBlue >= 1) {
